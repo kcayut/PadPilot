@@ -16,7 +16,7 @@ echo "=================================================="
 echo "          🛑 PadPilot Uninstaller"
 echo "=================================================="
 
-# 1. Unload and remove LaunchAgent
+# 1. Unload and remove LaunchAgent & stop daemon process
 if [[ -f "$PLIST_DEST" ]]; then
     echo "Unloading LaunchAgent..."
     launchctl unload "$PLIST_DEST" 2>/dev/null || true
@@ -24,10 +24,20 @@ if [[ -f "$PLIST_DEST" ]]; then
     echo "  [✓] Removed LaunchAgent plist"
 fi
 
-# 2. Remove SwiftBar plugin symlink
+# Ensure all background daemon processes are terminated
+pkill -f "bin/padpilotd" 2>/dev/null || true
+pkill -f "padpilotd" 2>/dev/null || true
+echo "  [✓] Ensured background daemon processes are terminated"
+
+# 2. Remove SwiftBar plugin symlink & refresh
 if [[ -L "$SWIFTBAR_PLUGIN" || -f "$SWIFTBAR_PLUGIN" ]]; then
     rm -f "$SWIFTBAR_PLUGIN"
     echo "  [✓] Removed SwiftBar plugin link"
+fi
+
+if pgrep -x "SwiftBar" >/dev/null 2>&1 || pgrep -f "SwiftBar.app" >/dev/null 2>&1; then
+    open -g "swiftbar://refreshallplugins" 2>/dev/null || true
+    echo "  [✓] Refreshed SwiftBar menu bar"
 fi
 
 # 3. Handle runtime files
@@ -48,9 +58,10 @@ if [ "$PURGE" = true ]; then
     echo "  [✓] Purged configuration and logs"
 else
     echo ""
-    echo "Notice: Configuration and logs were preserved at:"
+    echo "Notice: Configuration, logs, and CLI binary were preserved at:"
     echo "  - $APP_SUPPORT/config.json"
     echo "  - $LOG_DIR"
+    echo "  - $HOME/bin/padpilot-cli (if linked)"
     echo "BetterDisplay, SwiftBar, and PadPilotVirtual were also preserved."
     echo "(To completely delete configurations and logs, re-run with: ./uninstall.sh --purge)"
 fi
