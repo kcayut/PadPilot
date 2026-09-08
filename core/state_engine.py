@@ -157,9 +157,9 @@ class StateEngine:
             # Satisfied if at least one physical display is present and main
             if not actual.physical_displays:
                 return False
-            if actual.main_display and not actual.main_display.is_sidecar and not actual.main_display.is_virtual:
-                return True
-            return False
+            return bool(actual.main_display and any(
+                d.display_id == actual.main_display.display_id for d in actual.physical_displays
+            ))
 
         if target == DisplayRole.IPAD_MAIN:
             # Satisfied if Sidecar is connected, display is online, and main is Sidecar/iPad
@@ -175,13 +175,17 @@ class StateEngine:
             # Satisfied if Sidecar is connected and online, but NOT main
             if not (actual.sidecar_connected and actual.sidecar_display_online):
                 return False
-            if actual.main_display and not actual.main_display.is_sidecar:
-                return True
-            return False
+            if not actual.main_display or actual.main_display.is_sidecar:
+                return False
+            if actual.physical_displays:
+                return any(d.display_id == actual.main_display.display_id for d in actual.physical_displays)
+            return (actual.main_display.is_virtual and
+                    actual.main_display.name.casefold() == self.config.virtual_display_name.casefold())
 
         if target == DisplayRole.VIRTUAL:
             # Satisfied if fallback virtual display is connected and main
-            if actual.virtual_display_connected and actual.main_display and actual.main_display.is_virtual:
+            if (actual.virtual_display_connected and actual.main_display and actual.main_display.is_virtual
+                    and actual.main_display.name.casefold() == self.config.virtual_display_name.casefold()):
                 return True
             return False
 
@@ -209,7 +213,7 @@ class StateEngine:
         if runtime.user_override:
             if runtime.user_override.topology_generation == runtime.topology_generation:
                 override_role = runtime.user_override.target_role
-                if override_role == DisplayRole.NO_CHANGE:
+                if override_role == DisplayRole.IPAD_DISCONNECTED:
                     return DesiredState(
                         target_display_role=DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL,
                         reason="User requested iPad disconnect. Automatic reconnection paused until reset, mode or topology change.",
@@ -406,6 +410,10 @@ class StateEngine:
                 # Transition actions:
                 success = True
                 if desired.needs_sidecar_connect:
+                    if (not actual.physical_displays and actual.virtual_display_exists
+                            and not actual.virtual_display_connected):
+                        if not self.bd_cli.connect_virtual_display(self.config.virtual_display_name):
+                            logger.warning("Could not connect virtual fallback before Sidecar")
                     connected = False
                     while not connected and self.runtime.retry_count < self.config.max_retries:
                         self.runtime.transition_state = TransitionState.CONNECTING_SIDECAR
@@ -482,13 +490,8 @@ class StateEngine:
                 fresh_actual = self._observe()
                 self.desired = self.policy(fresh_actual, self.config, self.runtime)
                 sat = self.is_satisfied(self.actual, self.desired)
-                # Retire fallback only after the replacement is observed as main.
-                if success and sat and fresh_actual.main_display and not fresh_actual.main_display.is_virtual:
-                    if fresh_actual.virtual_display_connected:
-                        self.bd_cli.disconnect_virtual_display(self.config.virtual_display_name)
-                        self.actual = self._observe()
-                        self.desired = self.policy(self.actual, self.config, self.runtime)
-                        sat = self.is_satisfied(self.actual, self.desired)
+                # Keep the fallback connected: removing it coincided with Sidecar
+                # session termination during headless boot. iPad remains main.
                 if success and sat and self.runtime.cooldown_until <= time.time():
                     self.runtime.last_error = None
                 self._export_status(satisfied=sat)

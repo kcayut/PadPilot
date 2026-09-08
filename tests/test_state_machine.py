@@ -265,7 +265,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
 
     def test_virtual_display_lifecycle_in_transitions(self) -> None:
         """Verify connect_virtual_display is called on virtual transition,
-        and disconnect_virtual_display is called when switching to iPad/physical."""
+        and the fallback stays connected when switching to iPad."""
         # 1. Transition to Virtual
         actual_headless = ActualState(
             physical_displays=[],
@@ -306,7 +306,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
             virtual_display_connected=True,
         ), ((), False))
         self.engine._run_transition()
-        self.mock_bd_cli.disconnect_virtual_display.assert_called_with("PadPilotVirtual")
+        self.mock_bd_cli.disconnect_virtual_display.assert_not_called()
 
     def test_clear_user_override(self) -> None:
         """Verify clear_user_override clears override and falls back to PHYSICAL."""

@@ -21,6 +21,7 @@ class DisplayRole(str, Enum):
     PHYSICAL = "PHYSICAL"
     IPAD_MAIN = "IPAD_MAIN"
     IPAD_SECONDARY = "IPAD_SECONDARY"
+    IPAD_DISCONNECTED = "IPAD_DISCONNECTED"  # User override; policy selects a fallback.
     VIRTUAL = "VIRTUAL"
     NO_CHANGE = "NO_CHANGE"
 

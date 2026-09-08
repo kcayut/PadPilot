@@ -81,6 +81,14 @@ class RegressionTests(unittest.TestCase):
         self.assertFalse(self.engine.is_satisfied(actual, desired))
         self.assertEqual(desired.needs_main_display_target, "physical")
 
+    def test_secondary_with_virtual_main_is_not_satisfied_when_physical_returns(self):
+        actual = ActualState(physical_displays=[self.physical], main_display=self.virtual,
+                             virtual_display_connected=True, sidecar_connected=True, sidecar_display_online=True)
+        desired = self.engine.policy(actual, self.cfg, self.engine.runtime)
+        self.assertEqual(desired.target_display_role, DisplayRole.IPAD_SECONDARY)
+        self.assertFalse(self.engine.is_satisfied(actual, desired))
+        self.assertEqual(desired.needs_main_display_target, "physical")
+
     def test_failed_or_unobserved_main_switch_keeps_fallback(self):
         actual = ActualState(main_display=self.virtual, virtual_display_connected=True,
                              sidecar_connected=True, sidecar_display_online=True)
@@ -90,17 +98,30 @@ class RegressionTests(unittest.TestCase):
             self.engine.evaluate(async_transition=False)
             self.bd.disconnect_virtual_display.assert_not_called()
 
-    def test_successful_main_switch_retires_fallback_and_clears_error(self):
+    def test_successful_main_switch_keeps_fallback_and_clears_error(self):
         before = ActualState(main_display=self.virtual, virtual_display_connected=True,
                              sidecar_connected=True, sidecar_display_online=True)
         after = ActualState(main_display=self.ipad, virtual_display_connected=True,
                             sidecar_connected=True, sidecar_display_online=True)
-        final = ActualState(main_display=self.ipad, sidecar_connected=True, sidecar_display_online=True)
-        self.detector.observe.side_effect = [(before, ((), False)), (after, ((), False)), (final, ((), False))]
+        self.detector.observe.side_effect = [(before, ((), False)), (after, ((), False))]
         self.engine.runtime.last_error = "Previous failure"
         self.engine.evaluate(async_transition=False)
-        self.bd.disconnect_virtual_display.assert_called_once_with("PadPilotVirtual")
+        self.bd.disconnect_virtual_display.assert_not_called()
+        self.assertTrue(self.engine.actual.virtual_display_connected)
+        self.assertEqual(self.engine.actual.main_display, self.ipad)
         self.assertIsNone(self.engine.runtime.last_error)
+
+    def test_headless_connect_keeps_virtual_fallback_online(self):
+        before = ActualState(virtual_display_exists=True, sidecar_available=True)
+        after = ActualState(main_display=self.ipad, virtual_display_exists=True,
+                            virtual_display_connected=True, sidecar_connected=True,
+                            sidecar_display_online=True)
+        self.detector.observe.side_effect = [(before, ((), False)), (after, ((), False)), (after, ((), False))]
+        self.engine.evaluate(async_transition=False)
+        names = [entry[0] for entry in self.bd.mock_calls]
+        self.assertLess(names.index("connect_virtual_display"), names.index("connect_sidecar"))
+        self.bd.disconnect_virtual_display.assert_not_called()
+        self.assertTrue(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
 
     def test_manual_disconnect_is_not_undone_by_prefer_ipad(self):
         before = ActualState(physical_displays=[self.physical], main_display=self.physical,
@@ -109,7 +130,7 @@ class RegressionTests(unittest.TestCase):
         self.engine.runtime.mode = OperationMode.PREFER_IPAD
         self.detector.observe.side_effect = [(before, ((1,), False)), (before, ((1,), False)),
                                             (after, ((1,), False)), (after, ((1,), False))]
-        self.engine.set_user_override(DisplayRole.NO_CHANGE, async_transition=False)
+        self.engine.set_user_override(DisplayRole.IPAD_DISCONNECTED, async_transition=False)
         self.engine.evaluate(async_transition=False)
         self.bd.disconnect_sidecar.assert_called_once_with("TARGET")
         self.bd.connect_sidecar.assert_not_called()

@@ -65,7 +65,7 @@ class PadPilotDaemon:
             self.engine.set_user_override(DisplayRole.IPAD_MAIN)
             return "OK: iPad Main override set"
         elif action == "disconnect_ipad":
-            self.engine.set_user_override(DisplayRole.NO_CHANGE)
+            self.engine.set_user_override(DisplayRole.IPAD_DISCONNECTED)
             return "OK: Disconnect requested; automatic reconnection paused for this topology"
         elif action == "reconnect_sidecar":
             if not self.engine.reconnect_sidecar():
