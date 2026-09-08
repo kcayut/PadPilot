@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""PadPilot CLI (padpilot-cli) - Control, inspection, pairing, and status tool."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.autostart import (
+    disable_autostart,
+    enable_autostart,
+    is_autostart_enabled,
+    toggle_autostart,
+)
+from core.betterdisplay import BetterDisplayCLI
+from core.config import (
+    APP_SUPPORT_DIR,
+    get_config_file_path,
+    get_status_file_path,
+    load_config,
+    read_status,
+    save_config,
+)
+from core.detector import DisplayDetector
+from core.logger import get_log_file_path
+from core.models import OperationMode
+
+SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+
+
+def send_daemon_cmd(cmd: str, timeout: float = 3.0) -> str:
+    """Send command to running daemon via Unix socket."""
+    if not SOCKET_PATH.exists():
+        return "Daemon is not running. (Socket not found)"
+
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            s.connect(str(SOCKET_PATH))
+            s.sendall(cmd.encode("utf-8"))
+            return s.recv(2048).decode("utf-8")
+    except socket.timeout:
+        return "Daemon response timed out; the command may still be running."
+    except (ConnectionRefusedError, FileNotFoundError) as e:
+        return f"Daemon is not running. (Connection error: {e})"
+    except OSError as e:
+        return f"Daemon communication failed: {e}"
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    status = read_status()
+    if not status:
+        print("No active status found. Daemon may not be running yet.")
+        return
+
+    if args.json:
+        print(json.dumps(status, indent=2, ensure_ascii=False))
+        return
+
+    details = status.get("status_details", {})
+    mode = status.get("mode", "unknown")
+    icon = status.get("icon", "")
+
+    print(f"\n{icon}  PadPilot Display Status")
+    print("=" * 45)
+    print(f"Mode:              {mode.upper()}")
+    print(f"Physical Display:  {details.get('physical_display', 'None')}")
+    print(f"USB iPad:          {details.get('usb_ipad', 'Not Connected')}")
+    print(f"Sidecar:           {details.get('sidecar', 'Disconnected')}")
+    print(f"Current Main:      {details.get('current_main', 'None')}")
+    print("-" * 45)
+    print(f"Desired State:     {details.get('desired_role', 'None')}")
+    print(f"Actual State:      {details.get('actual_role_satisfied', 'None')}")
+    print(f"Reason:            {details.get('reason', 'None')}")
+    print(f"Topology Gen:      {details.get('generation', '0')}")
+    print("=" * 45 + "\n")
+
+
+def cmd_set_mode(args: argparse.Namespace) -> None:
+    mode_str = args.mode.lower()
+    valid_modes = [m.value for m in OperationMode]
+    if mode_str not in valid_modes:
+        print(f"Invalid mode '{mode_str}'. Must be one of: {', '.join(valid_modes)}")
+        sys.exit(1)
+
+    # 1. Immediately persist mode change in config.json
+    cfg = load_config()
+    cfg.mode = OperationMode(mode_str)
+    save_config(cfg)
+
+    # 2. Inform running daemon via IPC
+    resp = send_daemon_cmd(f"set_mode:{mode_str}")
+    if "Daemon is not running" in resp:
+        cmd_start(args)
+        time.sleep(1.0)
+        resp = send_daemon_cmd(f"set_mode:{mode_str}")
+
+    # 3. Refresh SwiftBar immediately
+    subprocess.run(
+        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
+        capture_output=True,
+        check=False,
+    )
+    print(resp)
+
+
+def cmd_action(args: argparse.Namespace) -> None:
+    resp = send_daemon_cmd(args.action)
+    if "Daemon is not running" in resp:
+        cmd_start(args)
+        time.sleep(1.0)
+        resp = send_daemon_cmd(args.action)
+    print(resp)
+
+
+def cmd_pair(args: argparse.Namespace) -> None:
+    print("\n🔍 Scanning for USB-connected iPad and available Sidecar devices...\n")
+    cfg = load_config()
+    bd_cli = BetterDisplayCLI(cfg.betterdisplaycli_path)
+    detector = DisplayDetector(cfg, bd_cli)
+
+    usb_devices = detector.parse_usb_devices()
+    apple_usbs = [u for u in usb_devices if u.get("vendor_id") == 1452]
+    sidecar_list = bd_cli.get_sidecar_list()
+
+    print("--- [USB Devices] ---")
+    if not apple_usbs:
+        print("  No Apple USB devices detected.")
+    else:
+        for i, u in enumerate(apple_usbs):
+            p_name = u.get("product_name") or u.get("name")
+            serial = u.get("serial") or "N/A"
+            print(f"  [{i+1}] {p_name} (USB Serial: {serial})")
+
+    print("\n--- [Sidecar Devices] ---")
+    if not sidecar_list:
+        print("  No Sidecar devices reported by BetterDisplay CLI.")
+    else:
+        for i, s in enumerate(sidecar_list):
+            print(f"  [{i+1}] {s.get('name')} (UUID: {s.get('uuid')})")
+
+    if args.interactive:
+        print("\nPairing Wizard:")
+        dev_name = input("Enter iPad Name (e.g. Cayut's iPad): ").strip()
+        sidecar_uuid = input("Enter Sidecar UUID (from list above, or press Enter to skip): ").strip()
+        usb_serial = input("Enter USB Serial (from list above, or press Enter to skip): ").strip()
+
+        if dev_name:
+            cfg.ipad.name = dev_name
+        if sidecar_uuid:
+            cfg.ipad.sidecar_uuid = sidecar_uuid
+        if usb_serial:
+            cfg.ipad.usb_serial = usb_serial
+
+        save_config(cfg)
+        print(f"\n✓ Saved pairing to {get_config_file_path()}:")
+        print(json.dumps(cfg.ipad.to_dict(), indent=2))
+        send_daemon_cmd("refresh")
+    else:
+        print("\nTo pair automatically, run: padpilot-cli pair --interactive")
+        print("Or set directly via: padpilot-cli set-ipad --name ... --sidecar-uuid ... --usb-serial ...")
+
+
+def cmd_set_ipad(args: argparse.Namespace) -> None:
+    cfg = load_config()
+    if args.name:
+        cfg.ipad.name = args.name
+    if args.sidecar_uuid:
+        cfg.ipad.sidecar_uuid = args.sidecar_uuid
+    if args.usb_serial:
+        cfg.ipad.usb_serial = args.usb_serial
+
+    save_config(cfg)
+    print("✓ Configured iPad settings updated:")
+    print(json.dumps(cfg.ipad.to_dict(), indent=2))
+    send_daemon_cmd("refresh")
+
+
+def cmd_prefs(args: argparse.Namespace) -> None:
+    cfg = load_config()
+    print(f"Configuration file: {get_config_file_path()}\n")
+    print(json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False))
+
+
+def cmd_open_log(args: argparse.Namespace) -> None:
+    log_file = get_log_file_path()
+    if not log_file.exists():
+        print(f"Log file does not exist yet at {log_file}")
+        return
+    subprocess.run(["open", str(log_file)])
+
+
+def cmd_stop(args: argparse.Namespace) -> None:
+    print("Stopping PadPilot daemon...")
+    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
+    if plist_path.exists():
+        subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
+
+    # Send stop to daemon if socket is still active
+    send_daemon_cmd("stop", timeout=1.0)
+    # pkill any remaining padpilotd processes
+    subprocess.run(["pkill", "-f", "bin/padpilotd"], capture_output=True, check=False)
+
+    # Clean up runtime files in all possible locations
+    for sf in [
+        Path.home() / "Library" / "Application Support" / "PadPilot" / "runtime" / "status.json",
+        Path("/tmp/PadPilot/runtime/status.json"),
+    ]:
+        if sf.exists():
+            try:
+                sf.unlink()
+            except OSError:
+                pass
+
+    if SOCKET_PATH.exists():
+        try:
+            SOCKET_PATH.unlink()
+        except OSError:
+            pass
+
+    # Notify SwiftBar to refresh
+    cfg = load_config()
+    subprocess.run(
+        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
+        capture_output=True,
+        check=False,
+    )
+    print("✓ PadPilot daemon has been stopped.")
+
+
+def cmd_start(args: argparse.Namespace) -> None:
+    print("Starting PadPilot daemon...")
+    cfg = load_config()
+    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
+    if cfg.autostart_on_login:
+        if not plist_path.exists():
+            enable_autostart()
+        else:
+            subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
+            subprocess.run(["launchctl", "load", str(plist_path)], capture_output=True, check=False)
+    else:
+        # Fallback to direct launch
+        daemon_bin = PROJECT_ROOT / "bin" / "padpilotd"
+        subprocess.Popen([sys.executable, str(daemon_bin)])
+
+    cfg = load_config()
+    # Ensure Menu Bar UI (SwiftBar) is running
+    if Path("/Applications/SwiftBar.app").exists():
+        res = subprocess.run(["pgrep", "-f", "SwiftBar"], capture_output=True, text=True, check=False)
+        if res.returncode != 0:
+            subprocess.Popen(["open", "-a", "SwiftBar"])
+
+    subprocess.run(
+        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
+        capture_output=True,
+        check=False,
+    )
+    print("✓ PadPilot daemon has been started.")
+
+
+def cmd_autostart(args: argparse.Namespace) -> None:
+    action = getattr(args, "action", "status") or "status"
+    if action == "status":
+        enabled = is_autostart_enabled()
+        status_str = "Enabled (will automatically run at login)" if enabled else "Disabled (will not run at login)"
+        print(f"PadPilot Autostart: {status_str}")
+    elif action == "enable":
+        ok, msg = enable_autostart()
+        print(msg)
+    elif action == "disable":
+        ok, msg = disable_autostart()
+        print(msg)
+    elif action == "toggle":
+        ok, msg = toggle_autostart()
+        print(msg)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
+    subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
+
+    # start
+    p_start = subparsers.add_parser("start", help="Start the background daemon")
+    p_start.set_defaults(func=cmd_start)
+
+    # stop
+    p_stop = subparsers.add_parser("stop", help="Stop the background daemon")
+    p_stop.set_defaults(func=cmd_stop)
+
+    # autostart
+    p_auto = subparsers.add_parser("autostart", help="Manage daemon autostart on login (status/enable/disable/toggle)")
+    p_auto.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["enable", "disable", "toggle", "status"],
+        help="Autostart action (default: status)",
+    )
+    p_auto.set_defaults(func=cmd_autostart)
+
+    # status
+    p_status = subparsers.add_parser("status", help="Show current display and automation status")
+    p_status.add_argument("--json", action="store_true", help="Output raw JSON status")
+    p_status.set_defaults(func=cmd_status)
+
+    # set-mode
+    p_mode = subparsers.add_parser("set-mode", help="Change operational mode")
+    p_mode.add_argument("mode", choices=["automatic", "manual_only", "prefer_ipad"])
+    p_mode.set_defaults(func=cmd_set_mode)
+
+    # action
+    p_act = subparsers.add_parser("action", help="Trigger an immediate action")
+    p_act.add_argument(
+        "action",
+        choices=[
+            "use_ipad_secondary",
+            "use_ipad_main",
+            "disconnect_ipad",
+            "reconnect_sidecar",
+            "refresh",
+            "reset",
+        ],
+    )
+    p_act.set_defaults(func=cmd_action)
+
+    # pair
+    p_pair = subparsers.add_parser("pair", help="Scan and pair connected iPad")
+    p_pair.add_argument("--interactive", "-i", action="store_true", help="Run interactive pairing wizard")
+    p_pair.set_defaults(func=cmd_pair)
+
+    # set-ipad
+    p_set_ipad = subparsers.add_parser("set-ipad", help="Directly set iPad configuration")
+    p_set_ipad.add_argument("--name", help="iPad Display Name")
+    p_set_ipad.add_argument("--sidecar-uuid", help="Sidecar UUID")
+    p_set_ipad.add_argument("--usb-serial", help="USB Serial number")
+    p_set_ipad.set_defaults(func=cmd_set_ipad)
+
+    # prefs
+    p_prefs = subparsers.add_parser("prefs", help="View preferences")
+    p_prefs.set_defaults(func=cmd_prefs)
+
+    # open-log
+    p_log = subparsers.add_parser("open-log", help="Open PadPilot log file in Console/TextEdit")
+    p_log.set_defaults(func=cmd_open_log)
+
+    args = parser.parse_args()
+    if not args.subcommand:
+        # Default to status if no subcommand provided
+        cmd_status(argparse.Namespace(json=False))
+    else:
+        args.func(args)
+
+
+if __name__ == "__main__":
+    main()

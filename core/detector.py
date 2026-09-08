@@ -1,0 +1,285 @@
+"""Hardware and display topology detector for PadPilot.
+
+Uses CoreGraphics (ctypes) and IOKit (ioreg) for low-cost, high-speed detection.
+Does not rely on high-frequency system_profiler polling.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import re
+import subprocess
+import time
+from ctypes import byref, c_uint32
+from typing import Any, List, Optional, Set, Tuple
+
+from core.betterdisplay import BetterDisplayCLI
+from core.config import Config
+from core.logger import get_logger
+from core.models import ActualState, DisplayInfo
+
+logger = get_logger("Detector")
+
+
+class DisplayDetector:
+    """Detects physical displays, USB iPads, and Sidecar sessions."""
+
+    def __init__(self, config: Config, bd_cli: BetterDisplayCLI) -> None:
+        self.config = config
+        self.bd_cli = bd_cli
+        self._cg = self._init_coregraphics()
+
+    def _init_coregraphics(self) -> Optional[ctypes.CDLL]:
+        try:
+            return ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
+        except Exception as e:
+            logger.error(f"Failed to load CoreGraphics: {e}")
+            return None
+
+    def get_online_displays(self) -> List[DisplayInfo]:
+        """Fetch all online displays via CoreGraphics."""
+        if not self._cg:
+            return []
+
+        max_displays = 32
+        display_ids = (c_uint32 * max_displays)()
+        count = c_uint32()
+
+        try:
+            err = self._cg.CGGetOnlineDisplayList(max_displays, display_ids, byref(count))
+            if err != 0:
+                logger.warning(f"CGGetOnlineDisplayList returned error: {err}")
+                return []
+        except Exception as e:
+            logger.error(f"CGGetOnlineDisplayList exception: {e}")
+            return []
+
+        # BetterDisplay identifiers lookup
+        bd_map = {}
+        try:
+            for item in self.bd_cli.get_display_identifiers():
+                d_id = str(item.get("displayID", ""))
+                if d_id:
+                    bd_map[d_id] = item
+        except Exception:
+            pass
+
+        displays: List[DisplayInfo] = []
+        for i in range(count.value):
+            did = display_ids[i]
+            is_active = bool(self._cg.CGDisplayIsActive(did))
+            is_main = bool(self._cg.CGDisplayIsMain(did))
+            is_builtin = bool(self._cg.CGDisplayIsBuiltin(did))
+            w = int(self._cg.CGDisplayPixelsWide(did))
+            h = int(self._cg.CGDisplayPixelsHigh(did))
+
+            vendor = int(self._cg.CGDisplayVendorNumber(did))
+            model = int(self._cg.CGDisplayModelNumber(did))
+
+            # Filter out ghost / inactive / placeholder 0x0 or 1x1 displays
+            # Apple Silicon creates dummy Display 1 (e.g. 0x0, 1x1, inactive) when booting headless
+            if not is_active or w <= 1 or h <= 1:
+                logger.debug(f"Ignoring inactive or placeholder display: did={did}, active={is_active}, {w}x{h}")
+                continue
+
+            # If vendor is 0 and model is 0 without a matching BetterDisplay item, it's a headless placeholder
+            if vendor == 0 and model == 0 and str(did) not in bd_map:
+                logger.debug(f"Ignoring headless placeholder display with vendor 0: did={did}")
+                continue
+
+            is_sidecar = False
+            is_virtual = False
+
+            # Check from BetterDisplay
+            bd_item = bd_map.get(str(did))
+            if bd_item:
+                name = bd_item.get("name") or f"Display-{did}"
+                if (
+                    bd_item.get("deviceType") == "VirtualScreen"
+                    or bd_item.get("vendor") == "2198"
+                    or "virtual" in name.lower()
+                    or (self.config.virtual_display_name and self.config.virtual_display_name.lower() in name.lower())
+                ):
+                    is_virtual = True
+                # Sidecar in BetterDisplay has vendor 1633775724 / model 1766875492 or empty registryLocation
+                if (
+                    bd_item.get("vendor") == "1633775724"
+                    or bd_item.get("model") == "1766875492"
+                    or "ipad" in name.lower()
+                ):
+                    is_sidecar = True
+            else:
+                # CoreGraphics fallback
+                name = f"Display-{did}"
+                if vendor == 0x0469:
+                    name = f"ASUS Display ({w}x{h})"
+                elif vendor == 0x6161706C or model == 0x69506164:
+                    name = self.config.ipad.name or f"iPad ({w}x{h})"
+                    is_sidecar = True
+                elif vendor == 2198 or vendor == 0x0896:
+                    name = self.config.virtual_display_name or "PadPilotVirtual"
+                    is_virtual = True
+                elif vendor != 0:
+                    name = f"Monitor 0x{vendor:x} ({w}x{h})"
+
+            displays.append(
+                DisplayInfo(
+                    display_id=did,
+                    name=name,
+                    is_main=is_main,
+                    is_builtin=is_builtin,
+                    is_virtual=is_virtual,
+                    is_sidecar=is_sidecar,
+                    width=w,
+                    height=h,
+                )
+            )
+
+        return displays
+
+    def parse_usb_devices(self) -> List[dict[str, Any]]:
+        """Parse connected USB devices from IOKit USB tree."""
+        try:
+            out = subprocess.check_output(
+                ["ioreg", "-p", "IOUSB", "-w0", "-l"],
+                text=True,
+                timeout=3.0,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to query ioreg for USB: {e}")
+            return []
+
+        devices: List[dict[str, Any]] = []
+        blocks = out.split("+-o ")
+        for b in blocks[1:]:
+            name_match = re.match(r"([^@]+)@([0-9a-fA-F]+)", b)
+            name = name_match.group(1).strip() if name_match else "Unknown"
+
+            vendor_id_m = re.search(r'"idVendor"\s*=\s*(\d+)', b)
+            product_id_m = re.search(r'"idProduct"\s*=\s*(\d+)', b)
+            serial_m = re.search(r'"(?:kUSBSerialNumberString|USB Serial Number)"\s*=\s*"([^"]+)"', b)
+            product_name_m = re.search(r'"(?:kUSBProductString|USB Product Name)"\s*=\s*"([^"]+)"', b)
+            vendor_name_m = re.search(r'"(?:kUSBVendorString|USB Vendor Name)"\s*=\s*"([^"]+)"', b)
+
+            if vendor_id_m:
+                devices.append(
+                    {
+                        "name": name,
+                        "vendor_id": int(vendor_id_m.group(1)),
+                        "product_id": int(product_id_m.group(1)) if product_id_m else None,
+                        "serial": serial_m.group(1) if serial_m else None,
+                        "product_name": product_name_m.group(1) if product_name_m else None,
+                        "vendor_name": vendor_name_m.group(1) if vendor_name_m else None,
+                    }
+                )
+
+        return devices
+
+    def is_display_ignored(self, d: DisplayInfo) -> bool:
+        """Check if display matches the ignore list or is virtual/sidecar/dummy."""
+        name_lower = d.name.strip().lower()
+        # ponytail: exact names observed on this headless Mac; use EDID evidence
+        # if a real monitor also reports one of these names.
+        if name_lower in {"generic", "generic display"}:
+            return True
+        if "dummy" in name_lower or "headless" in name_lower:
+            return True
+        # Virtual display check
+        if (self.config.virtual_display_name and self.config.virtual_display_name.lower() in name_lower) or "virtual" in name_lower:
+            return True
+        # Ignore list check
+        for pattern in self.config.ignore_list:
+            if pattern and pattern.lower() in name_lower:
+                return True
+        return False
+
+    def observe(self, current_generation: int = 0) -> Tuple[ActualState, Tuple[Any, ...]]:
+        """Observe the current hardware state and calculate deterministic signature.
+        
+        Returns:
+            (ActualState, deterministic_signature_tuple)
+        """
+        t0 = time.time()
+        all_displays = self.get_online_displays()
+        usb_devices = self.parse_usb_devices()
+
+        # Check virtual display
+        v_exists, v_conn = self.bd_cli.check_virtual_display(self.config.virtual_display_name)
+
+        # Check Sidecar
+        sidecar_list = self.bd_cli.get_sidecar_list()
+        sidecar_available = len(sidecar_list) > 0
+        sidecar_connected = False
+        sidecar_display_online = False
+
+        # Configured iPad matching
+        target_sidecar_uuid = self.config.ipad.sidecar_uuid
+        target_usb_serial = self.config.ipad.usb_serial
+        target_name = self.config.ipad.name
+
+        if target_sidecar_uuid:
+            sidecar_available = any(d.get("uuid") == target_sidecar_uuid for d in sidecar_list)
+
+        # Detect if USB iPad is present
+        ipad_usb_present = False
+        for u in usb_devices:
+            if u["vendor_id"] == 1452:  # Apple Inc.
+                # If specific USB serial configured, check exact match
+                if target_usb_serial:
+                    if u.get("serial") == target_usb_serial:
+                        ipad_usb_present = True
+                        break
+                else:
+                    # Fallback check on product name
+                    p_name = (u.get("product_name") or u.get("name") or "").lower()
+                    if "ipad" in p_name:
+                        ipad_usb_present = True
+                        break
+
+        # Filter physical displays and identify Sidecar displays
+        physical_displays: List[DisplayInfo] = []
+        main_display: Optional[DisplayInfo] = None
+
+        for d in all_displays:
+            if d.is_main:
+                main_display = d
+
+            # Check if this display is Sidecar
+            d_name_lower = d.name.lower()
+            if d.is_sidecar or "sidecar" in d_name_lower or (target_name and target_name.lower() in d_name_lower) or "ipad" in d_name_lower:
+                d.is_sidecar = True
+                sidecar_display_online = True
+                sidecar_connected = True
+                continue
+
+            if d.is_virtual or self.is_display_ignored(d):
+                d.is_virtual = True
+                continue
+
+            physical_displays.append(d)
+
+        # Deterministic topology signature per requirement 1:
+        # Tuple of (tuple of sorted physical display IDs, ipad_usb_present)
+        physical_ids = tuple(sorted(d.display_id for d in physical_displays))
+        deterministic_signature = (physical_ids, ipad_usb_present)
+
+        actual = ActualState(
+            physical_displays=physical_displays,
+            main_display=main_display,
+            virtual_display_exists=v_exists,
+            virtual_display_connected=v_conn,
+            ipad_usb_present=ipad_usb_present,
+            sidecar_available=sidecar_available,
+            sidecar_connected=sidecar_connected,
+            sidecar_display_online=sidecar_display_online,
+            sleeping=False,
+            topology_generation=current_generation,
+            timestamp=time.time(),
+        )
+
+        duration_ms = (time.time() - t0) * 1000
+        if duration_ms > 300:
+            logger.debug(f"Topology observation took {duration_ms:.1f}ms")
+
+        return actual, deterministic_signature

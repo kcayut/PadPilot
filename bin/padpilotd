@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""PadPilot Daemon (padpilotd) - Background Display State Manager."""
+
+from __future__ import annotations
+
+import os
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.betterdisplay import BetterDisplayCLI
+from core.config import APP_SUPPORT_DIR, load_config
+from core.detector import DisplayDetector
+from core.logger import get_logger
+from core.models import DisplayRole, OperationMode
+from core.state_engine import StateEngine
+
+logger = get_logger("Daemon")
+
+SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+
+
+class PadPilotDaemon:
+    def __init__(self) -> None:
+        self.running = True
+        self.config = load_config()
+        self.ensure_betterdisplay_running()
+        self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
+        self.detector = DisplayDetector(self.config, self.bd_cli)
+        self.engine = StateEngine(self.config, self.detector, self.bd_cli)
+
+    def handle_client_cmd(self, cmd: str) -> str:
+        cmd = cmd.strip()
+        logger.info(f"Received IPC command: {cmd}")
+
+        self.config = load_config()
+        self.detector.config = self.config
+        self.engine.config = self.config
+
+        parts = cmd.split(":", 1)
+        action = parts[0]
+        arg = parts[1] if len(parts) > 1 else ""
+
+        if action == "status":
+            return "OK"
+        elif action == "set_mode":
+            try:
+                mode = OperationMode(arg)
+                self.engine.set_mode(mode)
+                return f"OK: Mode set to {mode.value}"
+            except ValueError:
+                return f"ERROR: Invalid mode {arg}"
+        elif action == "use_ipad_secondary":
+            self.engine.set_user_override(DisplayRole.IPAD_SECONDARY)
+            return "OK: iPad Secondary override set"
+        elif action == "use_ipad_main":
+            self.engine.set_user_override(DisplayRole.IPAD_MAIN)
+            return "OK: iPad Main override set"
+        elif action == "disconnect_ipad":
+            self.engine.set_user_override(DisplayRole.NO_CHANGE)
+            return "OK: Disconnect requested; automatic reconnection paused for this topology"
+        elif action == "reconnect_sidecar":
+            if not self.engine.reconnect_sidecar():
+                return "ERROR: Sidecar disconnect failed; reconnect was not started"
+            return "OK: Reconnect requested"
+        elif action == "refresh":
+            self.engine.evaluate(trigger="manual_refresh")
+            return "OK: Refreshed"
+        elif action == "reset":
+            self.engine.reset_automation()
+            return "OK: Automation state reset"
+        elif action == "stop":
+            logger.info("Daemon stop requested via IPC")
+            self.running = False
+            return "OK: Daemon stopping"
+        else:
+            return f"ERROR: Unknown command {cmd}"
+
+    def run_ipc_server(self) -> None:
+        """Lightweight Unix Domain Socket server for instant IPC response."""
+        APP_SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+        if SOCKET_PATH.exists():
+            SOCKET_PATH.unlink()
+
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(str(SOCKET_PATH))
+        server.listen(5)
+        server.settimeout(1.0)
+
+        logger.info(f"IPC Server listening at {SOCKET_PATH}")
+
+        while self.running:
+            try:
+                conn, _ = server.accept()
+                with conn:
+                    data = conn.recv(1024).decode("utf-8")
+                    if data:
+                        with self.engine._eval_lock:
+                            resp = self.handle_client_cmd(data)
+                        conn.sendall(resp.encode("utf-8"))
+            except socket.timeout:
+                continue
+            except Exception as e:
+                if self.running:
+                    logger.warning(f"IPC server error: {e}")
+
+        server.close()
+        if SOCKET_PATH.exists():
+            SOCKET_PATH.unlink()
+
+    def ensure_betterdisplay_running(self) -> None:
+        """Ensure BetterDisplay app is running."""
+        bd_app = Path("/Applications/BetterDisplay.app")
+        if not bd_app.exists():
+            return
+        res = subprocess.run(["pgrep", "-f", "BetterDisplay"], capture_output=True, text=True, check=False)
+        if res.returncode != 0:
+            logger.info("BetterDisplay not running; launching BetterDisplay app...")
+            try:
+                subprocess.Popen(["open", "-a", "BetterDisplay"])
+                time.sleep(2.0)
+            except Exception as e:
+                logger.warning(f"Could not auto-launch BetterDisplay: {e}")
+
+    def ensure_swiftbar_running(self) -> None:
+        """Ensure SwiftBar Menu Bar app is running."""
+        swiftbar_app = Path("/Applications/SwiftBar.app")
+        if not swiftbar_app.exists():
+            return
+        res = subprocess.run(["pgrep", "-f", "SwiftBar"], capture_output=True, text=True, check=False)
+        if res.returncode != 0:
+            logger.info("SwiftBar not running; launching SwiftBar Menu Bar app...")
+            try:
+                subprocess.Popen(["open", "-a", "SwiftBar"])
+            except Exception as e:
+                logger.warning(f"Could not auto-launch SwiftBar: {e}")
+
+    def start(self) -> None:
+        logger.info("PadPilot Daemon starting up...")
+
+        # Ensure BetterDisplay and Menu Bar UI (SwiftBar) are running
+        self.ensure_betterdisplay_running()
+        self.ensure_swiftbar_running()
+
+        # Capability probe and virtual display check
+        ok, msg = self.bd_cli.ensure_virtual_display(self.config.virtual_display_name)
+        logger.info(f"Virtual display check: {msg}")
+
+        # Start IPC server thread
+        ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
+        ipc_thread.start()
+
+        # Initial evaluate
+        self.engine.evaluate(trigger="startup")
+
+        # Boot Warmup: In the first 30 seconds after startup, macOS Bluetooth, AWDL,
+        # and Continuity take 5-15s to discover the iPad. If not yet satisfied,
+        # poll rapidly every 2 seconds to connect Sidecar as soon as iPad appears,
+        # rather than waiting for the standard 30-second watchdog interval.
+        logger.info("Entering boot warmup phase (fast-polling every 2s for up to 30s)...")
+        warmup_end = time.time() + 30.0
+        while self.running and time.time() < warmup_end:
+            time.sleep(2.0)
+            if not self.running:
+                break
+            # Fresh evaluation on every tick
+            self.engine.evaluate(trigger="boot_warmup")
+            if (
+                self.engine.actual
+                and self.engine.desired
+                and self.engine.is_satisfied(self.engine.actual, self.engine.desired)
+            ):
+                real_physical = [
+                    d for d in self.engine.actual.physical_displays
+                    if not d.is_virtual and not d.is_sidecar and d.width > 1 and d.height > 1
+                ]
+                if len(real_physical) > 0 or self.engine.actual.sidecar_connected:
+                    logger.info(
+                        f"Display state satisfied during warmup (real_physical={[d.name for d in real_physical]}, "
+                        f"sidecar_connected={self.engine.actual.sidecar_connected}). Transitioning to standard watchdog."
+                    )
+                    break
+
+        # 30-second Watchdog loop
+        logger.info("Entering 30-second watchdog reconciliation loop")
+        while self.running:
+            time.sleep(30)
+            if self.running:
+                self.engine.evaluate(trigger="watchdog_30s")
+
+    def stop(self) -> None:
+        logger.info("Stopping PadPilot Daemon...")
+        self.running = False
+
+
+def main() -> None:
+    daemon = PadPilotDaemon()
+
+    def handle_signal(sig: int, frame: Any) -> None:
+        daemon.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
+    daemon.start()
+
+
+if __name__ == "__main__":
+    main()
