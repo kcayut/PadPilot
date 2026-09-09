@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -17,6 +18,7 @@ from tkinter import messagebox, ttk
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, get_config_file_path, read_status
 from core.detector import DisplayDetector
+from core.logger import get_log_file_path
 from core.models import pairing_key
 from core.settings import is_virtual_device
 
@@ -184,10 +186,11 @@ class Card(tk.Frame):
 
 
 class SettingsWindow:
-    def __init__(self, root: tk.Tk, page: str = 'wizard'):
+    def __init__(self, root: tk.Tk, page: str = 'paired'):
         self.root = root
-        self.readonly = (page == 'settings')
-        self.current_tab = 'settings' if self.readonly else 'paired'
+        self.readonly = False
+        valid_tabs = {'paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics'}
+        self.current_tab = page if page in valid_tabs else 'paired'
         self.view = {'config': Config(), 'actual': {}, 'identifiers': [], 'fresh': False, 'status': {}}
         self.busy = False
         self.results = queue.Queue()
@@ -200,11 +203,13 @@ class SettingsWindow:
         self.selected_profile_key = None
         self.selected_candidate = None
         self.selected_virtual = None
+        self.log_filter_var = tk.StringVar(value='全部')
+        self.log_search_var = tk.StringVar(value='')
 
         # Window setup: font sizes reduced by 2 points across the board
-        root.title('PadPilot — 設定總覽' if self.readonly else 'PadPilot — 螢幕與配對管理')
-        root.geometry('940x580')
-        root.minsize(820, 480)
+        root.title('PadPilot — 螢幕與配對管理')
+        root.geometry('960x620')
+        root.minsize(840, 500)
         root.configure(background=BG)
 
         # Style setup
@@ -277,6 +282,7 @@ class SettingsWindow:
             ('settings', '⚙️', '運作與偏好'),
             ('displays', '🖥️', '連線螢幕狀態'),
             ('virtual', '◻️', '虛擬備援螢幕'),
+            ('diagnostics', '🩺', '狀態與診斷'),
         ]
 
         for tab_id, icon, label in self.nav_items:
@@ -354,22 +360,31 @@ class SettingsWindow:
         def _update_scrollregion():
             if not self.canvas.winfo_exists():
                 return
-            bbox = self.canvas.bbox('all')
-            if not bbox:
-                return
-            content_height = bbox[3] - bbox[1]
+            canvas_width = self.canvas.winfo_width()
             canvas_height = self.canvas.winfo_height()
-            if content_height <= canvas_height + 5:
-                self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), max(canvas_height, 1)))
+            if canvas_width <= 1 or canvas_height <= 1:
+                return
+
+            if self.current_tab == 'diagnostics':
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=canvas_height)
+                self.canvas.configure(scrollregion=(0, 0, canvas_width, canvas_height))
+                self.canvas.yview_moveto(0.0)
+                return
+
+            req_h = self.scroll_frame.winfo_reqheight()
+            if req_h <= canvas_height + 5:
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=canvas_height)
+                self.canvas.configure(scrollregion=(0, 0, canvas_width, max(canvas_height, 1)))
                 self.canvas.yview_moveto(0.0)
             else:
-                self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), bbox[3]))
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=req_h)
+                self.canvas.configure(scrollregion=(0, 0, canvas_width, req_h))
 
+        self._update_scrollregion = _update_scrollregion
         self.scroll_frame.bind('<Configure>', lambda e: _update_scrollregion())
         self.canvas_window = self.canvas.create_window((0, 0), window=self.scroll_frame, anchor='nw')
 
         def _on_canvas_resize(event):
-            self.canvas.itemconfig(self.canvas_window, width=event.width)
             _update_scrollregion()
 
         self.canvas.bind('<Configure>', _on_canvas_resize)
@@ -378,6 +393,9 @@ class SettingsWindow:
         # Gentle Mousewheel binding: only scrolls when content actually exceeds canvas height
         def _on_mousewheel(event):
             if not self.canvas.winfo_exists():
+                return
+            # Diagnostics page is full-screen and never scrolls the outer window
+            if self.current_tab == 'diagnostics':
                 return
             try:
                 x, y = self.root.winfo_pointerxy()
@@ -388,14 +406,11 @@ class SettingsWindow:
                 if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
                     return
 
-                bbox = self.canvas.bbox('all')
-                if not bbox:
-                    return
-                content_height = bbox[3] - bbox[1]
+                req_h = self.scroll_frame.winfo_reqheight()
                 canvas_height = self.canvas.winfo_height()
 
                 # If content fits completely inside the window, NEVER scroll!
-                if content_height <= canvas_height + 5:
+                if req_h <= canvas_height + 5:
                     self.canvas.yview_moveto(0.0)
                     return
 
@@ -449,14 +464,15 @@ class SettingsWindow:
             'settings': ('運作與偏好設定', '檢視與即時切換運作模式、登入啟動狀態與防護參數'),
             'displays': ('目前連線螢幕', '檢視當前上線的實體螢幕、Sidecar 與虛擬備援螢幕'),
             'virtual': ('虛擬備援螢幕', '選擇並指定 BetterDisplay 虛擬螢幕作為無頭備援'),
+            'diagnostics': ('狀態與診斷', '檢視系統即時決策狀態、狀態機轉換與運行日誌'),
         }
         t, st = titles.get(tab_id, ('PadPilot', ''))
-        if self.readonly:
-            st += '（唯讀模式）'
         self.title_label.configure(text=t)
         self.subtitle_label.configure(text=st)
 
         self.render_current_tab()
+        if hasattr(self, '_update_scrollregion'):
+            self.root.after_idle(self._update_scrollregion)
 
     def make_badge(self, parent, text: str, bg: str, fg: str) -> tk.Label:
         return tk.Label(parent, text=f" {text} ", font=('Helvetica Neue', 9, 'bold'),
@@ -480,8 +496,12 @@ class SettingsWindow:
             self.render_displays_tab()
         elif self.current_tab == 'virtual':
             self.render_virtual_tab()
+        elif self.current_tab == 'diagnostics':
+            self.render_diagnostics_tab()
 
         self.canvas.yview_moveto(0)
+        if hasattr(self, '_update_scrollregion'):
+            self._update_scrollregion()
 
     def render_paired_tab(self):
         cfg = self.view['config']
@@ -965,6 +985,213 @@ class SettingsWindow:
                 set_btn.pack(side='left', padx=(6, 0))
                 self.buttons.append(set_btn)
 
+    def render_diagnostics_tab(self):
+        status = self.view.get('status') or {}
+        actual = self.view.get('actual') or {}
+        desired = status.get('desired') or {}
+        runtime = status.get('runtime') or {}
+        details = status.get('status_details') or {}
+        fresh = self.view.get('fresh', False)
+
+        # Card 1: 決策與系統診斷 (Decision & System Diagnostics)
+        diag_card = Card(self.scroll_frame, padx=12, pady=6)
+        diag_card.pack(fill='x', padx=18, pady=(0, 4))
+
+        top_r = tk.Frame(diag_card.body, bg=CARD_BG)
+        top_r.pack(fill='x', pady=(0, 2))
+        tk.Label(top_r, text='🩺 自動化決策與狀態機', font=('Helvetica Neue', 11, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+
+        # Action buttons on right
+        act_box = tk.Frame(top_r, bg=CARD_BG)
+        act_box.pack(side='right')
+
+        ref_btn = ttk.Button(
+            act_box, text='重新整理',
+            command=self.search,
+            style='Secondary.TButton'
+        )
+        ref_btn.pack(side='left')
+        self.buttons.append(ref_btn)
+
+        # Decision metrics
+        d_role = desired.get('target_display_role') or details.get('desired_role') or '未知'
+        d_sat = details.get('actual_role_satisfied') or ('已滿足' if actual.get('sidecar_connected') else '評估中')
+        d_reason = desired.get('reason') or details.get('reason') or '尚無背景決策資訊'
+        t_state = runtime.get('transition_state') or 'IDLE'
+        last_err = runtime.get('last_error') or '無'
+        cooldown = runtime.get('cooldown_until', 0)
+        is_cooldown = isinstance(cooldown, (int, float)) and cooldown > time.time()
+
+        r1 = tk.Frame(diag_card.body, bg=CARD_BG)
+        r1.pack(fill='x', pady=1)
+        tk.Label(r1, text='期望目標：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+        self.make_badge(r1, d_role, BLUE_TINT, BLUE).pack(side='left', padx=2)
+
+        tk.Label(r1, text='實際狀態：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', padx=(8, 0))
+        self.make_badge(r1, d_sat if fresh else '資料待更新',
+                        GREEN_BG if 'Satisfied' in d_sat or '滿足' in d_sat else ORANGE_BG,
+                        GREEN_FG if 'Satisfied' in d_sat or '滿足' in d_sat else ORANGE_FG).pack(side='left', padx=2)
+
+        tk.Label(r1, text='狀態機轉換：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', padx=(8, 0))
+        self.make_badge(r1, t_state, '#f2f2f7', TEXT_SECONDARY).pack(side='left', padx=2)
+
+        if is_cooldown:
+            self.make_badge(r1, '⚠️ 冷卻保護中', RED_BG, RED).pack(side='left', padx=2)
+
+        # Decision reason
+        r2 = tk.Frame(diag_card.body, bg=CARD_BG)
+        r2.pack(fill='x', pady=(2, 1))
+        tk.Label(r2, text='決策依據：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+        tk.Label(r2, text=d_reason, font=('Helvetica Neue', 10),
+                 fg=TEXT_SECONDARY, bg=CARD_BG, justify='left').pack(side='left', padx=2)
+
+        # Errors if any
+        if last_err and last_err != '無':
+            r3 = tk.Frame(diag_card.body, bg=CARD_BG)
+            r3.pack(fill='x', pady=1)
+            tk.Label(r3, text='最近錯誤：', font=('Helvetica Neue', 10, 'bold'),
+                     fg=RED, bg=CARD_BG).pack(side='left')
+            tk.Label(r3, text=last_err, font=('Helvetica Neue', 10),
+                     fg=RED, bg=CARD_BG).pack(side='left', padx=2)
+
+        # Card 2: 系統運行日誌 (System Logs) - expands to fill remaining space
+        log_card = Card(self.scroll_frame, padx=12, pady=6)
+        log_card.pack(fill='both', expand=True, padx=18, pady=(0, 4))
+
+        l_top = tk.Frame(log_card.body, bg=CARD_BG)
+        l_top.pack(fill='x', pady=(0, 4))
+
+        tk.Label(l_top, text='📜 系統運行日誌 (padpilot.log)', font=('Helvetica Neue', 11, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+
+        l_tools = tk.Frame(l_top, bg=CARD_BG)
+        l_tools.pack(side='right')
+
+        # Filter combobox
+        tk.Label(l_tools, text='篩選：', font=('Helvetica Neue', 9),
+                 fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left')
+        filter_cb = ttk.Combobox(
+            l_tools, textvariable=self.log_filter_var, state='readonly',
+            values=['全部', '僅 WARNING / ERROR', '僅 ERROR', '僅 INFO'],
+            width=14, style='TCombobox'
+        )
+        filter_cb.pack(side='left', padx=(0, 6))
+        filter_cb.bind('<<ComboboxSelected>>', lambda e: self.refresh_logs())
+
+        # Search keyword entry
+        search_entry = tk.Entry(
+            l_tools, textvariable=self.log_search_var, font=('Helvetica Neue', 9),
+            width=12, bg='#ffffff', fg=TEXT_PRIMARY, insertbackground=TEXT_PRIMARY,
+            highlightbackground='#d1d1d6', highlightthickness=1, relief='flat'
+        )
+        search_entry.pack(side='left', padx=(0, 6))
+        search_entry.bind('<KeyRelease>', lambda e: self.refresh_logs())
+
+        reload_log_btn = ttk.Button(l_tools, text='🔄 刷新日誌', command=self.refresh_logs, style='Secondary.TButton')
+        reload_log_btn.pack(side='left', padx=(0, 4))
+        self.buttons.append(reload_log_btn)
+
+        open_ext_btn = ttk.Button(l_tools, text='外部開啟', command=self.open_external_log, style='Secondary.TButton')
+        open_ext_btn.pack(side='left')
+        self.buttons.append(open_ext_btn)
+
+        # Log Text Box (Dark console theme with syntax colors)
+        log_frame = tk.Frame(log_card.body, bg='#1a1b20', highlightbackground='#2d2f36',
+                             highlightthickness=1)
+        log_frame.pack(fill='both', expand=True, pady=(2, 0))
+
+        self.log_text = tk.Text(
+            log_frame, bg='#1a1b20', fg='#f2f2f7',
+            font=('Menlo', 9), wrap='word', borderwidth=0, highlightthickness=0
+        )
+        log_scroll = ttk.Scrollbar(log_frame, orient='vertical', command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=log_scroll.set)
+
+        self.log_text.pack(side='left', fill='both', expand=True, padx=8, pady=6)
+        log_scroll.pack(side='right', fill='y')
+
+        # Tag styles for high-contrast syntax highlighting
+        self.log_text.tag_configure('time', foreground='#717887')
+        self.log_text.tag_configure('info', foreground='#30d158', font=('Menlo', 9, 'bold'))
+        self.log_text.tag_configure('warning', foreground='#ff9f0a', font=('Menlo', 9, 'bold'))
+        self.log_text.tag_configure('error', foreground='#ff453a', font=('Menlo', 9, 'bold'))
+        self.log_text.tag_configure('module', foreground='#64d2ff')
+        self.log_text.tag_configure('msg', foreground='#f2f2f7')
+
+        self.refresh_logs()
+
+    def refresh_logs(self):
+        if not hasattr(self, 'log_text') or not self.log_text.winfo_exists():
+            return
+        log_path = get_log_file_path()
+        if not log_path.exists():
+            self.log_text.configure(state='normal')
+            self.log_text.delete('1.0', 'end')
+            self.log_text.insert('end', '尚無日誌檔案。\n', 'time')
+            self.log_text.configure(state='disabled')
+            return
+
+        try:
+            with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()[-200:]
+        except Exception as e:
+            self.log_text.configure(state='normal')
+            self.log_text.delete('1.0', 'end')
+            self.log_text.insert('end', f'無法讀取日誌：{e}\n', 'error')
+            self.log_text.configure(state='disabled')
+            return
+
+        filter_val = self.log_filter_var.get()
+        search_val = self.log_search_var.get().strip().lower()
+
+        self.log_text.configure(state='normal')
+        self.log_text.delete('1.0', 'end')
+
+        pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[([A-Z]+)\]\s+\[(.*?)\]\s+(.*)$')
+
+        matched_count = 0
+        for line in lines:
+            line_str = line.rstrip('\n')
+            if search_val and search_val not in line_str.lower():
+                continue
+
+            m = pattern.match(line_str)
+            if m:
+                ts, lvl, mod, msg = m.groups()
+                lvl_upper = lvl.upper()
+                if filter_val == '僅 WARNING / ERROR' and lvl_upper not in ('WARNING', 'ERROR'):
+                    continue
+                if filter_val == '僅 ERROR' and lvl_upper != 'ERROR':
+                    continue
+                if filter_val == '僅 INFO' and lvl_upper != 'INFO':
+                    continue
+
+                self.log_text.insert('end', ts + ' ', 'time')
+                self.log_text.insert('end', f'[{lvl_upper}] ', lvl.lower())
+                self.log_text.insert('end', f'[{mod}] ', 'module')
+                self.log_text.insert('end', msg + '\n', 'msg')
+                matched_count += 1
+            else:
+                if filter_val == '全部':
+                    self.log_text.insert('end', line_str + '\n', 'msg')
+                    matched_count += 1
+
+        if matched_count == 0:
+            self.log_text.insert('end', '（查無符合篩選條件的日誌紀錄）\n', 'time')
+
+        self.log_text.see('end')
+        self.log_text.configure(state='disabled')
+
+    def open_external_log(self):
+        log_path = get_log_file_path()
+        if log_path.exists():
+            subprocess.run(['open', str(log_path)])
+
     def display(self, view: dict):
         self.view = view
         cfg, actual = view['config'], view['actual']
@@ -986,8 +1213,7 @@ class SettingsWindow:
         else:
             ts = time.strftime('%H:%M:%S')
             count = len(self.profiles)
-            extra = ' · 本頁不提供變更操作' if self.readonly else ''
-            self.notice.configure(text=f"更新於 {ts} · {count} 台已配對{extra}")
+            self.notice.configure(text=f"更新於 {ts} · {count} 台已配對")
 
         self.render_current_tab()
 
@@ -1242,9 +1468,7 @@ class SettingsWindow:
             self.change('set_virtual_display', {'name': d['name']})
 
 
-def run_gui(page='wizard', delete=None, select=None):
-    if page == 'settings' and (delete or select):
-        raise ValueError('設定總覽是唯讀頁面')
+def run_gui(page='paired', delete=None, select=None):
     root = tk.Tk()
     app = SettingsWindow(root, page)
     if delete or select:

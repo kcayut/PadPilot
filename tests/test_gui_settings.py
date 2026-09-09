@@ -74,18 +74,7 @@ class GuiSettingsTests(unittest.TestCase):
             app.delete_selected(pairing_key(ONE))
         app.change.assert_called_once_with('delete_pairing', {'key': pairing_key(ONE)})
 
-    def test_settings_page_is_read_only_even_if_mutator_is_called(self):
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.readonly, app.busy = True, False
-        app.task = MagicMock()
-        with patch('core.gui.confirm') as confirm:
-            app.delete_selected('key')
-            app.select_target('key')
-            app.save_candidate()
-            app.set_virtual()
-            app.change('delete_pairing', {'key': 'key'})
-        confirm.assert_not_called()
-        app.task.assert_not_called()
+    def test_settings_page_is_interactive_and_read_view_does_not_mutate(self):
         with tempfile.TemporaryDirectory() as d, patch('core.gui.get_config_file_path', return_value=Path(d)/'config.json'), \
              patch('core.gui.read_status', return_value=None):
             read_view()
@@ -102,10 +91,13 @@ class GuiSettingsTests(unittest.TestCase):
         self.assertNotIn('更新配對', section)
         self.assertEqual(section.count('刪除配對 |'), 2)
         self.assertNotIn('啟動 PadPilot |', text)
-        for label in ('配對精靈 Wizard…', '檢視設定…', '刪除配對'):
+        for label in ('設定與配對', '刪除配對'):
             line = next(l for l in text.splitlines() if label+' |' in l)
             self.assertIn('param1=gui', line)
             self.assertIn('terminal=false', line)
+        self.assertNotIn('開啟 BetterDisplay', text)
+        self.assertNotIn('檢視設定', text)
+        self.assertNotIn('配對精靈 Wizard…', text)
         # Deleting last profile must not resurrect an older daemon snapshot.
         out = io.StringIO()
         with contextlib.redirect_stdout(out):

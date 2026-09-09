@@ -85,7 +85,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertIn('\n----解析度', text)
         self.assertNotIn('\n--Exit | bash=/tmp/evil', text)
         self.assertNotIn(' | bash=/tmp/evil', text)
-        self.assertIn('配對精靈 Wizard…', text)
+        self.assertIn('設定與配對', text)
         exit_line = text.splitlines()[-1]
         self.assertTrue(exit_line.startswith('Exit PadPilot |'))
         self.assertIn('param1=exit', exit_line)

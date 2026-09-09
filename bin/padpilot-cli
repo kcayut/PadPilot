@@ -368,8 +368,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
-    p_gui = subparsers.add_parser("gui", help="Open graphical pairing wizard or read-only settings")
-    p_gui.add_argument("page", choices=["wizard", "settings"], nargs="?", default="wizard")
+    p_gui = subparsers.add_parser("gui", help="Open graphical settings and pairing management window")
+    p_gui.add_argument("page", nargs="?", default="paired", help="Initial tab")
     p_gui.add_argument("--delete", help="Show confirmation for a saved profile key")
     p_gui.add_argument("--select", help="Show confirmation for a saved target key")
     p_gui.set_defaults(func=cmd_gui)

@@ -187,10 +187,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item('運作模式')
     for value, title in MODES.items():
         item(title, 1, ('set-mode', value), checked=mode == value)
-    item('設定與配對')
-    item('配對精靈 Wizard…', 1, ('gui', 'wizard'))
-    item('檢視設定…', 1, ('gui', 'settings'))
-    item('開啟 BetterDisplay', 1, ('open-betterdisplay',))
+    item('設定與配對', args=('gui',))
     item('狀態與診斷')
     for title, value in (
         ('期望狀態', details.get('desired_role', '未知')),
@@ -205,8 +202,6 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     for source, error in errors.items():
         item(f'{source}：{error}', 1)
     item('開啟日誌', 1, ('open-log',))
-    separator(1)
-    item('重設自動化', 1, ('action', 'reset'), enabled=fresh)
     separator()
     item('重新整理螢幕狀態', args=('action', 'refresh'))
     item('背景服務')
