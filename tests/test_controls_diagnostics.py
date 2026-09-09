@@ -252,6 +252,117 @@ class ControlsTests(unittest.TestCase):
         self.assertTrue(betterdisplay_login_status(data, 503).startswith('未知'))
         self.assertTrue(betterdisplay_login_status(None, 501).startswith('未知'))
 
+    def test_check_light_indicator_colors_and_categories(self):
+        from core.gui import get_check_light, GREEN, RED, ORANGE
+        # Passed cases -> GREEN
+        for label, val in [
+            ('PadPilot 登入啟動', '已設定（登入後啟用）'),
+            ('背景服務', '執行中'),
+            ('BetterDisplay 安裝', '已安裝'),
+            ('BetterDisplay 控制介面', '可用'),
+            ('macOS 自動登入', '已設定：smallmac'),
+            ('FileVault', '未開啟'),
+            ('虛擬備援螢幕', '已設定'),
+            ('Sidecar 配對', '已設定 UUID'),
+            ('BetterDisplay 登入啟動', '已啟用'),
+        ]:
+            status, color = get_check_light(label, val)
+            self.assertEqual(status, 'pass', f'Failed on {label}: {val}')
+            self.assertEqual(color, GREEN, f'Failed color on {label}: {val}')
+
+        # Failed cases -> RED
+        for label, val in [
+            ('PadPilot 登入啟動', '未設定'),
+            ('PadPilot 登入啟動', '未啟用'),
+            ('PadPilot 登入啟動', '設定異常（執行檔或程式路徑不存在）'),
+            ('背景服務', '未回應／尚未啟動'),
+            ('BetterDisplay 安裝', '未在標準應用程式位置找到'),
+            ('BetterDisplay 控制介面', '未找到'),
+            ('macOS 自動登入', '未設定'),
+            ('FileVault', '已開啟；重新開機後需先解鎖磁碟'),
+            ('虛擬備援螢幕', '未找到：PadPilotVirtual'),
+            ('Sidecar 配對', '尚未配對'),
+            ('BetterDisplay 登入啟動', '未啟用'),
+            ('BetterDisplay 登入啟動', '未登錄（請到系統設定 → 一般 → 登入項目確認）'),
+        ]:
+            status, color = get_check_light(label, val)
+            self.assertEqual(status, 'fail', f'Failed on {label}: {val}')
+            self.assertEqual(color, RED, f'Failed color on {label}: {val}')
+
+        # Pending cases -> ORANGE
+        for label, val in [
+            ('BetterDisplay 登入啟動', '尚未驗證'),
+            ('PadPilot 登入啟動', '尚未檢查'),
+            ('BetterDisplay 登入啟動', '未知／受系統限制（請檢查登入項目）'),
+            ('BetterDisplay 登入啟動', '未知（系統查詢逾時或無權限）'),
+            ('FileVault', '未知（無法查詢）'),
+            ('虛擬備援螢幕', '未知（識別查詢失敗）'),
+            ('需人工確認', 'Mac 與 iPad 使用相同 Apple Account、雙重認證、Wi-Fi／藍牙／接力與信任此電腦。'),
+            ('滑鼠與鍵盤', '若游標跑進 iPad 原生畫面，請在顯示器 → 進階關閉通用控制的跨裝置移動。'),
+        ]:
+            status, color = get_check_light(label, val)
+            self.assertEqual(status, 'pending', f'Failed on {label}: {val}')
+            self.assertEqual(color, ORANGE, f'Failed color on {label}: {val}')
+
+    def test_render_checks_cards_titles_and_default_items(self):
+        import tkinter as tk
+        from core.gui import SettingsWindow, GREEN, ORANGE
+        root = tk.Tk()
+        try:
+            with patch.object(SettingsWindow, 'search'), patch.object(SettingsWindow, '_check_external_sync'):
+                app = SettingsWindow(root)
+                app.display({'config': Config(), 'actual': {}, 'fresh': True, 'identifiers': [], 'status': {}})
+                app.select_tab('diagnostics')
+
+                # Card 2: system_checks
+                host2 = app.diagnostic_hosts['system_checks']
+                labels_card2 = [w.cget('text') for w in host2.winfo_children()[0].body.winfo_children()
+                                if w.winfo_class() == 'Label' or isinstance(w, tk.Label)]
+                # Header title in top frame
+                top2 = host2.winfo_children()[0].body.winfo_children()[0]
+                top2_labels = [w.cget('text') for w in top2.winfo_children() if isinstance(w, tk.Label)]
+                card2_title = top2_labels[0]
+                self.assertEqual(card2_title, '啟動與必要設定偵測')
+                self.assertNotIn('不需帳號密碼', card2_title)
+                self.assertNotIn('不需要帳號密碼', card2_title)
+
+                # Card 3: authenticated_checks
+                host3 = app.diagnostic_hosts['authenticated_checks']
+                top3 = host3.winfo_children()[0].body.winfo_children()[0]
+                top3_labels = [w.cget('text') for w in top3.winfo_children() if isinstance(w, tk.Label)]
+                card3_title = top3_labels[0]
+                self.assertEqual(card3_title, '啟動與必要設定偵測 — 需要使用者帳號密碼')
+                self.assertNotIn('需要系統驗證', card3_title)
+
+                # Default item in Card 3 before authentication
+                card3_body_children = host3.winfo_children()[0].body.winfo_children()
+                # Find check item rows in card3
+                rows3 = [w for w in card3_body_children if isinstance(w, tk.Frame) and w != top3]
+                self.assertTrue(len(rows3) >= 1)
+                row_labels = [c.cget('text') for c in rows3[0].winfo_children() if isinstance(c, tk.Label)]
+                row_colors = [c.cget('fg') for c in rows3[0].winfo_children() if isinstance(c, tk.Label)]
+                self.assertIn('●', row_labels)
+                self.assertIn(ORANGE, row_colors)
+                self.assertIn('BetterDisplay 登入啟動：尚未驗證', row_labels)
+
+                # Simulate refreshing authenticated checks
+                app.task = lambda work, complete: complete(work())
+                with patch('core.diagnostics.collect_authenticated_checks',
+                           return_value=[('BetterDisplay 登入啟動', '已啟用')]):
+                    app.refresh_diagnostic('authenticated_checks')
+
+                # After verification, check item should show verified result with green light
+                card3_body_children_after = host3.winfo_children()[0].body.winfo_children()
+                top3_after = card3_body_children_after[0]
+                rows3_after = [w for w in card3_body_children_after if isinstance(w, tk.Frame) and w != top3_after]
+                self.assertTrue(len(rows3_after) >= 1)
+                row_labels_after = [c.cget('text') for c in rows3_after[0].winfo_children() if isinstance(c, tk.Label)]
+                row_colors_after = [c.cget('fg') for c in rows3_after[0].winfo_children() if isinstance(c, tk.Label)]
+                self.assertIn('BetterDisplay 登入啟動：已啟用', row_labels_after)
+                self.assertIn(GREEN, row_colors_after)
+        finally:
+            root.destroy()
+
 
 if __name__ == '__main__':
     unittest.main()

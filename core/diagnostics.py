@@ -85,6 +85,24 @@ def collect_system_checks(cfg, actual):
     return checks
 
 
+DEFAULT_AUTHENTICATED_CHECKS = [
+    ('BetterDisplay 登入啟動', '尚未驗證'),
+]
+
+DEFAULT_SYSTEM_CHECKS = [
+    ('PadPilot 登入啟動', '尚未檢查'),
+    ('背景服務', '尚未檢查'),
+    ('BetterDisplay 安裝', '尚未檢查'),
+    ('BetterDisplay 控制介面', '尚未檢查'),
+    ('macOS 自動登入', '尚未檢查'),
+    ('FileVault', '尚未檢查'),
+    ('虛擬備援螢幕', '尚未檢查'),
+    ('Sidecar 配對', '尚未檢查'),
+    ('需人工確認', 'Mac 與 iPad 使用相同 Apple Account、雙重認證、Wi-Fi／藍牙／接力與信任此電腦。'),
+    ('滑鼠與鍵盤', '若游標跑進 iPad 原生畫面，請在顯示器 → 進階關閉通用控制的跨裝置移動。'),
+]
+
+
 def collect_authenticated_checks():
     """Only called by the explicit authentication-card refresh button.
 

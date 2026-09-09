@@ -39,6 +39,7 @@ BLUE_TINT = '#e8f2ff'
 GREEN = '#34c759'         # Apple System Green
 GREEN_BG = '#eaf8ee'
 GREEN_FG = '#1e7e34'
+ORANGE = '#ff9500'        # Apple System Orange
 ORANGE_BG = '#fff4e5'
 ORANGE_FG = '#b25e00'
 RED = '#ff3b30'           # Apple System Red
@@ -71,6 +72,41 @@ def get_sync_signatures() -> tuple:
         except OSError:
             sigs.append((str(p), 0, 0, 0))
     return tuple(sigs)
+
+
+def get_check_light(label: str, value: str) -> tuple[str, str]:
+    """Determine the check indicator status and light color.
+
+    Returns:
+        tuple[str, str]: (status_type, hex_color)
+        status_type is one of 'pass', 'fail', 'pending'.
+    """
+    val = (value or '').strip()
+    lbl = (label or '').strip()
+
+    # Explicit pending / unverified / manual checks / hints
+    if any(k in val for k in ('尚未檢查', '尚未驗證', '未知', '評估中', '待確認')) or \
+       any(k in lbl for k in ('人工確認', '滑鼠與鍵盤', '注意', '提示')):
+        return 'pending', ORANGE
+
+    # FileVault special case: FileVault Off is desirable for headless boot
+    if 'filevault' in lbl.lower():
+        if '未開啟' in val or 'off' in val.lower():
+            return 'pass', GREEN
+        if '已開啟' in val or 'on' in val.lower():
+            return 'fail', RED
+
+    # Explicit failure cases
+    if any(k in val for k in ('未設定', '未啟用', '未回應', '未找到', '未在標準', '尚未配對', '未登錄', '設定異常', '不通過', '失敗', '錯誤')) or \
+       any(k in val.lower() for k in ('fail', 'error', 'disabled')):
+        return 'fail', RED
+
+    # Explicit pass cases
+    if any(k in val for k in ('已設定', '執行中', '已安裝', '可用', '已啟用', '通過', '正常', '已連線')) or \
+       any(k in val.lower() for k in ('pass', 'ok', 'running', 'enabled', 'connected')):
+        return 'pass', GREEN
+
+    return 'pending', ORANGE
 
 
 def read_view(scan: bool = False) -> dict:
@@ -1369,30 +1405,52 @@ class SettingsWindow:
                      fg=RED, bg=CARD_BG, wraplength=480, justify='left').pack(side='left', padx=2)
 
     def render_checks_card(self, section):
+        from core.diagnostics import DEFAULT_AUTHENTICATED_CHECKS, DEFAULT_SYSTEM_CHECKS
         authenticated = section == 'authenticated_checks'
         card = Card(self.diagnostic_hosts[section], padx=12, pady=8)
         card.pack(fill='x', padx=18, pady=(0, 6))
         top = tk.Frame(card.body, bg=CARD_BG)
         top.pack(fill='x')
-        title = '啟動與必要設定偵測 — 需要系統驗證' if authenticated else '啟動與必要設定偵測 — 不需帳號密碼'
+        title = '啟動與必要設定偵測 — 需要使用者帳號密碼' if authenticated else '啟動與必要設定偵測'
         tk.Label(top, text=title, font=('Helvetica Neue', 11, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
         refresh = ttk.Button(top, text='重新整理', style='Secondary.TButton',
                              command=lambda: self.refresh_diagnostic(section))
         refresh.pack(side='right')
         self.buttons.append(refresh)
+
+        if not authenticated:
+            legend = tk.Frame(top, bg=CARD_BG)
+            legend.pack(side='left', padx=(14, 0))
+            for dot_color, dot_text in [
+                (GREEN, '通過'),
+                (RED, '不通過'),
+                (ORANGE, '尚未檢查'),
+            ]:
+                tk.Label(legend, text='●', font=('Helvetica Neue', 9),
+                         fg=dot_color, bg=CARD_BG).pack(side='left', padx=(3, 1))
+                tk.Label(legend, text=dot_text, font=('Helvetica Neue', 9),
+                         fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left', padx=(0, 4))
+
         if authenticated:
             note = tk.Label(card.body, text='查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。'
                             '請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。',
                             font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg=CARD_BG,
                             anchor='w', justify='left', wraplength=500)
             note.pack(fill='x', pady=(5, 3))
-        checks = self.view.get(section) or [('偵測', '尚未檢查；請按此區「重新整理」')]
+        default_checks = DEFAULT_AUTHENTICATED_CHECKS if authenticated else DEFAULT_SYSTEM_CHECKS
+        checks = self.view.get(section) or default_checks
         for label, value in checks:
-            line = tk.Label(card.body, text=f'{label}：{value}', anchor='w', justify='left',
+            _, light_color = get_check_light(label, value)
+            row = tk.Frame(card.body, bg=CARD_BG)
+            row.pack(fill='x', pady=2)
+            dot = tk.Label(row, text='●', font=('Helvetica Neue', 10, 'bold'),
+                           fg=light_color, bg=CARD_BG)
+            dot.pack(side='left', anchor='nw', padx=(0, 4))
+            line = tk.Label(row, text=f'{label}：{value}', anchor='w', justify='left',
                             font=('Helvetica Neue', 10), fg=TEXT_PRIMARY, bg=CARD_BG)
-            line.pack(fill='x', pady=2)
-            line.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 8)))
+            line.pack(side='left', fill='x', expand=True, anchor='nw')
+            row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 24)))
 
     def render_logs_card(self):
         # Card 2: 系統運行日誌 (System Logs) - expands to fill remaining space
