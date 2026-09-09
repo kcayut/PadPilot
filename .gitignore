@@ -48,5 +48,18 @@ env/
 .coverage
 htmlcov/
 
-# Logs and runtime
+# Logs, runtime state, and sockets
 *.log
+runtime/
+config.json
+status.json
+*.sock
+*.socket
+menu-hidden
+
+# Environment variables
+.env
+.env.*
+
+# Generated LaunchAgent plist (only .plist.in is tracked in repository)
+launchd/com.padpilot.daemon.plist

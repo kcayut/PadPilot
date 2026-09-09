@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import copy
+from core import __version__
 from core.autostart import (
     disable_autostart,
     enable_autostart,
@@ -420,6 +421,7 @@ def cmd_autostart(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
+    parser.add_argument("-v", "--version", action="version", version=f"PadPilot {__version__}")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
     p_gui = subparsers.add_parser("gui", help="Open graphical settings and pairing management window")

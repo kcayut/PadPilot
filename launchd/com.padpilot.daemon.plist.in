@@ -6,8 +6,8 @@
     <string>com.padpilot.daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
-        <string>/Users/smallmac/work/PadPilot/bin/padpilotd</string>
+        <string>__PYTHON_BIN__</string>
+        <string>__PROJECT_ROOT__/bin/padpilotd</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -19,8 +19,8 @@
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/smallmac/Library/Logs/PadPilot/launchd.stdout.log</string>
+    <string>__LOG_DIR__/launchd.stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/smallmac/Library/Logs/PadPilot/launchd.stderr.log</string>
+    <string>__LOG_DIR__/launchd.stderr.log</string>
 </dict>
 </plist>

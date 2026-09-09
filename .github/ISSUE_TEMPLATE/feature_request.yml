@@ -1,0 +1,28 @@
+name: 💡 功能建議 (Feature Request)
+description: 為 PadPilot 提出新功能或改進構想
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您提出新構想！請清楚說明您想解決的情境與建議的運作方式。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 欲解決的情境或痛點 (Problem or Pain Point)
+      description: 目前缺少了什麼功能？在什麼情境下會遇到不便？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建議的解決方案 (Proposed Solution)
+      description: 您希望 PadPilot 如何運作？
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 其他替代方案或現有解法 (Alternatives Considered)
+      description: 是否有嘗試過其他工具或腳本暫時處理？

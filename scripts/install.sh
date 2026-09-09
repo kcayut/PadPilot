@@ -89,13 +89,22 @@ echo "  [✓] Linked padpilot.30s.py into $SWIFTBAR_PLUGINS_DIR"
 
 # 4. LaunchAgent Setup
 echo "Configuring LaunchAgent..."
-PLIST_SRC="$PROJECT_ROOT/launchd/com.padpilot.daemon.plist"
+PLIST_SRC="$PROJECT_ROOT/launchd/com.padpilot.daemon.plist.in"
 PLIST_DEST="$HOME/Library/LaunchAgents/com.padpilot.daemon.plist"
+LOG_DIR="$HOME/Library/Logs/PadPilot"
+mkdir -p "$LOG_DIR"
 
-sed -e "s|/Library/Frameworks/Python.framework/Versions/3.14/bin/python3|$PYTHON_BIN|g" \
-    -e "s|/Users/smallmac/work/PadPilot|$PROJECT_ROOT|g" \
-    -e "s|/Users/smallmac/Library/Logs|$HOME/Library/Logs|g" \
-    "$PLIST_SRC" > "$PLIST_DEST"
+"$PYTHON_BIN" -c "
+import sys
+from pathlib import Path
+src, dest, py, root, logs = sys.argv[1:6]
+template = Path(src).read_text(encoding='utf-8')
+output = (template
+    .replace('__PYTHON_BIN__', py)
+    .replace('__PROJECT_ROOT__', root)
+    .replace('__LOG_DIR__', logs))
+Path(dest).write_text(output, encoding='utf-8')
+" "$PLIST_SRC" "$PLIST_DEST" "$PYTHON_BIN" "$PROJECT_ROOT" "$LOG_DIR"
 
 # Unload previous instance if loaded
 launchctl unload "$PLIST_DEST" 2>/dev/null || true

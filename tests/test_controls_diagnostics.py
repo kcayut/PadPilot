@@ -273,7 +273,7 @@ class ControlsTests(unittest.TestCase):
             ('背景服務', '執行中'),
             ('BetterDisplay 安裝', '已安裝'),
             ('BetterDisplay 控制介面', '可用'),
-            ('macOS 自動登入', '已設定：smallmac'),
+            ('macOS 自動登入', '已設定：testuser'),
             ('FileVault', '未開啟'),
             ('虛擬備援螢幕', '已設定'),
             ('Sidecar 配對', '已設定 UUID'),

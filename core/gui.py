@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import tkinter as tk
+import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -56,6 +57,23 @@ MODE_DESCS = {
     'manual_only': '自動化程序暫停，不主動連線或斷開，完全由使用者自 Menu Bar 手動操控。',
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
+
+DOCS_BASE_URL = 'https://github.com/kcayut/PadPilot'
+DOCS_USAGE_URL = f'{DOCS_BASE_URL}#使用手冊'
+DOCS_TROUBLESHOOTING_URL = f'{DOCS_BASE_URL}/blob/main/docs/TROUBLESHOOTING.md'
+
+
+def get_troubleshooting_url(label: str) -> str:
+    lbl = (label or '').lower()
+    if 'filevault' in lbl or '自動登入' in lbl:
+        return f'{DOCS_TROUBLESHOOTING_URL}#filevault'
+    if 'betterdisplay' in lbl:
+        return f'{DOCS_TROUBLESHOOTING_URL}#betterdisplay'
+    if '登入啟動' in lbl or '背景服務' in lbl:
+        return f'{DOCS_TROUBLESHOOTING_URL}#autostart'
+    if 'sidecar' in lbl:
+        return f'{DOCS_TROUBLESHOOTING_URL}#sidecar-session'
+    return DOCS_TROUBLESHOOTING_URL
 
 
 def short_id(value: str) -> str:
@@ -425,6 +443,34 @@ class SettingsWindow:
                                       style='Secondary.TButton')
         self.refresh_btn.pack(fill='x')
         self.buttons.append(self.refresh_btn)
+
+        # Documentation and project links
+        links_box = tk.Frame(bottom_box, bg=SIDEBAR_BG)
+        links_box.pack(fill='x', pady=(8, 0))
+
+        for text, url in [
+            ('📖 使用說明', DOCS_USAGE_URL),
+            ('🩺 疑難排解', DOCS_TROUBLESHOOTING_URL),
+            ('↗ GitHub 專案', DOCS_BASE_URL),
+        ]:
+            lnk = tk.Label(links_box, text=text, font=('Helvetica Neue', 9),
+                           fg=TEXT_SECONDARY, bg=SIDEBAR_BG, cursor='hand2', anchor='w')
+            lnk.pack(fill='x', pady=1)
+
+            def make_link_handler(target_url):
+                return lambda e: webbrowser.open(target_url)
+
+            def make_link_hover(label_widget):
+                def on_enter(e):
+                    label_widget.configure(fg=BLUE)
+                def on_leave(e):
+                    label_widget.configure(fg=TEXT_SECONDARY)
+                return on_enter, on_leave
+
+            lnk.bind('<Button-1>', make_link_handler(url))
+            on_e, on_l = make_link_hover(lnk)
+            lnk.bind('<Enter>', on_e)
+            lnk.bind('<Leave>', on_l)
 
     def build_main_content(self):
         self.content_area = tk.Frame(self.main_container, bg=BG)
@@ -1482,7 +1528,7 @@ class SettingsWindow:
         default_checks = DEFAULT_AUTHENTICATED_CHECKS if authenticated else DEFAULT_SYSTEM_CHECKS
         checks = self.view.get(section) or default_checks
         for label, value in checks:
-            _, light_color = get_check_light(label, value)
+            status_type, light_color = get_check_light(label, value)
             row = tk.Frame(card.body, bg=CARD_BG)
             row.pack(fill='x', pady=2)
             dot = tk.Label(row, text='●', font=('Helvetica Neue', 10, 'bold'),
@@ -1491,7 +1537,13 @@ class SettingsWindow:
             line = tk.Label(row, text=f'{label}：{value}', anchor='w', justify='left',
                             font=('Helvetica Neue', 10), fg=TEXT_PRIMARY, bg=CARD_BG)
             line.pack(side='left', fill='x', expand=True, anchor='nw')
-            row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 24)))
+            if status_type == 'fail' or light_color == RED:
+                help_url = get_troubleshooting_url(label)
+                help_link = tk.Label(row, text='說明 ↗', font=('Helvetica Neue', 9, 'underline'),
+                                     fg=BLUE, bg=CARD_BG, cursor='hand2')
+                help_link.pack(side='right', anchor='ne', padx=(4, 0))
+                help_link.bind('<Button-1>', lambda e, u=help_url: webbrowser.open(u))
+            row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 50)))
 
     def render_logs_card(self):
         # Card 2: 系統運行日誌 (System Logs) - expands to fill remaining space

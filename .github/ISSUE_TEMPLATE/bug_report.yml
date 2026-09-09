@@ -1,0 +1,73 @@
+name: 🐛 錯誤回報 (Bug Report)
+description: 回報 PadPilot 執行過程中的錯誤、異常或崩潰
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您回報問題！請協助填寫以下環境細節，有助於迅速定位問題。
+  - type: input
+    id: os_version
+    attributes:
+      label: macOS 版本
+      description: 例如 macOS 14.5 (23F79) 或 macOS 15.0
+      placeholder: macOS 14.x
+    validations:
+      required: true
+  - type: input
+    id: mac_model
+    attributes:
+      label: Mac 機型
+      description: 例如 Mac mini M4, Mac Studio M2 Max, MacBook Air M3
+      placeholder: Mac mini M4
+    validations:
+      required: true
+  - type: input
+    id: ipad_model
+    attributes:
+      label: iPad 機型與 iPadOS 版本
+      description: 例如 iPad Pro 11-inch (M2) / iPadOS 17.5
+      placeholder: iPad Pro M2 (iPadOS 17.5)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: 軟體版本
+      description: 請提供 PadPilot、BetterDisplay 與 SwiftBar 版本
+      placeholder: "PadPilot: 0.1.0, BetterDisplay: 3.x, SwiftBar: 2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: topology
+    attributes:
+      label: 螢幕連接狀態 (Display Topology)
+      description: 是否連接實體螢幕（HDMI / DP / Type-C）？iPad 使用 USB 連接還是無線 Sidecar？
+      placeholder: "無實體螢幕，iPad 透過 Thunderbolt/USB-C 直連 Mac"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 問題描述 (Problem Description)
+      description: 請清楚描述發生了什麼問題、預期行為是什麼
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟 (Steps to Reproduce)
+      description: 如何重現該問題？
+      placeholder: |
+        1. 執行 `./scripts/install.sh`
+        2. 插上 iPad
+        3. 從 Menu Bar 點選「Use iPad as Main」
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相關日誌節錄 (Log Excerpt)
+      description: 可執行 `padpilot-cli open-log` 或查看 `~/Library/Logs/PadPilot/`
+      render: shell
