@@ -110,11 +110,8 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
         resp = send_daemon_cmd(f"set_mode:{mode_str}")
 
     # 3. Refresh SwiftBar immediately
-    subprocess.run(
-        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
-        capture_output=True,
-        check=False,
-    )
+    from core.autostart import notify_swiftbar
+    notify_swiftbar(cfg.swiftbar_plugin_id)
     print(resp)
 
 
@@ -159,9 +156,15 @@ def cmd_gui(args: argparse.Namespace) -> None:
 
 
 def refresh_menu(action: str = "refreshplugin") -> None:
+    from core.autostart import is_swiftbar_recovery_bug_present
+    if is_swiftbar_recovery_bug_present():
+        return
     cfg = load_config()
-    subprocess.run(["open", "-g", "swiftbar://" + action + "?" + urlencode(
-        {"plugin": cfg.swiftbar_plugin_id})], capture_output=True, check=True)
+    try:
+        subprocess.run(["open", "-g", "swiftbar://" + action + "?" + urlencode(
+            {"plugin": cfg.swiftbar_plugin_id})], capture_output=True, check=False)
+    except Exception:
+        pass
 
 
 def ask(prompt: str) -> str:
@@ -336,18 +339,9 @@ def cmd_start(args: argparse.Namespace) -> None:
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     cfg = load_config()
-    # Ensure Menu Bar UI (SwiftBar) is running
-    if Path("/Applications/SwiftBar.app").exists():
-        res = subprocess.run(["pgrep", "-f", "SwiftBar"], capture_output=True, text=True, check=False)
-        if res.returncode != 0:
-            subprocess.Popen(["open", "-a", "SwiftBar"])
 
-    subprocess.run(
-        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
-        capture_output=True,
-        check=False,
-    )
-    refresh_menu("enableplugin")
+    from core.autostart import notify_swiftbar
+    notify_swiftbar(cfg.swiftbar_plugin_id)
     print("✓ PadPilot daemon has been started.")
 
 

@@ -31,9 +31,17 @@ class BetterDisplayCLI:
         self.cli_path = self._resolve_cli_path(custom_path)
         self.capabilities = self.probe_capabilities()
 
-    def _resolve_cli_path(self, custom_path: Optional[str] = None) -> Optional[str]:
-        if custom_path and os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
-            return custom_path
+    @classmethod
+    def resolve_cli_path(cls, custom_path: Optional[str] = None) -> Optional[str]:
+        if custom_path:
+            # If path points to an .app bundle or directory containing Contents/MacOS/BetterDisplay
+            if custom_path.endswith(".app") or os.path.isdir(custom_path):
+                inner = os.path.join(custom_path, "Contents/MacOS/BetterDisplay")
+                if os.path.isfile(inner) and os.access(inner, os.X_OK):
+                    return inner
+            if os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
+                return custom_path
+            return None
 
         # Check PATH
         which_path = shutil.which("betterdisplaycli")
@@ -51,6 +59,9 @@ class BetterDisplayCLI:
                 return p
 
         return None
+
+    def _resolve_cli_path(self, custom_path: Optional[str] = None) -> Optional[str]:
+        return self.resolve_cli_path(custom_path)
 
     def is_available(self) -> bool:
         return self.cli_path is not None and os.path.isfile(self.cli_path) and os.access(self.cli_path, os.X_OK)

@@ -26,6 +26,21 @@ class TestBetterDisplayCLI(unittest.TestCase):
             self.assertFalse(cli.is_available())
             self.assertFalse(cli.capabilities.cli_available)
 
+    def test_resolve_cli_path_custom_and_app_bundle(self) -> None:
+        """Verify resolve_cli_path resolves direct binaries and app bundle paths."""
+        with patch("os.path.isfile", return_value=True), patch("os.access", return_value=True):
+            self.assertEqual(
+                BetterDisplayCLI.resolve_cli_path("/custom/bin/betterdisplaycli"),
+                "/custom/bin/betterdisplaycli"
+            )
+            self.assertEqual(
+                BetterDisplayCLI.resolve_cli_path("/Applications/BetterDisplay.app"),
+                "/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay"
+            )
+
+        with patch("os.path.isfile", return_value=False), patch("os.path.isdir", return_value=False):
+            self.assertIsNone(BetterDisplayCLI.resolve_cli_path("/nonexistent/betterdisplaycli"))
+
 
 if __name__ == "__main__":
     unittest.main()

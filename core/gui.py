@@ -13,7 +13,7 @@ import threading
 import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, get_config_file_path, read_status
@@ -361,6 +361,10 @@ class SettingsWindow:
         def _update_scrollregion():
             if not self.canvas.winfo_exists():
                 return
+            try:
+                self.root.update_idletasks()
+            except Exception:
+                pass
             canvas_width = self.canvas.winfo_width()
             canvas_height = self.canvas.winfo_height()
             if canvas_width <= 1 or canvas_height <= 1:
@@ -373,7 +377,7 @@ class SettingsWindow:
                 return
 
             req_h = self.scroll_frame.winfo_reqheight()
-            if req_h <= canvas_height + 5:
+            if req_h <= canvas_height:
                 self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=canvas_height)
                 self.canvas.configure(scrollregion=(0, 0, canvas_width, max(canvas_height, 1)))
                 self.canvas.yview_moveto(0.0)
@@ -391,7 +395,7 @@ class SettingsWindow:
         self.canvas.bind('<Configure>', _on_canvas_resize)
         self.canvas.pack(fill='both', expand=True)
 
-        # Gentle Mousewheel binding: only scrolls when content actually exceeds canvas height
+        # Smooth, responsive mousewheel handling
         def _on_mousewheel(event):
             if not self.canvas.winfo_exists():
                 return
@@ -399,28 +403,45 @@ class SettingsWindow:
             if self.current_tab == 'diagnostics':
                 return
             try:
+                # Check pointer position to ensure mouse is within PadPilot window
                 x, y = self.root.winfo_pointerxy()
-                cx = self.content_area.winfo_rootx()
-                cy = self.content_area.winfo_rooty()
-                cw = self.content_area.winfo_width()
-                ch = self.content_area.winfo_height()
-                if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
+                rx = self.root.winfo_rootx()
+                ry = self.root.winfo_rooty()
+                rw = self.root.winfo_width()
+                rh = self.root.winfo_height()
+                if not (rx <= x <= rx + rw and ry <= y <= ry + rh):
                     return
 
                 req_h = self.scroll_frame.winfo_reqheight()
                 canvas_height = self.canvas.winfo_height()
 
                 # If content fits completely inside the window, NEVER scroll!
-                if req_h <= canvas_height + 5:
+                if req_h <= canvas_height:
                     self.canvas.yview_moveto(0.0)
                     return
 
-                delta = event.delta
+                # Ensure scrollregion reflects true content height
+                sr = self.canvas.cget('scrollregion')
+                if sr:
+                    try:
+                        sr_parts = [int(float(v)) for v in sr.split()]
+                        if len(sr_parts) >= 4 and sr_parts[3] < req_h:
+                            _update_scrollregion()
+                    except (IndexError, ValueError):
+                        pass
+
+                delta = getattr(event, 'delta', 0)
                 if not delta:
                     return
 
-                # Normalise to a gentle 1-step (15px) or 2-step (30px) movement
-                step = -2 if delta > 0 else 2 if abs(delta) >= 120 else (-1 if delta > 0 else 1)
+                # Calculate smooth step based on delta
+                if abs(delta) >= 120:
+                    step = -int(delta / 120) * 2
+                else:
+                    val = int(delta)
+                    if val == 0:
+                        val = 1 if delta > 0 else -1
+                    step = max(-4, min(4, -val))
 
                 # Boundary protection
                 y_range = self.canvas.yview()
@@ -868,6 +889,8 @@ class SettingsWindow:
         self.make_badge(s_row, '已啟用' if cfg.autostart_on_login else '已停用',
                         GREEN_BG if cfg.autostart_on_login else '#f2f2f7',
                         GREEN_FG if cfg.autostart_on_login else TEXT_SECONDARY).pack(side='left', padx=4)
+        tk.Label(s_row, text='（隨 macOS 登入背景自動執行）', font=('Helvetica Neue', 9),
+                 fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left', padx=2)
 
         if not self.readonly:
             toggle_btn = ttk.Button(
@@ -876,11 +899,8 @@ class SettingsWindow:
                 command=self.toggle_autostart_action,
                 style='Secondary.TButton' if cfg.autostart_on_login else 'Accent.TButton'
             )
-            toggle_btn.pack(side='left', padx=6)
+            toggle_btn.pack(side='right')
             self.buttons.append(toggle_btn)
-
-        tk.Label(s_row, text='（隨 macOS 登入背景自動執行）', font=('Helvetica Neue', 9),
-                 fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left', padx=2)
 
         # Group 3: 防護機制與保護參數
         g3 = Card(self.scroll_frame, padx=12, pady=8)
@@ -913,11 +933,63 @@ class SettingsWindow:
         g4 = Card(self.scroll_frame, padx=12, pady=8)
         g4.pack(fill='x', padx=18, pady=(0, 6))
         tk.Label(g4.body, text='📁 系統路徑與整合', font=('Helvetica Neue', 11, 'bold'),
-                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(0, 2))
-        tk.Label(g4.body, text=f"BetterDisplay CLI: {cfg.betterdisplaycli_path}",
-                 font=('Menlo', 9), fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w')
-        tk.Label(g4.body, text=f"設定檔位置: {get_config_file_path()}",
-                 font=('Menlo', 9), fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(1, 0))
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(0, 6))
+
+        # BetterDisplay CLI 區塊
+        bd_row = tk.Frame(g4.body, bg=CARD_BG)
+        bd_row.pack(fill='x', pady=2)
+
+        resolved_cli = BetterDisplayCLI.resolve_cli_path(cfg.betterdisplaycli_path)
+        is_custom = bool(cfg.betterdisplaycli_path)
+
+        bd_left = tk.Frame(bd_row, bg=CARD_BG)
+        bd_left.pack(side='left', fill='x', expand=True)
+
+        tk.Label(bd_left, text='BetterDisplay CLI：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+
+        cli_display_text = resolved_cli if resolved_cli else '未找到可用的 BetterDisplay CLI'
+        tk.Label(bd_left, text=cli_display_text, font=('Menlo', 9),
+                 fg=TEXT_PRIMARY if resolved_cli else RED, bg=CARD_BG).pack(side='left', padx=(2, 6))
+
+        if resolved_cli:
+            status_text = '手動指定' if is_custom else '自動偵測'
+            status_bg = ORANGE_BG if is_custom else BLUE_TINT
+            status_fg = ORANGE_FG if is_custom else BLUE
+            self.make_badge(bd_left, status_text, status_bg, status_fg).pack(side='left')
+        else:
+            self.make_badge(bd_left, '未找到', RED_BG, RED).pack(side='left')
+
+        if not self.readonly:
+            bd_btn_frame = tk.Frame(bd_row, bg=CARD_BG)
+            bd_btn_frame.pack(side='right')
+
+            manual_btn = ttk.Button(
+                bd_btn_frame,
+                text='手動設定',
+                command=self.set_betterdisplay_cli_action,
+                style='Secondary.TButton'
+            )
+            manual_btn.pack(side='left', padx=(0, 4))
+            self.buttons.append(manual_btn)
+
+            reset_btn = ttk.Button(
+                bd_btn_frame,
+                text='恢復預設',
+                command=self.reset_betterdisplay_cli_action,
+                style='Secondary.TButton',
+                state='normal' if is_custom else 'disabled'
+            )
+            reset_btn.pack(side='left')
+            self.buttons.append(reset_btn)
+
+        # 設定檔位置
+        cfg_row = tk.Frame(g4.body, bg=CARD_BG)
+        cfg_row.pack(fill='x', pady=(4, 0))
+        tk.Label(cfg_row, text='設定檔位置：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+        tk.Label(cfg_row, text=str(get_config_file_path()),
+                 font=('Menlo', 9), fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left', padx=2)
 
     def render_displays_tab(self):
         actual = self.view['actual']
@@ -1029,7 +1101,7 @@ class SettingsWindow:
         for key, d in self.virtuals.items():
             name = d.get('name')
             is_chosen = (name == cfg.virtual_display_name)
-            is_connected = str(d.get('displayID', '0')).isdecimal() and int(d['displayID']) > 0
+            is_connected = str(d.get('displayID', '0')).isdecimal() and int(d.get('displayID', 0)) > 0
 
             card = Card(self.scroll_frame, padx=12, pady=6)
             card.pack(fill='x', padx=18, pady=3)
@@ -1403,6 +1475,84 @@ class SettingsWindow:
             self.notice.configure(text=msg)
 
         self.task(work, complete)
+
+    def reset_betterdisplay_cli_action(self):
+        if self.readonly or self.busy:
+            return
+        cfg = self.view['config']
+        if not cfg.betterdisplaycli_path:
+            messagebox.showinfo('PadPilot', '目前已經是預設自動偵測狀態。', parent=self.root)
+            return
+        if not confirm(self.root, '恢復預設 CLI 路徑?', '將清除手動指定的路徑，改為由系統自動探測 BetterDisplay CLI。'):
+            return
+        self.change('set_betterdisplaycli_path', {'path': None})
+
+    def set_betterdisplay_cli_action(self):
+        if self.readonly or self.busy:
+            return
+        cfg = self.view['config']
+        current_val = cfg.betterdisplaycli_path or BetterDisplayCLI.resolve_cli_path(None) or ''
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title('手動設定 BetterDisplay CLI 路徑')
+        dialog.configure(background='#ffffff')
+        dialog.resizable(False, False)
+        if self.root.state() != 'withdrawn':
+            dialog.transient(self.root)
+
+        box = tk.Frame(dialog, bg='#ffffff', padx=22, pady=18)
+        box.pack(fill='both', expand=True)
+
+        tk.Label(box, text='⚙️ 手動指定 BetterDisplay CLI', font=('Helvetica Neue', 12, 'bold'),
+                 fg=TEXT_PRIMARY, bg='#ffffff').pack(anchor='w', pady=(0, 6))
+        tk.Label(box, text='請輸入或選擇 betterdisplaycli 執行檔，或 BetterDisplay.app 應用程式路徑：',
+                 font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg='#ffffff', justify='left').pack(anchor='w', pady=(0, 10))
+
+        entry_frame = tk.Frame(box, bg='#ffffff')
+        entry_frame.pack(fill='x', pady=(0, 16))
+
+        path_var = tk.StringVar(value=current_val)
+        entry = ttk.Entry(entry_frame, textvariable=path_var, width=48, font=('Menlo', 10))
+        entry.pack(side='left', fill='x', expand=True, padx=(0, 8))
+
+        def browse():
+            chosen = filedialog.askopenfilename(
+                parent=dialog,
+                title='選擇 BetterDisplay CLI 或 App',
+                filetypes=[('All Executables/Apps', '*')]
+            )
+            if chosen:
+                path_var.set(chosen)
+                entry.focus()
+
+        browse_btn = ttk.Button(entry_frame, text='瀏覽…', command=browse, style='Secondary.TButton')
+        browse_btn.pack(side='right')
+
+        btn_row = tk.Frame(box, bg='#ffffff')
+        btn_row.pack(fill='x')
+
+        def save():
+            raw_path = path_var.get().strip()
+            if not raw_path:
+                messagebox.showerror('無效路徑', '請輸入或選擇有效的路徑，或點擊「恢復預設」以使用自動偵測。', parent=dialog)
+                return
+            resolved = BetterDisplayCLI.resolve_cli_path(raw_path)
+            if not resolved:
+                messagebox.showerror('無效路徑', f'指定路徑不存在或無執行權限：\n{raw_path}', parent=dialog)
+                return
+            dialog.destroy()
+            self.change('set_betterdisplaycli_path', {'path': raw_path})
+
+        save_btn = ttk.Button(btn_row, text='儲存', command=save, style='Accent.TButton')
+        save_btn.pack(side='right', padx=(8, 0))
+
+        cancel_btn = ttk.Button(btn_row, text='取消', command=dialog.destroy, style='Secondary.TButton')
+        cancel_btn.pack(side='right')
+
+        dialog.bind('<Return>', lambda e: save())
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        dialog.grab_set()
+        entry.focus()
 
     def toggle_profile_expand(self, key_id: str):
         if not hasattr(self, 'expanded_profiles'):

@@ -1,4 +1,5 @@
 """Validated settings changes shared by the daemon and offline CLI."""
+from core.betterdisplay import BetterDisplayCLI
 from core.config import Config
 
 
@@ -33,5 +34,23 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
             raise ValueError('名稱也符合其他螢幕，請先在 BetterDisplay 設定唯一名稱。')
         changed = cfg.virtual_display_name != name
         cfg.virtual_display_name = name
+        return changed
+    if action == 'set_betterdisplaycli_path':
+        if 'path' not in payload:
+            raise ValueError('無效的設定資料')
+        path = payload['path']
+        if path is not None and not isinstance(path, str):
+            raise ValueError('無效的路徑設定')
+        if isinstance(path, str):
+            path = path.strip()
+            if not path:
+                path = None
+        if path is not None:
+            resolved = BetterDisplayCLI.resolve_cli_path(path)
+            if not resolved:
+                raise ValueError(f'指定路徑不存在或無執行權限: {path}')
+            path = resolved
+        changed = cfg.betterdisplaycli_path != path
+        cfg.betterdisplaycli_path = path
         return changed
     raise ValueError('不支援的設定操作')

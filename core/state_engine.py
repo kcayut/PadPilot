@@ -561,13 +561,5 @@ class StateEngine:
 
     def _notify_swiftbar(self) -> None:
         """Trigger instant SwiftBar UI refresh via URL scheme."""
-        plugin_id = self.config.swiftbar_plugin_id
-        try:
-            subprocess.run(
-                ["open", "-g", f"swiftbar://refreshplugin?plugin={plugin_id}"],
-                capture_output=True,
-                check=False,
-                timeout=2.0,
-            )
-        except Exception:
-            pass
+        from core.autostart import notify_swiftbar
+        notify_swiftbar(self.config.swiftbar_plugin_id)

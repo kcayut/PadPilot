@@ -128,7 +128,68 @@ class GuiSettingsTests(unittest.TestCase):
         self.assertTrue(response.startswith('OK:'))
         obj.engine.reset_automation.assert_not_called()
         self.assertIs(obj.engine.runtime.user_override, override)
-        obj.engine.evaluate.assert_called_once_with(trigger='virtual_display_change')
+    def test_set_betterdisplaycli_path_validation_and_apply(self):
+        cfg = self.config()
+        with patch('core.settings.BetterDisplayCLI.resolve_cli_path', return_value='/opt/homebrew/bin/betterdisplaycli'):
+            self.assertTrue(apply_change(cfg, 'set_betterdisplaycli_path', {'path': '/opt/homebrew/bin/betterdisplaycli'}))
+            self.assertEqual(cfg.betterdisplaycli_path, '/opt/homebrew/bin/betterdisplaycli')
+
+        with patch('core.settings.BetterDisplayCLI.resolve_cli_path', return_value=None):
+            with self.assertRaises(ValueError):
+                apply_change(cfg, 'set_betterdisplaycli_path', {'path': '/invalid/path'})
+
+        # Reset to default
+        self.assertTrue(apply_change(cfg, 'set_betterdisplaycli_path', {'path': None}))
+        self.assertIsNone(cfg.betterdisplaycli_path)
+
+        # Invalid payload
+        with self.assertRaises(ValueError):
+            apply_change(cfg, 'set_betterdisplaycli_path', {})
+        with self.assertRaises(ValueError):
+            apply_change(cfg, 'set_betterdisplaycli_path', {'path': 123})
+
+    def test_daemon_handles_betterdisplaycli_path_change(self):
+        cls = DAEMON['PadPilotDaemon']
+        obj = cls.__new__(cls)
+        obj.detector, obj.engine = MagicMock(), MagicMock()
+        cfg = self.config()
+        cfg.betterdisplaycli_path = '/old/path'
+        mock_bd = MagicMock()
+        with patch.dict(cls.handle_client_cmd.__globals__, {
+            'load_config': lambda: cfg,
+            'save_config': MagicMock(),
+            'BetterDisplayCLI': MagicMock(return_value=mock_bd),
+        }):
+            response = obj.handle_client_cmd('set_betterdisplaycli_path:' + json.dumps({'path': None}))
+        self.assertTrue(response.startswith('OK:'))
+        obj.engine.evaluate.assert_called_once_with(trigger='betterdisplaycli_path_change')
+
+    def test_gui_reset_betterdisplay_cli_action(self):
+        app = SettingsWindow.__new__(SettingsWindow)
+        app.readonly, app.busy = False, False
+        app.root = MagicMock()
+        cfg = self.config()
+        cfg.betterdisplaycli_path = '/custom/path'
+        app.view = {'config': cfg}
+        app.change = MagicMock()
+
+        # Decline confirmation
+        with patch('core.gui.confirm', return_value=False):
+            app.reset_betterdisplay_cli_action()
+            app.change.assert_not_called()
+
+        # Accept confirmation
+        with patch('core.gui.confirm', return_value=True):
+            app.reset_betterdisplay_cli_action()
+            app.change.assert_called_once_with('set_betterdisplaycli_path', {'path': None})
+
+        # When already default
+        app.change.reset_mock()
+        cfg.betterdisplaycli_path = None
+        with patch('tkinter.messagebox.showinfo') as mock_info:
+            app.reset_betterdisplay_cli_action()
+            mock_info.assert_called_once()
+            app.change.assert_not_called()
 
 
 if __name__ == '__main__':

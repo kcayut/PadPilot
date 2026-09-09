@@ -191,9 +191,44 @@ def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
         return enable_autostart(plist_path)
 
 
+def is_swiftbar_recovery_bug_present() -> bool:
+    """Check if environment has macOS >= 26 and SwiftBar <= 2.1.1 which triggers the recovery popup on URL open."""
+    try:
+        import platform
+        mac_ver = platform.mac_ver()[0]
+        if not mac_ver:
+            return False
+        major = int(mac_ver.split(".")[0])
+        if major < 26:
+            return False
+
+        info_plist = Path("/Applications/SwiftBar.app/Contents/Info.plist")
+        if not info_plist.exists():
+            return False
+
+        import plistlib
+        with open(info_plist, "rb") as f:
+            data = plistlib.load(f)
+        ver_str = data.get("CFBundleShortVersionString", "")
+        parts = [int(p) for p in ver_str.split(".") if p.isdigit()]
+        if len(parts) >= 2 and parts[:2] == [2, 1] and (len(parts) < 3 or parts[2] <= 1):
+            return True
+        return False
+    except Exception:
+        return False
+
+
 def notify_swiftbar(plugin_id: str) -> None:
-    subprocess.run(
-        ["open", "-g", f"swiftbar://refreshplugin?plugin={plugin_id}"],
-        capture_output=True,
-        check=False,
-    )
+    if is_swiftbar_recovery_bug_present():
+        logger.debug("Skipping SwiftBar URL notify to prevent 'SwiftBar is already running' alert on macOS >= 26")
+        return
+    try:
+        subprocess.run(
+            ["open", "-g", f"swiftbar://refreshplugin?plugin={plugin_id}"],
+            capture_output=True,
+            check=False,
+            timeout=2.0,
+        )
+    except Exception as e:
+        logger.debug(f"SwiftBar refresh notification skipped: {e}")
+

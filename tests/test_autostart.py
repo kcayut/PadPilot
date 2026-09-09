@@ -12,6 +12,8 @@ from core.autostart import (
     enable_autostart,
     generate_plist_content,
     is_autostart_enabled,
+    is_swiftbar_recovery_bug_present,
+    notify_swiftbar,
     toggle_autostart,
 )
 from core.config import Config
@@ -104,6 +106,21 @@ class TestPadPilotAutostart(unittest.TestCase):
                 ok, _ = toggle_autostart(plist_path=test_plist)
                 self.assertTrue(ok)
                 self.assertFalse(is_autostart_enabled(test_plist))
+
+    @patch("core.autostart.is_swiftbar_recovery_bug_present", return_value=True)
+    @patch("subprocess.run")
+    def test_notify_swiftbar_skipped_when_bug_present(self, mock_run: MagicMock, mock_bug: MagicMock) -> None:
+        notify_swiftbar("padpilot.30s.py")
+        mock_run.assert_not_called()
+
+    @patch("core.autostart.is_swiftbar_recovery_bug_present", return_value=False)
+    @patch("subprocess.run")
+    def test_notify_swiftbar_called_when_safe(self, mock_run: MagicMock, mock_bug: MagicMock) -> None:
+        notify_swiftbar("padpilot.30s.py")
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        self.assertIn("swiftbar://refreshplugin?plugin=padpilot.30s.py", args[2])
+
 
 
 if __name__ == "__main__":
