@@ -540,6 +540,7 @@ class StateEngine:
             "actual_role_satisfied": "✓ Satisfied" if satisfied else "In Progress...",
             "reason": self.desired.reason,
             "generation": str(self.runtime.topology_generation),
+            "virtual_display_name": self.config.virtual_display_name,
         }
 
         snapshot = StatusSnapshot(
@@ -550,6 +551,7 @@ class StateEngine:
             desired=self.desired.to_dict(),
             runtime=self.runtime.to_dict(),
             configured_ipad=self.config.ipad.to_dict(),
+            paired_ipads=[ipad.to_dict() for ipad in self.config.paired_ipads],
             summary_text=f"{icon} PadPilot | {self.runtime.mode.value.title()}",
             status_details=status_details,
         )

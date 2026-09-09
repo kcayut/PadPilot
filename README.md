@@ -81,39 +81,41 @@ PadPilot 是一套專為 Mac mini M4 與透過 USB-C 連接的 iPad 所設計的
 
 ```text
 🖥️ PadPilot
-───────────────────────────────
-Status
-Physical Display:     ROG PG279Q (2560x1440)
-USB iPad:             Connected (Cayut iPad)
-Sidecar:              Disconnected
-Current Main:         ROG PG279Q
-Virtual Fallback:     Configured
-───────────────────────────────
-Desired vs Actual
-Desired State:        PHYSICAL
-Actual State:         ✓ Satisfied
-───────────────────────────────
-Reason
-Physical display detected (ROG PG279Q).
-Automatic Sidecar not required.
-───────────────────────────────
-Mode
-✓ Automatic
-  Manual Only
-  Prefer iPad
-───────────────────────────────
-Actions
-Use iPad as Secondary
-Use iPad as Main
-Disconnect iPad
-Reconnect Sidecar
-───────────────────────────────
-Refresh Display State
-Reset Display Automation
-Open BetterDisplay
-Preferences...
-Open Log
+──────────────────────────────
+主螢幕：ROG PG279Q
+模式：自動｜運作中
+──────────────────────────────
+螢幕與裝置                  ▶
+  目前可用
+    ROG PG279Q — 主螢幕      ▶
+    iPad — 偵測到 Sidecar 目標 ▶
+  ────────────────────────────
+  已配對至 PadPilot
+    ✓ iPad — 目前控制目標   ▶
+  ────────────────────────────
+  虛擬備援
+    PadPilotVirtual — 已連接
+  新增／更新配對…
+iPad 控制                   ▶
+運作模式                    ▶
+設定與配對                  ▶
+狀態與診斷                  ▶
+──────────────────────────────
+重新整理螢幕狀態
+背景服務                    ▶
+──────────────────────────────
+Exit PadPilot
 ```
+
+同類功能使用 SwiftBar 原生子選單，螢幕明細放在第三層。清單由背景服務輸出的狀態快照產生，開啟選單不執行硬體掃描；一般由既有 30 秒 watchdog 更新。超過 120 秒的觀測標示待更新，查詢失敗標示未知，不把失敗當成離線。
+
+- **目前可用**：已連線的實體／Sidecar 螢幕、偵測到的 Sidecar 目標，以及僅偵測到 USB 的 iPad。偵測到目標不保證連線成功。
+- **已配對至 PadPilot**：可儲存多台 iPad，但一次只控制一台；勾選表示目前控制目標，不代表主螢幕。離線紀錄仍保留。舊的單台 `ipad` 設定載入時會納入配對清單。
+- **Wizard**：由「設定與配對 → 配對精靈 Wizard…」開啟終端機，選擇 Sidecar 與對應 USB 裝置，確認後儲存。USB 可略過；更新時略過會保留原序號。只新增紀錄不會切換螢幕；設為控制目標前會提示目前模式可能自動連線。`q` 或 Ctrl+C 可取消。
+- **Exit PadPilot**：先卸載本次登入工作並確認 daemon 程序停止，再讓 PadPilot 外掛輸出空內容以隱藏圖示；不退出 SwiftBar，也不斷開目前螢幕。保留配對與登入啟動設定。若停止失敗，保留選單並通知錯誤。點選 Exit 會立即刷新；從 CLI 執行時，若系統未接收刷新 URL，最遲於下一次 30 秒外掛刷新隱藏。
+- **重新開啟**：執行 `./bin/padpilot-cli start`，會恢復 PadPilot 選單。啟用登入自動啟動時，下次登入也會恢復。
+- **停止背景服務**：位於「背景服務」子選單，停止 daemon 但保留 menu bar 入口。
+
 
 ---
 
@@ -171,7 +173,8 @@ padpilot-cli action reset               # 清除暫時覆寫、重試計數與�
 
 # 啟動與停止背景守護行程
 padpilot-cli stop                      # 停止 daemon
-padpilot-cli start                     # 重新啟動 daemon
+padpilot-cli start                     # 啟動 daemon 並恢復 menu bar（已在執行則不重複啟動）
+padpilot-cli exit                      # 停止 daemon 並移除 PadPilot menu bar 項目
 
 # 開機登入自動執行管理 (可從 Menu Bar 直接切換，或使用 CLI)
 padpilot-cli autostart status          # 查看登入啟動狀態 (Enabled / Disabled)

@@ -38,7 +38,9 @@ class DisplayDetector:
 
     def get_online_displays(self) -> List[DisplayInfo]:
         """Fetch all online displays via CoreGraphics."""
+        self.display_error = ""
         if not self._cg:
+            self.display_error = "CoreGraphics 無法使用"
             return []
 
         max_displays = 32
@@ -48,9 +50,11 @@ class DisplayDetector:
         try:
             err = self._cg.CGGetOnlineDisplayList(max_displays, display_ids, byref(count))
             if err != 0:
+                self.display_error = f"CoreGraphics 查詢失敗：{err}"
                 logger.warning(f"CGGetOnlineDisplayList returned error: {err}")
                 return []
         except Exception as e:
+            self.display_error = str(e)
             logger.error(f"CGGetOnlineDisplayList exception: {e}")
             return []
 
@@ -126,6 +130,7 @@ class DisplayDetector:
                 DisplayInfo(
                     display_id=did,
                     name=name,
+                    uuid=(bd_item.get("UUID") or bd_item.get("uuid")) if bd_item else None,
                     is_main=is_main,
                     is_builtin=is_builtin,
                     is_virtual=is_virtual,
@@ -139,6 +144,7 @@ class DisplayDetector:
 
     def parse_usb_devices(self) -> List[dict[str, Any]]:
         """Parse connected USB devices from IOKit USB tree."""
+        self.usb_error = ""
         try:
             out = subprocess.check_output(
                 ["ioreg", "-p", "IOUSB", "-w0", "-l"],
@@ -147,6 +153,7 @@ class DisplayDetector:
                 stderr=subprocess.DEVNULL,
             )
         except Exception as e:
+            self.usb_error = str(e)
             logger.warning(f"Failed to query ioreg for USB: {e}")
             return []
 
@@ -219,7 +226,7 @@ class DisplayDetector:
         target_name = self.config.ipad.name
 
         if target_sidecar_uuid:
-            sidecar_available = any(d.get("uuid") == target_sidecar_uuid for d in sidecar_list)
+            sidecar_available = any(d.get("uuid", "").upper() == target_sidecar_uuid.upper() for d in sidecar_list)
 
         # Detect if USB iPad is present
         ipad_usb_present = False
@@ -249,8 +256,16 @@ class DisplayDetector:
             d_name_lower = d.name.lower()
             if d.is_sidecar or "sidecar" in d_name_lower or (target_name and target_name.lower() in d_name_lower) or "ipad" in d_name_lower:
                 d.is_sidecar = True
-                sidecar_display_online = True
-                sidecar_connected = True
+                # A different paired iPad must not satisfy the active target.
+                matches_target = (
+                    not (target_sidecar_uuid or target_name)
+                    or (d.uuid and target_sidecar_uuid and d.uuid.upper() == target_sidecar_uuid.upper())
+                    or (target_name and d_name_lower == target_name.lower() and
+                        sum(p.name.casefold() == target_name.casefold() for p in self.config.paired_ipads) <= 1)
+                )
+                if matches_target:
+                    sidecar_display_online = True
+                    sidecar_connected = True
                 continue
 
             if d.is_virtual or self.is_display_ignored(d):
@@ -266,6 +281,16 @@ class DisplayDetector:
 
         actual = ActualState(
             physical_displays=physical_displays,
+            online_displays=[d for d in all_displays if not self.is_display_ignored(d) or
+                             d.name == self.config.virtual_display_name],
+            sidecar_devices=sidecar_list,
+            usb_devices=[u for u in usb_devices if u.get("vendor_id") == 1452],
+            discovery_errors={key: error for key, error in (
+                ("displays", getattr(self, "display_error", "")),
+                ("usb", getattr(self, "usb_error", "")),
+                ("sidecar", getattr(self.bd_cli, "sidecar_error", "")),
+                ("identifiers", getattr(self.bd_cli, "identifiers_error", "")),
+            ) if isinstance(error, str) and error},
             main_display=main_display,
             virtual_display_exists=v_exists,
             virtual_display_connected=v_conn,

@@ -7,6 +7,7 @@ import os
 import shutil
 import threading
 import time
+from uuid import UUID
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional
@@ -18,6 +19,7 @@ from core.models import (
     IpadConfig,
     OperationMode,
     StatusSnapshot,
+    pairing_key,
 )
 
 logger = get_logger("Config")
@@ -41,6 +43,7 @@ except (PermissionError, OSError):
 class Config:
     mode: OperationMode = OperationMode.AUTOMATIC
     ipad: IpadConfig = field(default_factory=IpadConfig)
+    paired_ipads: List[IpadConfig] = field(default_factory=list)
     autostart_on_login: bool = True
     debounce_seconds: float = 4.0
     max_retries: int = 3
@@ -55,6 +58,7 @@ class Config:
         return {
             "mode": self.mode.value,
             "ipad": self.ipad.to_dict(),
+            "paired_ipads": [ipad.to_dict() for ipad in self.paired_ipads],
             "autostart_on_login": self.autostart_on_login,
             "debounce_seconds": self.debounce_seconds,
             "max_retries": self.max_retries,
@@ -81,9 +85,14 @@ class Config:
             usb_serial=ipad_data.get("usb_serial", ""),
         )
 
+        paired = [IpadConfig(**{key: item.get(key, "") for key in ("name", "sidecar_uuid", "usb_serial")})
+                  for item in data.get("paired_ipads", [])]
+        if any(ipad.to_dict().values()) and ipad not in paired:
+            paired.append(ipad)
         return cls(
             mode=mode,
             ipad=ipad,
+            paired_ipads=paired,
             autostart_on_login=bool(data.get("autostart_on_login", True)),
             debounce_seconds=float(data.get("debounce_seconds", 4.0)),
             max_retries=int(data.get("max_retries", 3)),
@@ -94,6 +103,49 @@ class Config:
             betterdisplaycli_path=data.get("betterdisplaycli_path"),
             swiftbar_plugin_id=str(data.get("swiftbar_plugin_id", SWIFTBAR_PLUGIN_ID)),
         )
+
+    def remember_ipad(self, data: dict, activate: bool = False) -> bool:
+        """Upsert by stable identity; return whether the active target changed."""
+        if not isinstance(data, dict) or set(data) - {"name", "sidecar_uuid", "usb_serial"}:
+            raise ValueError("無效的配對資料")
+        values = {key: data.get(key, "") for key in ("name", "sidecar_uuid", "usb_serial")}
+        if any(not isinstance(v, str) or len(v) > 256 or any(ord(c) < 32 for c in v)
+               for v in values.values()):
+            raise ValueError("配對資料含無效字元或過長")
+        if values["sidecar_uuid"]:
+            values["sidecar_uuid"] = str(UUID(values["sidecar_uuid"])).upper()
+        if not values["name"] or not (values["sidecar_uuid"] or values["usb_serial"]):
+            raise ValueError("請提供名稱與 Sidecar UUID 或 USB 序號")
+        device = IpadConfig(**values)
+        matches = [p for p in self.paired_ipads if (
+            device.sidecar_uuid and p.sidecar_uuid.upper() == device.sidecar_uuid
+        ) or (device.usb_serial and p.usb_serial == device.usb_serial)]
+        if len(matches) > 1:
+            raise ValueError("Sidecar UUID 與 USB 序號對應到不同紀錄，請先確認裝置")
+        previous = matches[0] if matches else None
+        if previous and self.ipad == previous and device != previous and not activate:
+            raise ValueError("更新目前目標需同時選擇套用為控制目標")
+        if previous:
+            self.paired_ipads[self.paired_ipads.index(previous)] = device
+        else:
+            self.paired_ipads.append(device)
+        changed = activate and self.ipad != device
+        if activate:
+            self.ipad = device
+        return changed
+
+    def forget_ipad(self, key: str) -> bool:
+        matches = [p for p in self.paired_ipads if pairing_key(p.to_dict()) == key]
+        if len(matches) != 1:
+            raise ValueError("配對紀錄已變更或不存在，請重新開啟清單。")
+        device = matches[0]
+        active = self.ipad == device
+        self.paired_ipads.remove(device)
+        if active:
+            self.ipad = IpadConfig()
+            # Deleting the target must not reconnect an arbitrary iPad or drop a display.
+            self.mode = OperationMode.MANUAL_ONLY
+        return active
 
 
 def load_config() -> Config:
@@ -138,6 +190,7 @@ def save_config(cfg: Config) -> None:
             if target_dir == APP_SUPPORT_DIR:
                 continue
             logger.error(f"Failed to save configuration: {e}")
+            raise
 
 
 def write_atomic_status(snapshot: StatusSnapshot) -> None:

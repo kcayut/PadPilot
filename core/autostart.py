@@ -75,7 +75,7 @@ def is_daemon_running() -> bool:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.settimeout(1.0)
         s.connect(str(SOCKET_PATH))
-        s.sendall(b"status")
+        s.sendall(b"status\n")
         resp = s.recv(256).decode("utf-8")
         return "OK" in resp
     except Exception:

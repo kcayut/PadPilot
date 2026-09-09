@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import os
+import json
 import signal
 import socket
 import subprocess
 import sys
 import threading
 import time
+from urllib.parse import urlencode
 from pathlib import Path
 
 # Add project root to sys.path
@@ -17,11 +19,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.betterdisplay import BetterDisplayCLI
-from core.config import APP_SUPPORT_DIR, load_config
+from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
 from core.models import DisplayRole, OperationMode
 from core.state_engine import StateEngine
+from core.settings import apply_change
 
 logger = get_logger("Daemon")
 
@@ -74,6 +77,26 @@ class PadPilotDaemon:
         elif action == "refresh":
             self.engine.evaluate(trigger="manual_refresh")
             return "OK: Refreshed"
+        elif action in ("save_pairing", "delete_pairing", "set_virtual_display"):
+            try:
+                payload = json.loads(arg)
+                changed = apply_change(self.config, action, payload, getattr(self, 'bd_cli', None))
+                save_config(self.config)
+            except (ValueError, KeyError, TypeError, OSError) as e:
+                self.config = load_config()
+                self.detector.config = self.engine.config = self.config
+                return f"ERROR: {e}"
+            if changed:
+                if action == 'set_virtual_display':
+                    self.engine.evaluate(trigger='virtual_display_change')
+                else:
+                    self.engine.runtime.mode = self.config.mode
+                    self.engine.reset_automation()
+            else:
+                # Merely saving a profile must not connect or switch displays.
+                if self.engine.actual and self.engine.desired:
+                    self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
+            return "OK: 設定已更新"
         elif action == "reset":
             self.engine.reset_automation()
             return "OK: Automation state reset"
@@ -101,7 +124,13 @@ class PadPilotDaemon:
             try:
                 conn, _ = server.accept()
                 with conn:
-                    data = conn.recv(1024).decode("utf-8")
+                    conn.settimeout(3.0)
+                    with conn.makefile("rb") as reader:
+                        raw = reader.readline(8193)
+                    if len(raw) > 8192 or not raw.endswith(b"\n"):
+                        conn.sendall(b"ERROR: Invalid or oversized command")
+                        continue
+                    data = raw.decode("utf-8")
                     if data:
                         with self.engine._eval_lock:
                             resp = self.handle_client_cmd(data)
@@ -142,9 +171,13 @@ class PadPilotDaemon:
                 subprocess.Popen(["open", "-a", "SwiftBar"])
             except Exception as e:
                 logger.warning(f"Could not auto-launch SwiftBar: {e}")
+        subprocess.run(["open", "-g", "swiftbar://enableplugin?" + urlencode(
+            {"plugin": self.config.swiftbar_plugin_id})], capture_output=True, check=False)
 
     def start(self) -> None:
         logger.info("PadPilot Daemon starting up...")
+        (APP_SUPPORT_DIR / "menu-hidden").unlink(missing_ok=True)
+        Path("/tmp/PadPilot/menu-hidden").unlink(missing_ok=True)
 
         # Ensure BetterDisplay and Menu Bar UI (SwiftBar) are running
         self.ensure_betterdisplay_running()

@@ -6,11 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import signal
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlencode
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -33,8 +36,10 @@ from core.config import (
 from core.detector import DisplayDetector
 from core.logger import get_log_file_path
 from core.models import OperationMode
+from core.settings import apply_change
 
 SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+MENU_HIDDEN = APP_SUPPORT_DIR / "menu-hidden"
 
 
 def send_daemon_cmd(cmd: str, timeout: float = 3.0) -> str:
@@ -46,7 +51,7 @@ def send_daemon_cmd(cmd: str, timeout: float = 3.0) -> str:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             s.connect(str(SOCKET_PATH))
-            s.sendall(cmd.encode("utf-8"))
+            s.sendall((cmd + "\n").encode("utf-8"))
             return s.recv(2048).decode("utf-8")
     except socket.timeout:
         return "Daemon response timed out; the command may still be running."
@@ -122,71 +127,129 @@ def cmd_action(args: argparse.Namespace) -> None:
     print(resp)
 
 
+def save_pairing(device: dict, activate: bool) -> None:
+    submit_settings("save_pairing", {"ipad": device, "activate": activate})
+
+
+def submit_settings(action: str, payload: dict) -> None:
+    response = send_daemon_cmd(action + ":" + json.dumps(payload, ensure_ascii=False), timeout=60.0)
+    if response.startswith("Daemon is not running"):
+        cfg = load_config()
+        bd = BetterDisplayCLI(cfg.betterdisplaycli_path) if action == "set_virtual_display" else None
+        apply_change(cfg, action, payload, bd)
+        save_config(cfg)
+        response = "✓ 設定已儲存；背景服務尚未啟動。"
+    elif not response.startswith("OK:"):
+        raise RuntimeError(response)
+    refresh_menu()
+    print(response)
+
+
+def cmd_change_settings(args: argparse.Namespace) -> None:
+    # JSON over stdin keeps device names out of shell commands.
+    raw = sys.stdin.read(8193)
+    if len(raw.encode('utf-8')) > 8000:
+        raise ValueError("設定資料過長")
+    submit_settings(args.operation, json.loads(raw))
+
+
+def cmd_gui(args: argparse.Namespace) -> None:
+    from core.gui import run_gui
+    run_gui(args.page, getattr(args, 'delete', None), getattr(args, 'select', None))
+
+
+def refresh_menu(action: str = "refreshplugin") -> None:
+    cfg = load_config()
+    subprocess.run(["open", "-g", "swiftbar://" + action + "?" + urlencode(
+        {"plugin": cfg.swiftbar_plugin_id})], capture_output=True, check=True)
+
+
+def ask(prompt: str) -> str:
+    answer = input(prompt).strip()
+    if answer.lower() == "q":
+        raise KeyboardInterrupt
+    return answer
+
+
+def choose_device(devices: list, label: str, optional: bool = False) -> dict:
+    answer = ask(label + ("（Enter 略過，q 取消）: " if optional else "（q 取消）: "))
+    if not answer and optional:
+        return {}
+    if not answer.isdecimal() or not 1 <= int(answer) <= len(devices):
+        raise ValueError("請輸入清單內的編號；未儲存任何變更。")
+    return devices[int(answer) - 1]
+
+
 def cmd_pair(args: argparse.Namespace) -> None:
-    print("\n🔍 Scanning for USB-connected iPad and available Sidecar devices...\n")
+    print("\n📱 PadPilot 配對精靈 — q 或 Ctrl+C 可取消\n")
     cfg = load_config()
     bd_cli = BetterDisplayCLI(cfg.betterdisplaycli_path)
     detector = DisplayDetector(cfg, bd_cli)
+    sidecars = bd_cli.get_sidecar_list()
+    usbs = [u for u in detector.parse_usb_devices() if u.get("vendor_id") == 1452]
+    print("Sidecar 裝置：")
+    for i, d in enumerate(sidecars, 1):
+        print(f"  [{i}] {d['name']} | {d['uuid']}")
+    print("USB Apple 裝置（請自行確認對應 iPad）：")
+    for i, d in enumerate(usbs, 1):
+        print(f"  [{i}] {d.get('product_name') or d.get('name')} | {d.get('serial') or '無序號'}")
+    for error in (getattr(bd_cli, "sidecar_error", ""), getattr(detector, "usb_error", "")):
+        if error:
+            print(f"⚠ 查詢狀態未知：{error}")
+    if not args.interactive:
+        print("使用 pair --interactive 開始配對。")
+        return
+    selected_uuid = getattr(args, "device", None)
+    device = next((d for d in sidecars if selected_uuid and d['uuid'].upper() == selected_uuid.upper()), None)
+    if not device and selected_uuid:
+        device = next((p.to_dict() for p in cfg.paired_ipads if p.sidecar_uuid.upper() == selected_uuid.upper()), None)
+    if not device:
+        if not sidecars:
+            raise ValueError("目前沒有可配對的 Sidecar 裝置；請確認 Apple Account 與連線後重試。")
+        device = choose_device(sidecars, "選擇 Sidecar 編號")
+    uuid = device.get('uuid') or device.get('sidecar_uuid', '')
+    previous = next((p for p in cfg.paired_ipads if p.sidecar_uuid.upper() == uuid.upper()), None)
+    usb = choose_device(usbs, "選擇對應 USB 編號", optional=True) if usbs else {}
+    if usb and not usb.get('serial'):
+        raise ValueError("所選 USB 裝置沒有序號；請重新執行並略過 USB 配對。")
+    name = ask(f"裝置名稱（Enter 保留 {device['name']}）: ") or device['name']
+    draft = {"name": name, "sidecar_uuid": uuid,
+             "usb_serial": usb.get('serial') or (previous.usb_serial if previous else '')}
+    print("\n準備儲存：")
+    print(json.dumps(draft, indent=2, ensure_ascii=False))
+    activate = ask("設為目前控制目標？依目前模式可能自動連線 [y/N]: ").lower() == 'y'
+    cfg.remember_ipad(draft, activate)
+    if ask("確認儲存 [y/N]: ").lower() != 'y':
+        print("已取消，設定未變更。")
+        return
+    save_pairing(draft, activate)
 
-    usb_devices = detector.parse_usb_devices()
-    apple_usbs = [u for u in usb_devices if u.get("vendor_id") == 1452]
-    sidecar_list = bd_cli.get_sidecar_list()
 
-    print("--- [USB Devices] ---")
-    if not apple_usbs:
-        print("  No Apple USB devices detected.")
+def cmd_select_ipad(args: argparse.Namespace) -> None:
+    cfg = load_config()
+    target = next((p for p in cfg.paired_ipads if p.sidecar_uuid.upper() == args.uuid.upper()), None)
+    if not target:
+        raise ValueError("找不到此配對紀錄，請重新整理清單。")
+    print(f"將控制目標改為 {target.name}。目前模式可能自動連線；原目標的暫時覆寫將清除。")
+    if ask("確認切換 [y/N]: ").lower() == 'y':
+        save_pairing(target.to_dict(), True)
     else:
-        for i, u in enumerate(apple_usbs):
-            p_name = u.get("product_name") or u.get("name")
-            serial = u.get("serial") or "N/A"
-            print(f"  [{i+1}] {p_name} (USB Serial: {serial})")
-
-    print("\n--- [Sidecar Devices] ---")
-    if not sidecar_list:
-        print("  No Sidecar devices reported by BetterDisplay CLI.")
-    else:
-        for i, s in enumerate(sidecar_list):
-            print(f"  [{i+1}] {s.get('name')} (UUID: {s.get('uuid')})")
-
-    if args.interactive:
-        print("\nPairing Wizard:")
-        dev_name = input("Enter iPad Name (e.g. Cayut's iPad): ").strip()
-        sidecar_uuid = input("Enter Sidecar UUID (from list above, or press Enter to skip): ").strip()
-        usb_serial = input("Enter USB Serial (from list above, or press Enter to skip): ").strip()
-
-        if dev_name:
-            cfg.ipad.name = dev_name
-        if sidecar_uuid:
-            cfg.ipad.sidecar_uuid = sidecar_uuid
-        if usb_serial:
-            cfg.ipad.usb_serial = usb_serial
-
-        save_config(cfg)
-        print(f"\n✓ Saved pairing to {get_config_file_path()}:")
-        print(json.dumps(cfg.ipad.to_dict(), indent=2))
-        send_daemon_cmd("refresh")
-    else:
-        print("\nTo pair automatically, run: padpilot-cli pair --interactive")
-        print("Or set directly via: padpilot-cli set-ipad --name ... --sidecar-uuid ... --usb-serial ...")
+        print("已取消。")
 
 
 def cmd_set_ipad(args: argparse.Namespace) -> None:
-    cfg = load_config()
-    if args.name:
-        cfg.ipad.name = args.name
-    if args.sidecar_uuid:
-        cfg.ipad.sidecar_uuid = args.sidecar_uuid
-    if args.usb_serial:
-        cfg.ipad.usb_serial = args.usb_serial
-
-    save_config(cfg)
-    print("✓ Configured iPad settings updated:")
-    print(json.dumps(cfg.ipad.to_dict(), indent=2))
-    send_daemon_cmd("refresh")
+    data = load_config().ipad.to_dict()
+    for key in ('name', 'sidecar_uuid', 'usb_serial'):
+        if getattr(args, key, None):
+            data[key] = getattr(args, key)
+    save_pairing(data, True)
 
 
 def cmd_prefs(args: argparse.Namespace) -> None:
     cfg = load_config()
+    if getattr(args, "open", False):
+        subprocess.run(["open", str(get_config_file_path())], check=True)
+        return
     print(f"Configuration file: {get_config_file_path()}\n")
     print(json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False))
 
@@ -199,46 +262,61 @@ def cmd_open_log(args: argparse.Namespace) -> None:
     subprocess.run(["open", str(log_file)])
 
 
+def cmd_open_betterdisplay(args: argparse.Namespace) -> None:
+    subprocess.run(["open", "-a", "BetterDisplay"], check=True)
+
+
+def daemon_pids() -> list[int]:
+    # Match this checkout's full script path, never unrelated Python processes.
+    pattern = r"(^| )" + re.escape(str(PROJECT_ROOT / "bin" / "padpilotd")) + r"( |$)"
+    result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True)
+    if result.returncode not in (0, 1):
+        raise RuntimeError("無法確認背景服務程序，未隱藏選單。" + result.stderr)
+    return [int(pid) for pid in result.stdout.split()]
+
+
 def cmd_stop(args: argparse.Namespace) -> None:
-    print("Stopping PadPilot daemon...")
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
-    if plist_path.exists():
-        subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
-
-    # Send stop to daemon if socket is still active
-    send_daemon_cmd("stop", timeout=1.0)
-    # pkill any remaining padpilotd processes
-    subprocess.run(["pkill", "-f", "bin/padpilotd"], capture_output=True, check=False)
-
-    # Clean up runtime files in all possible locations
-    for sf in [
-        Path.home() / "Library" / "Application Support" / "PadPilot" / "runtime" / "status.json",
-        Path("/tmp/PadPilot/runtime/status.json"),
-    ]:
-        if sf.exists():
-            try:
-                sf.unlink()
-            except OSError:
-                pass
-
-    if SOCKET_PATH.exists():
+    plist = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
+    if plist.exists():
+        subprocess.run(["launchctl", "unload", str(plist)], capture_output=True, check=False)
+    # A loaded KeepAlive job can respawn; verify it is gone before proceeding.
+    job = subprocess.run(["launchctl", "list", "com.padpilot.daemon"], capture_output=True)
+    if job.returncode == 0:
+        raise RuntimeError("背景服務仍由 launchd 管理，停止失敗；保留選單供重試。")
+    for pid in daemon_pids():
         try:
-            SOCKET_PATH.unlink()
-        except OSError:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
             pass
+    deadline = time.monotonic() + 5
+    while daemon_pids():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("背景服務尚未停止，保留選單供重試。")
+        time.sleep(0.1)
+    for path in (APP_SUPPORT_DIR / "runtime" / "status.json",
+                 Path("/tmp/PadPilot/runtime/status.json"), SOCKET_PATH):
+        path.unlink(missing_ok=True)
+    print("✓ PadPilot 背景服務已停止。")
+    if not getattr(args, "exiting", False):
+        refresh_menu()
 
-    # Notify SwiftBar to refresh
-    cfg = load_config()
-    subprocess.run(
-        ["open", "-g", f"swiftbar://refreshplugin?plugin={cfg.swiftbar_plugin_id}"],
-        capture_output=True,
-        check=False,
-    )
-    print("✓ PadPilot daemon has been stopped.")
+
+def cmd_exit(args: argparse.Namespace) -> None:
+    args.exiting = True
+    cmd_stop(args)
+    MENU_HIDDEN.touch()
+    refresh_menu()
+    print("✓ PadPilot 已離開 menu bar。重新開啟：padpilot-cli start")
 
 
 def cmd_start(args: argparse.Namespace) -> None:
     print("Starting PadPilot daemon...")
+    MENU_HIDDEN.unlink(missing_ok=True)
+    Path("/tmp/PadPilot/menu-hidden").unlink(missing_ok=True)
+    if daemon_pids():
+        refresh_menu("enableplugin")
+        print("✓ PadPilot 已在執行，已恢復選單。")
+        return
     cfg = load_config()
     plist_path = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
     if cfg.autostart_on_login:
@@ -246,11 +324,12 @@ def cmd_start(args: argparse.Namespace) -> None:
             enable_autostart()
         else:
             subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True, check=False)
-            subprocess.run(["launchctl", "load", str(plist_path)], capture_output=True, check=False)
+            subprocess.run(["launchctl", "load", str(plist_path)], capture_output=True, check=True)
     else:
         # Fallback to direct launch
         daemon_bin = PROJECT_ROOT / "bin" / "padpilotd"
-        subprocess.Popen([sys.executable, str(daemon_bin)])
+        subprocess.Popen([sys.executable, str(daemon_bin)], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     cfg = load_config()
     # Ensure Menu Bar UI (SwiftBar) is running
@@ -264,6 +343,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         capture_output=True,
         check=False,
     )
+    refresh_menu("enableplugin")
     print("✓ PadPilot daemon has been started.")
 
 
@@ -288,9 +368,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
+    p_gui = subparsers.add_parser("gui", help="Open graphical pairing wizard or read-only settings")
+    p_gui.add_argument("page", choices=["wizard", "settings"], nargs="?", default="wizard")
+    p_gui.add_argument("--delete", help="Show confirmation for a saved profile key")
+    p_gui.add_argument("--select", help="Show confirmation for a saved target key")
+    p_gui.set_defaults(func=cmd_gui)
+    p_change = subparsers.add_parser("change-settings", help="Apply a validated JSON settings command from stdin")
+    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display"])
+    p_change.set_defaults(func=cmd_change_settings)
+
     # start
     p_start = subparsers.add_parser("start", help="Start the background daemon")
     p_start.set_defaults(func=cmd_start)
+
+    p_exit = subparsers.add_parser("exit", help="Stop daemon and hide only PadPilot from menu bar")
+    p_exit.set_defaults(func=cmd_exit)
 
     # stop
     p_stop = subparsers.add_parser("stop", help="Stop the background daemon")
@@ -335,7 +427,12 @@ def main() -> None:
     # pair
     p_pair = subparsers.add_parser("pair", help="Scan and pair connected iPad")
     p_pair.add_argument("--interactive", "-i", action="store_true", help="Run interactive pairing wizard")
+    p_pair.add_argument("--device", help="Preselect a discovered or saved Sidecar UUID")
     p_pair.set_defaults(func=cmd_pair)
+
+    p_select = subparsers.add_parser("select-ipad", help="Select a saved control target with confirmation")
+    p_select.add_argument("uuid")
+    p_select.set_defaults(func=cmd_select_ipad)
 
     # set-ipad
     p_set_ipad = subparsers.add_parser("set-ipad", help="Directly set iPad configuration")
@@ -346,11 +443,14 @@ def main() -> None:
 
     # prefs
     p_prefs = subparsers.add_parser("prefs", help="View preferences")
+    p_prefs.add_argument("--open", action="store_true", help="Open configuration in its default editor")
     p_prefs.set_defaults(func=cmd_prefs)
 
     # open-log
     p_log = subparsers.add_parser("open-log", help="Open PadPilot log file in Console/TextEdit")
     p_log.set_defaults(func=cmd_open_log)
+    p_bd = subparsers.add_parser("open-betterdisplay", help="Open BetterDisplay")
+    p_bd.set_defaults(func=cmd_open_betterdisplay)
 
     args = parser.parse_args()
     if not args.subcommand:
@@ -361,4 +461,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print("\n已取消。")
+    except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
+        print(f"錯誤：{error}", file=sys.stderr)
+        from core.notifier import notify_error
+        notify_error(str(error), subtitle="PadPilot 操作失敗")
+        sys.exit(1)

@@ -104,10 +104,13 @@ class BetterDisplayCLI:
 
     def get_sidecar_list(self) -> List[dict[str, str]]:
         """List available Sidecar targets. Returns list of {name, uuid}."""
+        self.sidecar_error = ""
         if not self.is_available():
+            self.sidecar_error = "BetterDisplay CLI 無法使用"
             return []
         code, stdout, stderr = self.run_cmd(["get", "-sidecarList"], timeout=5.0)
         if code != 0:
+            self.sidecar_error = stderr or "Sidecar 查詢失敗"
             logger.warning(f"get -sidecarList failed: {stderr}")
             return []
 
@@ -120,11 +123,15 @@ class BetterDisplayCLI:
             # "Cayut's iPad (UUID: 12345678-ABCD-...)" or "Name: ..., UUID: ..." or JSON
             uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", line)
             uuid = uuid_match.group(1) if uuid_match else ""
+            if not uuid:
+                self.sidecar_error = "Sidecar 回應缺少有效 UUID"
+                continue
 
             # Extract name before UUID or parenthesis
             name = line
             if uuid_match:
-                name = line[: uuid_match.start()].strip(" (:-")
+                name = re.sub(r"\s*\(?UUID\s*:\s*$", "", line[: uuid_match.start()], flags=re.I).strip(" (:-")
+                name = re.sub(r"^Name:\s*", "", name, flags=re.I).rstrip(", ")
             if not name:
                 name = "iPad"
 
@@ -201,14 +208,23 @@ class BetterDisplayCLI:
 
     def get_display_identifiers(self) -> List[dict[str, Any]]:
         """Fetch display identifiers from BetterDisplay CLI."""
+        self.identifiers_error = ""
         if not self.is_available():
+            self.identifiers_error = "BetterDisplay CLI 無法使用"
             return []
         code, out, err = self.run_cmd(["get", "-identifiers"], timeout=5.0)
-        if code != 0 or not out:
+        if code != 0:
+            self.identifiers_error = err or "螢幕識別資料查詢失敗"
+            return []
+        if not out:
             return []
         try:
-            return json.loads("[" + out + "]")
+            items = json.loads(out if out.startswith("[") else "[" + out + "]")
+            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+                raise ValueError("invalid identifiers")
+            return items
         except Exception:
+            self.identifiers_error = "螢幕識別資料格式無法辨識"
             return []
 
     def check_virtual_display(self, name: str) -> Tuple[bool, bool]:

@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import time
+import hashlib
+import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, List, Optional, Tuple
 
 SWIFTBAR_PLUGIN_ID = "padpilot.30s.py"
 DEFAULT_VIRTUAL_DISPLAY_NAME = "PadPilotVirtual"
+
+
+def pairing_key(device: dict) -> str:
+    """Opaque key also detects a profile changed since a menu/dialog was opened."""
+    return hashlib.sha256(json.dumps(device, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
 
 
 class OperationMode(str, Enum):
@@ -95,6 +102,10 @@ class UserOverride:
 @dataclass
 class ActualState:
     physical_displays: List[DisplayInfo] = field(default_factory=list)
+    online_displays: List[DisplayInfo] = field(default_factory=list)
+    sidecar_devices: List[dict[str, str]] = field(default_factory=list)
+    usb_devices: List[dict[str, Any]] = field(default_factory=list)
+    discovery_errors: dict[str, str] = field(default_factory=dict)
     main_display: Optional[DisplayInfo] = None
     virtual_display_exists: bool = False
     virtual_display_connected: bool = False
@@ -109,6 +120,10 @@ class ActualState:
     def to_dict(self) -> dict[str, Any]:
         return {
             "physical_displays": [d.to_dict() for d in self.physical_displays],
+            "online_displays": [d.to_dict() for d in self.online_displays],
+            "sidecar_devices": self.sidecar_devices,
+            "usb_devices": self.usb_devices,
+            "discovery_errors": self.discovery_errors,
             "main_display": self.main_display.to_dict() if self.main_display else None,
             "virtual_display_exists": self.virtual_display_exists,
             "virtual_display_connected": self.virtual_display_connected,
@@ -181,6 +196,7 @@ class StatusSnapshot:
     configured_ipad: dict[str, Any]
     summary_text: str
     status_details: dict[str, str]
+    paired_ipads: List[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
