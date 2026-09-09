@@ -197,6 +197,7 @@ class SettingsWindow:
         self.buttons = []
         self.nav_widgets = {}
         self.profiles = {}
+        self.expanded_profiles = set()
         self.candidates = {}
         self.virtuals = {}
         self.usbs = []
@@ -525,70 +526,150 @@ class SettingsWindow:
         for key, p in self.profiles.items():
             is_target = (p == cfg.ipad.to_dict())
             status = device_status(p, self.view)
+            kid = p.get('sidecar_uuid') or key
+            is_expanded = kid in getattr(self, 'expanded_profiles', set())
 
             # Compact card
             card = Card(self.scroll_frame, padx=14, pady=8)
             card.pack(fill='x', padx=18, pady=4)
 
-            # Line 1: Name & Badges on Left, Action Buttons on Right
-            top_row = tk.Frame(card.body, bg=CARD_BG)
-            top_row.pack(fill='x')
+            # Upper header: Left info (Title, UUID, USB) and Right action column (刪除配對 + 設定/收合)
+            header_box = tk.Frame(card.body, bg=CARD_BG)
+            header_box.pack(fill='x')
 
-            left_top = tk.Frame(top_row, bg=CARD_BG)
-            left_top.pack(side='left', fill='x', expand=True)
+            info_col = tk.Frame(header_box, bg=CARD_BG)
+            info_col.pack(side='left', fill='x', expand=True)
 
-            tk.Label(left_top, text='📱', font=('Helvetica Neue', 13), bg=CARD_BG).pack(side='left', padx=(0, 4))
-            tk.Label(left_top, text=p.get('name', '未命名 iPad'), font=('Helvetica Neue', 11, 'bold'),
-                     fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+            action_col = tk.Frame(header_box, bg=CARD_BG)
+            action_col.pack(side='right', anchor='ne', padx=(10, 0))
+
+            # Action buttons vertically stacked on the right
+            del_btn = ttk.Button(
+                action_col, text='刪除配對',
+                command=lambda k=key: self.delete_selected(k),
+                style='Danger.TButton'
+            )
+            del_btn.pack(fill='x', pady=(0, 4))
+            self.buttons.append(del_btn)
+
+            exp_btn = ttk.Button(
+                action_col, text='收合 ▲' if is_expanded else '設定 ▼',
+                command=lambda k=kid: self.toggle_profile_expand(k),
+                style='Secondary.TButton'
+            )
+            exp_btn.pack(fill='x')
+            self.buttons.append(exp_btn)
+
+            # Info Line 1: Name & Badges
+            top_line = tk.Frame(info_col, bg=CARD_BG)
+            top_line.pack(fill='x')
+
+            # Downward arrow toggle
+            arrow_icon = '▼' if is_expanded else '▶'
+            arrow_lbl = tk.Label(top_line, text=f"{arrow_icon} ", font=('Helvetica Neue', 10),
+                                 fg=BLUE, bg=CARD_BG, cursor='hand2')
+            arrow_lbl.pack(side='left', padx=(0, 2))
+            arrow_lbl.bind('<Button-1>', lambda e, k=kid: self.toggle_profile_expand(k))
+
+            tk.Label(top_line, text='📱', font=('Helvetica Neue', 13), bg=CARD_BG).pack(side='left', padx=(0, 4))
+            name_lbl = tk.Label(top_line, text=p.get('name', '未命名 iPad'), font=('Helvetica Neue', 11, 'bold'),
+                                fg=TEXT_PRIMARY, bg=CARD_BG, cursor='hand2')
+            name_lbl.pack(side='left')
+            name_lbl.bind('<Button-1>', lambda e, k=kid: self.toggle_profile_expand(k))
 
             if is_target:
-                self.make_badge(left_top, '★ 主力 iPad (自動接管)', BLUE, '#ffffff').pack(side='left', padx=(6, 2))
+                self.make_badge(top_line, '★ 主要管理 iPad (自動接管)', BLUE, '#ffffff').pack(side='left', padx=(6, 2))
 
             if status == '已連線':
-                self.make_badge(left_top, '● 已連線', GREEN_BG, GREEN_FG).pack(side='left', padx=2)
+                self.make_badge(top_line, '● 已連線', GREEN_BG, GREEN_FG).pack(side='left', padx=2)
             elif status == '僅 USB 已接上':
-                self.make_badge(left_top, '⚡ 僅 USB 接上', ORANGE_BG, ORANGE_FG).pack(side='left', padx=2)
+                self.make_badge(top_line, '⚡ 僅 USB 接上', ORANGE_BG, ORANGE_FG).pack(side='left', padx=2)
             elif status == '已偵測到 Sidecar':
-                self.make_badge(left_top, '📡 偵測到 Sidecar', BLUE_TINT, BLUE).pack(side='left', padx=2)
+                self.make_badge(top_line, '📡 偵測到 Sidecar', BLUE_TINT, BLUE).pack(side='left', padx=2)
             else:
-                self.make_badge(left_top, '○ 離線未連線', '#f2f2f7', TEXT_TERTIARY).pack(side='left', padx=2)
+                self.make_badge(top_line, '○ 離線未連線', '#f2f2f7', TEXT_TERTIARY).pack(side='left', padx=2)
 
-            # Line 1 Right: Action buttons
-            if not self.readonly:
-                act_box = tk.Frame(top_row, bg=CARD_BG)
-                act_box.pack(side='right')
+            # Info Line 2: Sidecar UUID
+            uuid_str = p.get('sidecar_uuid') or '未設定'
+            tk.Label(info_col, text=f"Sidecar UUID: {uuid_str}", font=('Menlo', 9),
+                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(4, 0))
 
-                if not is_target:
+            # Info Line 3: USB 序號
+            usb_str = p.get('usb_serial') or '未設定'
+            usb_suffix = ' (目前已接上 USB)' if any(u.get('serial') == p.get('usb_serial') for u in self.view['actual'].get('usb_devices', [])) else ''
+            tk.Label(info_col, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
+                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(1, 0))
+
+            # Expanded settings drawer
+            if is_expanded:
+                tk.Frame(card.body, bg='#e5e5ea', height=1).pack(fill='x', pady=(8, 8))
+
+                edit_box = tk.Frame(card.body, bg=CARD_BG)
+                edit_box.pack(fill='x')
+
+                # Row 1: 自訂名稱 + [ 更新名稱 ] 按鈕
+                r1 = tk.Frame(edit_box, bg=CARD_BG)
+                r1.pack(fill='x', pady=2)
+                tk.Label(r1, text='自訂名稱：', font=('Helvetica Neue', 10),
+                         fg=TEXT_SECONDARY, bg=CARD_BG, width=12, anchor='w').pack(side='left')
+                name_var = tk.StringVar(value=p.get('name', ''))
+                name_entry = tk.Entry(
+                    r1, textvariable=name_var, font=('Helvetica Neue', 10),
+                    bg='#ffffff', fg=TEXT_PRIMARY, insertbackground=TEXT_PRIMARY,
+                    selectbackground=BLUE, selectforeground='#ffffff',
+                    highlightbackground='#d1d1d6', highlightthickness=1, relief='flat'
+                )
+                name_entry.pack(side='left', fill='x', expand=True, padx=(0, 6))
+                up_name_btn = ttk.Button(
+                    r1, text='更新名稱',
+                    command=lambda pr=p, nv=name_var: self.update_profile_name(pr, nv.get()),
+                    style='Secondary.TButton'
+                )
+                up_name_btn.pack(side='right')
+                self.buttons.append(up_name_btn)
+
+                # Row 2: 對應 USB + [ 更新 USB 設定 ] 按鈕
+                r2 = tk.Frame(edit_box, bg=CARD_BG)
+                r2.pack(fill='x', pady=2)
+                tk.Label(r2, text='對應 USB：', font=('Helvetica Neue', 10),
+                         fg=TEXT_SECONDARY, bg=CARD_BG, width=12, anchor='w').pack(side='left')
+                usb_options = ['略過 / 未綁定 USB'] + [
+                    f"{u.get('product_name') or u.get('name')} · {u['serial']}" for u in self.usbs
+                ]
+                usb_cb = ttk.Combobox(r2, state='readonly', values=usb_options, style='TCombobox')
+                pre_idx = 0
+                if p.get('usb_serial'):
+                    for i, u in enumerate(self.usbs):
+                        if u.get('serial') == p.get('usb_serial'):
+                            pre_idx = i + 1
+                            break
+                usb_cb.current(pre_idx)
+                usb_cb.pack(side='left', fill='x', expand=True, padx=(0, 6))
+                up_usb_btn = ttk.Button(
+                    r2, text='更新 USB 設定',
+                    command=lambda pr=p, ucb=usb_cb: self.update_profile_usb(pr, ucb.current()),
+                    style='Secondary.TButton'
+                )
+                up_usb_btn.pack(side='right')
+                self.buttons.append(up_usb_btn)
+
+                # Row 3: 設為主要管理 iPad
+                r3 = tk.Frame(edit_box, bg=CARD_BG)
+                r3.pack(fill='x', pady=(4, 2))
+                tk.Label(r3, text='主力管理：', font=('Helvetica Neue', 10),
+                         fg=TEXT_SECONDARY, bg=CARD_BG, width=12, anchor='w').pack(side='left')
+                if is_target:
+                    self.make_badge(r3, '✓ 目前已是主要管理 iPad（無實體外接螢幕時自動連線接管）', BLUE_TINT, BLUE).pack(side='left')
+                else:
                     tgt_btn = ttk.Button(
-                        act_box, text='設為主力 iPad',
+                        r3, text='設為主要管理 iPad',
                         command=lambda k=key: self.select_target(k),
                         style='Accent.TButton'
                     )
-                    tgt_btn.pack(side='left', padx=(0, 4))
+                    tgt_btn.pack(side='left', padx=(0, 6))
                     self.buttons.append(tgt_btn)
-                else:
-                    ready_lbl = tk.Label(act_box, text='✓ 目前主力接管中', font=('Helvetica Neue', 10),
-                                         fg=BLUE, bg=CARD_BG)
-                    ready_lbl.pack(side='left', padx=(0, 4))
-
-                del_btn = ttk.Button(
-                    act_box, text='刪除配對',
-                    command=lambda k=key: self.delete_selected(k),
-                    style='Danger.TButton'
-                )
-                del_btn.pack(side='left')
-                self.buttons.append(del_btn)
-
-            # Line 2: Sidecar UUID on its own separate line (never truncated!)
-            uuid_str = p.get('sidecar_uuid') or '未設定'
-            tk.Label(card.body, text=f"Sidecar UUID: {uuid_str}", font=('Menlo', 9),
-                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(4, 0))
-
-            # Line 3: USB 序號 on its own separate line (never truncated!)
-            usb_str = p.get('usb_serial') or '未設定'
-            usb_suffix = ' (目前已接上 USB)' if any(u.get('serial') == p.get('usb_serial') for u in self.view['actual'].get('usb_devices', [])) else ''
-            tk.Label(card.body, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
-                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(1, 0))
+                    tk.Label(r3, text='（當 Mac 未接實體外接螢幕時，系統將自動連線此 iPad 作為主顯示器）',
+                             font=('Helvetica Neue', 9), fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left')
 
     def render_search_tab(self):
         # Instruction Card
@@ -651,76 +732,68 @@ class SettingsWindow:
             tk.Label(card.body, text=f"目前關聯 USB:  {cur_usb}", font=('Menlo', 9),
                      fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(1, 4))
 
-            tk.Frame(card.body, bg='#f2f2f7', height=1).pack(fill='x', pady=(4, 6))
-
-            # Row 1: 自訂名稱 + [ 更新名稱 ] 按鈕
-            f_row1 = tk.Frame(card.body, bg=CARD_BG)
-            f_row1.pack(fill='x', pady=2)
-            tk.Label(f_row1, text='自訂名稱：', font=('Helvetica Neue', 10),
-                     fg=TEXT_SECONDARY, bg=CARD_BG, width=10, anchor='w').pack(side='left')
-            name_var = tk.StringVar(value=cand.get('name', ''))
-            name_entry = tk.Entry(
-                f_row1,
-                textvariable=name_var,
-                font=('Helvetica Neue', 10),
-                bg='#ffffff',
-                fg=TEXT_PRIMARY,               # High contrast dark text!
-                insertbackground=TEXT_PRIMARY, # Visible cursor!
-                selectbackground=BLUE,
-                selectforeground='#ffffff',
-                highlightbackground='#d1d1d6',
-                highlightthickness=1,
-                relief='flat'
-            )
-            name_entry.pack(side='left', fill='x', expand=True, padx=(0, 6))
-
-            if not self.readonly:
-                up_name_btn = ttk.Button(
-                    f_row1, text='更新名稱',
-                    command=lambda c=cand, nv=name_var: self.update_candidate_name(c, nv.get()),
+            if prev:
+                # 已配對裝置：不再保留設定功能，顯示狀態與跳轉提示
+                tip_box = tk.Frame(card.body, bg=CARD_BG)
+                tip_box.pack(fill='x', pady=(4, 0))
+                tk.Label(
+                    tip_box,
+                    text='✓ 此裝置已完成配對。若需自訂名稱、對應 USB 或設為主力 iPad，請至「已配對 iPad」分頁設定。',
+                    font=('Helvetica Neue', 9), fg=TEXT_SECONDARY, bg=CARD_BG, justify='left'
+                ).pack(side='left')
+                go_paired_btn = ttk.Button(
+                    tip_box, text='前往「已配對 iPad」設定 →',
+                    command=lambda: self.select_tab('paired'),
                     style='Secondary.TButton'
                 )
-                up_name_btn.pack(side='right')
-                self.buttons.append(up_name_btn)
+                go_paired_btn.pack(side='right')
+                self.buttons.append(go_paired_btn)
+            else:
+                # 新發現未配對裝置：提供配對設定欄位
+                tk.Frame(card.body, bg='#f2f2f7', height=1).pack(fill='x', pady=(4, 6))
 
-            # Row 2: 對應 USB + [ 更新 USB 設定 ] 按鈕
-            f_row2 = tk.Frame(card.body, bg=CARD_BG)
-            f_row2.pack(fill='x', pady=2)
-            tk.Label(f_row2, text='對應 USB：', font=('Helvetica Neue', 10),
-                     fg=TEXT_SECONDARY, bg=CARD_BG, width=10, anchor='w').pack(side='left')
-            usb_options = ['略過 / 保留原 USB 設定'] + [
-                f"{u.get('product_name') or u.get('name')} · {u['serial']}" for u in self.usbs
-            ]
-            usb_cb = ttk.Combobox(f_row2, state='readonly', values=usb_options, style='TCombobox')
-            # Pre-select matching USB if already paired
-            pre_idx = 0
-            if prev.get('usb_serial'):
-                for i, u in enumerate(self.usbs):
-                    if u.get('serial') == prev.get('usb_serial'):
-                        pre_idx = i + 1
-                        break
-            usb_cb.current(pre_idx)
-            usb_cb.pack(side='left', fill='x', expand=True, padx=(0, 6))
-
-            if not self.readonly:
-                up_usb_btn = ttk.Button(
-                    f_row2, text='更新 USB 設定',
-                    command=lambda c=cand, nv=name_var, ucb=usb_cb: self.update_candidate_usb(c, nv.get(), ucb.current()),
-                    style='Secondary.TButton'
+                # Row 1: 自訂名稱
+                f_row1 = tk.Frame(card.body, bg=CARD_BG)
+                f_row1.pack(fill='x', pady=2)
+                tk.Label(f_row1, text='自訂名稱：', font=('Helvetica Neue', 10),
+                         fg=TEXT_SECONDARY, bg=CARD_BG, width=10, anchor='w').pack(side='left')
+                name_var = tk.StringVar(value=cand.get('name', ''))
+                name_entry = tk.Entry(
+                    f_row1,
+                    textvariable=name_var,
+                    font=('Helvetica Neue', 10),
+                    bg='#ffffff',
+                    fg=TEXT_PRIMARY,
+                    insertbackground=TEXT_PRIMARY,
+                    selectbackground=BLUE,
+                    selectforeground='#ffffff',
+                    highlightbackground='#d1d1d6',
+                    highlightthickness=1,
+                    relief='flat'
                 )
-                up_usb_btn.pack(side='right')
-                self.buttons.append(up_usb_btn)
+                name_entry.pack(side='left', fill='x', expand=True)
 
-            # Bottom action row
-            act_row = tk.Frame(card.body, bg=CARD_BG)
-            act_row.pack(fill='x', pady=(6, 0))
+                # Row 2: 對應 USB
+                f_row2 = tk.Frame(card.body, bg=CARD_BG)
+                f_row2.pack(fill='x', pady=2)
+                tk.Label(f_row2, text='對應 USB：', font=('Helvetica Neue', 10),
+                         fg=TEXT_SECONDARY, bg=CARD_BG, width=10, anchor='w').pack(side='left')
+                usb_options = ['略過 / 未綁定 USB'] + [
+                    f"{u.get('product_name') or u.get('name')} · {u['serial']}" for u in self.usbs
+                ]
+                usb_cb = ttk.Combobox(f_row2, state='readonly', values=usb_options, style='TCombobox')
+                usb_cb.current(0)
+                usb_cb.pack(side='left', fill='x', expand=True)
 
-            act_var = tk.BooleanVar(value=False)
-            chk = ttk.Checkbutton(act_row, text='設為主要管理 iPad（無螢幕時自動接管）',
-                                  variable=act_var, style='TCheckbutton')
-            chk.pack(side='left')
+                # Bottom action row
+                act_row = tk.Frame(card.body, bg=CARD_BG)
+                act_row.pack(fill='x', pady=(6, 0))
 
-            if not self.readonly:
+                act_var = tk.BooleanVar(value=False)
+                chk = ttk.Checkbutton(act_row, text='設為主要管理 iPad（無螢幕時自動接管）',
+                                      variable=act_var, style='TCheckbutton')
+                chk.pack(side='left')
+
                 save_btn = ttk.Button(
                     act_row, text='完成配對並儲存全部',
                     command=lambda c=cand, n=name_var, u=usb_cb, a=act_var: self.save_candidate_card(
@@ -1330,6 +1403,63 @@ class SettingsWindow:
             self.notice.configure(text=msg)
 
         self.task(work, complete)
+
+    def toggle_profile_expand(self, key_id: str):
+        if not hasattr(self, 'expanded_profiles'):
+            self.expanded_profiles = set()
+        if key_id in self.expanded_profiles:
+            self.expanded_profiles.remove(key_id)
+        else:
+            self.expanded_profiles.add(key_id)
+        self.render_current_tab()
+
+    def update_profile_name(self, profile: dict, new_name: str):
+        if self.busy or not profile:
+            return
+        new_name = new_name.strip()
+        old_name = profile.get('name', '')
+        if not new_name:
+            messagebox.showerror('名稱不可為空', '請輸入有效的裝置名稱。', parent=self.root)
+            return
+        if new_name == old_name:
+            messagebox.showinfo('名稱未變更', f'裝置名稱已經是「{new_name}」，未作任何變更。', parent=self.root)
+            return
+        detail = f"是否將名稱由：\n{old_name}\n\n更改成：\n{new_name}"
+        if not confirm(self.root, '確定更新裝置名稱?', detail):
+            return
+        is_target = (profile == self.view['config'].ipad.to_dict())
+        payload = {
+            'ipad': {
+                'name': new_name,
+                'sidecar_uuid': profile.get('sidecar_uuid', ''),
+                'usb_serial': profile.get('usb_serial', '')
+            },
+            'activate': is_target
+        }
+        self.change('save_pairing', payload)
+
+    def update_profile_usb(self, profile: dict, usb_index: int):
+        if self.busy or not profile:
+            return
+        old_serial = profile.get('usb_serial', '') or '未設定'
+        new_serial = self.usbs[usb_index - 1]['serial'] if (0 < usb_index <= len(self.usbs)) else ''
+        new_display = new_serial or '略過 / 未綁定'
+        if new_serial == profile.get('usb_serial', ''):
+            messagebox.showinfo('USB 設定未變更', f'USB 序號已是「{old_serial}」，未作任何變更。', parent=self.root)
+            return
+        detail = f"裝置：{profile.get('name', '')}\n\n是否將 USB 序號由：\n原設定：{old_serial}\n變更為：{new_display}"
+        if not confirm(self.root, '確定更新 USB 設定?', detail):
+            return
+        is_target = (profile == self.view['config'].ipad.to_dict())
+        payload = {
+            'ipad': {
+                'name': profile.get('name', '').strip(),
+                'sidecar_uuid': profile.get('sidecar_uuid', ''),
+                'usb_serial': new_serial
+            },
+            'activate': is_target
+        }
+        self.change('save_pairing', payload)
 
     def update_candidate_name(self, candidate, new_name):
         if self.readonly or self.busy or not candidate:
