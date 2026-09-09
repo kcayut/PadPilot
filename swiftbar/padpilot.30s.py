@@ -201,7 +201,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
         item(f'{title}：{value}', 1)
     for source, error in errors.items():
         item(f'{source}：{error}', 1)
-    item('開啟日誌', 1, ('open-log',))
+    item('開啟日誌', 1, ('gui', 'diagnostics'))
     separator()
     item('重新整理螢幕狀態', args=('action', 'refresh'))
     item('背景服務')

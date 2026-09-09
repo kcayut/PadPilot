@@ -255,11 +255,15 @@ def cmd_prefs(args: argparse.Namespace) -> None:
 
 
 def cmd_open_log(args: argparse.Namespace) -> None:
-    log_file = get_log_file_path()
-    if not log_file.exists():
-        print(f"Log file does not exist yet at {log_file}")
+    if getattr(args, "raw", False):
+        log_file = get_log_file_path()
+        if not log_file.exists():
+            print(f"Log file does not exist yet at {log_file}")
+            return
+        subprocess.run(["open", str(log_file)])
         return
-    subprocess.run(["open", str(log_file)])
+    from core.gui import run_gui
+    run_gui("diagnostics")
 
 
 def cmd_open_betterdisplay(args: argparse.Namespace) -> None:
@@ -447,7 +451,8 @@ def main() -> None:
     p_prefs.set_defaults(func=cmd_prefs)
 
     # open-log
-    p_log = subparsers.add_parser("open-log", help="Open PadPilot log file in Console/TextEdit")
+    p_log = subparsers.add_parser("open-log", help="Open PadPilot status & diagnostics in GUI (or use --raw for file)")
+    p_log.add_argument("--raw", action="store_true", help="Open raw log file in Console/TextEdit")
     p_log.set_defaults(func=cmd_open_log)
     p_bd = subparsers.add_parser("open-betterdisplay", help="Open BetterDisplay")
     p_bd.set_defaults(func=cmd_open_betterdisplay)
