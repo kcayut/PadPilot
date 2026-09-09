@@ -16,7 +16,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from core.betterdisplay import BetterDisplayCLI
-from core.config import Config, get_config_file_path, read_status
+from core.config import Config, get_config_file_path, get_status_file_path, read_status
 from core.detector import DisplayDetector
 from core.logger import get_log_file_path
 from core.models import pairing_key
@@ -61,10 +61,27 @@ def short_id(value: str) -> str:
     return value[:8] + '…' + value[-6:] if len(value) > 20 else value or '未設定'
 
 
+def get_sync_signatures() -> tuple:
+    """Return lightweight tuple of (st_ino, st_mtime_ns, st_size) for config and status files."""
+    sigs = []
+    for p in (get_config_file_path(), get_status_file_path()):
+        try:
+            st = p.stat()
+            sigs.append((str(p), st.st_ino, st.st_mtime_ns, st.st_size))
+        except OSError:
+            sigs.append((str(p), 0, 0, 0))
+    return tuple(sigs)
+
+
 def read_view(scan: bool = False) -> dict:
     """Read-only view of configuration and hardware status."""
     path = get_config_file_path()
-    cfg = Config.from_dict(json.loads(path.read_text())) if path.exists() else Config()
+    cfg = Config()
+    if path.exists():
+        try:
+            cfg = Config.from_dict(json.loads(path.read_text()))
+        except Exception:
+            cfg = Config()
     status = read_status() or {}
     actual = status.get('actual', {})
     stamp = actual.get('timestamp', 0)
@@ -78,13 +95,33 @@ def read_view(scan: bool = False) -> dict:
         identifiers = bd.get_display_identifiers()
         if bd.identifiers_error:
             actual['discovery_errors']['identifiers'] = bd.identifiers_error
+
+    status_cfg_rev = int(status.get('config_revision', 0))
+    cfg_rev = int(cfg.revision)
+    if status_cfg_rev == cfg_rev:
+        consistency = "CONSISTENT"
+    elif status_cfg_rev < cfg_rev:
+        consistency = "APPLYING_CONFIG"
+    else:
+        consistency = "REVISION_CONFLICT"
+
+    hw_stamp = actual.get('timestamp', time.time())
+    hw_age = max(0.0, time.time() - hw_stamp) if isinstance(hw_stamp, (int, float)) else 0.0
+
     return {
         'config': cfg,
         'actual': actual,
         'fresh': fresh,
         'identifiers': identifiers,
         'scanned': scan,
-        'status': status
+        'status': status,
+        'consistency_state': consistency,
+        'status_revision': int(status.get('status_revision', 0)),
+        'config_revision': cfg_rev,
+        'status_config_revision': status_cfg_rev,
+        'hardware_snapshot': actual,
+        'hardware_snapshot_age': hw_age,
+        'evaluation_state': status.get('evaluation_state', 'idle'),
     }
 
 
@@ -118,62 +155,69 @@ def send_change(action: str, payload: dict) -> str:
 
 def confirm(parent: tk.Tk, question: str, detail: str) -> bool:
     """Explicit macOS-style confirmation dialog; closing or Escape always means No."""
-    dialog = tk.Toplevel(parent)
-    dialog.title('PadPilot')
-    dialog.configure(background='#ffffff')
-    dialog.resizable(False, False)
-    if parent.state() != 'withdrawn':
-        dialog.transient(parent)
-    answer = False
+    app = getattr(parent, '_padpilot_app', None)
+    if app is not None:
+        app.modal_depth += 1
+    try:
+        dialog = tk.Toplevel(parent)
+        dialog.title('PadPilot')
+        dialog.configure(background='#ffffff')
+        dialog.resizable(False, False)
+        if parent.state() != 'withdrawn':
+            dialog.transient(parent)
+        answer = False
 
-    def finish(value=False):
-        nonlocal answer
-        answer = value
-        dialog.destroy()
+        def finish(value=False):
+            nonlocal answer
+            answer = value
+            dialog.destroy()
 
-    box = tk.Frame(dialog, bg='#ffffff', padx=22, pady=18)
-    box.pack(fill='both', expand=True)
+        box = tk.Frame(dialog, bg='#ffffff', padx=22, pady=18)
+        box.pack(fill='both', expand=True)
 
-    # Icon + Title row
-    title_row = tk.Frame(box, bg='#ffffff')
-    title_row.pack(fill='x', anchor='w')
-    is_danger = '刪除' in question
-    icon_text = '⚠️' if is_danger else '📱'
-    tk.Label(title_row, text=icon_text, font=('Helvetica Neue', 16), bg='#ffffff').pack(
-        side='left', padx=(0, 8))
-    tk.Label(title_row, text=question, font=('Helvetica Neue', 12, 'bold'),
-             fg=TEXT_PRIMARY, bg='#ffffff').pack(side='left', anchor='w')
+        # Icon + Title row
+        title_row = tk.Frame(box, bg='#ffffff')
+        title_row.pack(fill='x', anchor='w')
+        is_danger = '刪除' in question
+        icon_text = '⚠️' if is_danger else '📱'
+        tk.Label(title_row, text=icon_text, font=('Helvetica Neue', 16), bg='#ffffff').pack(
+            side='left', padx=(0, 8))
+        tk.Label(title_row, text=question, font=('Helvetica Neue', 12, 'bold'),
+                 fg=TEXT_PRIMARY, bg='#ffffff').pack(side='left', anchor='w')
 
-    # Detail message
-    tk.Label(box, text=detail, wraplength=400, font=('Helvetica Neue', 10),
-             fg=TEXT_SECONDARY, bg='#ffffff', justify='left').pack(
-        anchor='w', fill='x', pady=(8, 16))
+        # Detail message
+        tk.Label(box, text=detail, wraplength=400, font=('Helvetica Neue', 10),
+                 fg=TEXT_SECONDARY, bg='#ffffff', justify='left').pack(
+            anchor='w', fill='x', pady=(8, 16))
 
-    # Action buttons
-    row = tk.Frame(box, bg='#ffffff')
-    row.pack(fill='x')
+        # Action buttons
+        row = tk.Frame(box, bg='#ffffff')
+        row.pack(fill='x')
 
-    yes_btn = ttk.Button(row, text='是', command=lambda: finish(True),
-                         style='Danger.TButton' if is_danger else 'Accent.TButton')
-    yes_btn.pack(side='right', padx=(8, 0))
+        yes_btn = ttk.Button(row, text='是', command=lambda: finish(True),
+                             style='Danger.TButton' if is_danger else 'Accent.TButton')
+        yes_btn.pack(side='right', padx=(8, 0))
 
-    no_btn = ttk.Button(row, text='否', command=finish, style='Secondary.TButton')
-    no_btn.pack(side='right')
-    no_btn.focus_set()
+        no_btn = ttk.Button(row, text='否', command=finish, style='Secondary.TButton')
+        no_btn.pack(side='right')
+        no_btn.focus_set()
 
-    dialog.bind('<Escape>', lambda _: finish())
-    no_btn.bind('<Return>', lambda _: finish())
-    yes_btn.bind('<Return>', lambda _: finish(True))
-    dialog.protocol('WM_DELETE_WINDOW', finish)
-    dialog.update_idletasks()
-    width, height = 460, max(175, dialog.winfo_reqheight() + 10)
-    dialog.geometry(
-        f'{width}x{height}+{(dialog.winfo_screenwidth()-width)//2}+{(dialog.winfo_screenheight()-height)//2}'
-    )
-    dialog.wait_visibility()
-    dialog.grab_set()
-    parent.wait_window(dialog)
-    return answer
+        dialog.bind('<Escape>', lambda _: finish())
+        no_btn.bind('<Return>', lambda _: finish())
+        yes_btn.bind('<Return>', lambda _: finish(True))
+        dialog.protocol('WM_DELETE_WINDOW', finish)
+        dialog.update_idletasks()
+        width, height = 460, max(175, dialog.winfo_reqheight() + 10)
+        dialog.geometry(
+            f'{width}x{height}+{(dialog.winfo_screenwidth()-width)//2}+{(dialog.winfo_screenheight()-height)//2}'
+        )
+        dialog.wait_visibility()
+        dialog.grab_set()
+        parent.wait_window(dialog)
+        return answer
+    finally:
+        if app is not None:
+            app.modal_depth = max(0, app.modal_depth - 1)
 
 
 class Card(tk.Frame):
@@ -188,11 +232,19 @@ class Card(tk.Frame):
 class SettingsWindow:
     def __init__(self, root: tk.Tk, page: str = 'paired'):
         self.root = root
+        self.root._padpilot_app = self
         self.readonly = False
         valid_tabs = {'paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics'}
         self.current_tab = page if page in valid_tabs else 'paired'
         self.view = {'config': Config(), 'actual': {}, 'identifiers': [], 'fresh': False, 'status': {}}
         self.busy = False
+        self.modal_depth = 0
+        self.dirty_fields = {}
+        self._sync_in_progress = False
+        self._sync_pending = False
+        self._last_sync_sig = get_sync_signatures()
+        self._last_config_revision = 0
+        self._last_status_revision = 0
         self.results = queue.Queue()
         self.buttons = []
         self.nav_widgets = {}
@@ -470,6 +522,63 @@ class SettingsWindow:
 
         self.select_tab(self.current_tab)
 
+        # FocusIn check: only top-level root window gaining focus
+        self.root.bind('<FocusIn>', self._on_focus_in)
+        # Periodic background check (schedule earliest after 300ms)
+        self.root.after(300, self._auto_sync_tick)
+
+    def _on_focus_in(self, event):
+        if event.widget is self.root:
+            self._check_external_sync()
+
+    def _auto_sync_tick(self):
+        if not getattr(self, 'root', None) or not self.root.winfo_exists():
+            return
+        try:
+            self._check_external_sync()
+        finally:
+            if self.root.winfo_exists():
+                self.root.after(300, self._auto_sync_tick)
+
+    def _check_external_sync(self):
+        if getattr(self, '_sync_in_progress', False):
+            self._sync_pending = True
+            return
+        if getattr(self, 'busy', False) or getattr(self, 'one_shot', False):
+            return
+        if getattr(self, 'modal_depth', 0) > 0:
+            return
+
+        curr_sig = get_sync_signatures()
+        if curr_sig == getattr(self, '_last_sync_sig', None):
+            return
+
+        self._sync_in_progress = True
+        self._sync_pending = False
+        self._last_sync_sig = curr_sig
+
+        try:
+            new_view = read_view(scan=False)
+            new_cfg_rev = new_view.get('config', Config()).revision
+            new_stat_rev = new_view.get('status_revision', 0)
+
+            # Skip redundant re-render if both revisions are identical to last displayed
+            if (new_cfg_rev == getattr(self, '_last_config_revision', 0) and
+                new_stat_rev == getattr(self, '_last_status_revision', 0) and
+                hasattr(self, 'view') and self.view):
+                return
+
+            self._last_config_revision = new_cfg_rev
+            self._last_status_revision = new_stat_rev
+            self.display(new_view, preserve_scroll=True)
+        except Exception as e:
+            pass
+        finally:
+            self._sync_in_progress = False
+            if self._sync_pending:
+                self._sync_pending = False
+                self.root.after_idle(self._check_external_sync)
+
     def select_tab(self, tab_id: str):
         self.current_tab = tab_id
         for tid, (frm, lbl) in self.nav_widgets.items():
@@ -492,7 +601,7 @@ class SettingsWindow:
         self.title_label.configure(text=t)
         self.subtitle_label.configure(text=st)
 
-        self.render_current_tab()
+        self.render_current_tab(preserve_scroll=False)
         if hasattr(self, '_update_scrollregion'):
             self.root.after_idle(self._update_scrollregion)
 
@@ -500,9 +609,16 @@ class SettingsWindow:
         return tk.Label(parent, text=f" {text} ", font=('Helvetica Neue', 9, 'bold'),
                         bg=bg, fg=fg, padx=4, pady=1)
 
-    def render_current_tab(self):
+    def render_current_tab(self, preserve_scroll: bool = False):
         # Reset dynamic buttons while preserving persistent ones
         self.buttons = [self.refresh_btn]
+
+        old_y = 0.0
+        if preserve_scroll and hasattr(self, 'canvas') and self.canvas.winfo_exists():
+            try:
+                old_y = self.canvas.yview()[0]
+            except Exception:
+                old_y = 0.0
 
         # Clear scroll_frame
         for widget in self.scroll_frame.winfo_children():
@@ -521,9 +637,14 @@ class SettingsWindow:
         elif self.current_tab == 'diagnostics':
             self.render_diagnostics_tab()
 
-        self.canvas.yview_moveto(0)
+        self.canvas.update_idletasks()
         if hasattr(self, '_update_scrollregion'):
             self._update_scrollregion()
+
+        if preserve_scroll and old_y > 0.0:
+            self.canvas.yview_moveto(min(old_y, 1.0))
+        else:
+            self.canvas.yview_moveto(0)
 
     def render_paired_tab(self):
         cfg = self.view['config']
@@ -633,7 +754,19 @@ class SettingsWindow:
                 r1.pack(fill='x', pady=2)
                 tk.Label(r1, text='自訂名稱：', font=('Helvetica Neue', 10),
                          fg=TEXT_SECONDARY, bg=CARD_BG, width=12, anchor='w').pack(side='left')
-                name_var = tk.StringVar(value=p.get('name', ''))
+                draft_field = f"name.{kid}"
+                draft = self.dirty_fields.get(draft_field)
+                initial_name = draft['value'] if draft else p.get('name', '')
+                name_var = tk.StringVar(value=initial_name)
+
+                def on_name_edit(*_args, df=draft_field, nv=name_var, orig=p.get('name', '')):
+                    curr = nv.get()
+                    if curr != orig:
+                        self.dirty_fields[df] = {'value': curr, 'base_revision': self.view['config'].revision}
+                    elif df in self.dirty_fields:
+                        del self.dirty_fields[df]
+
+                name_var.trace_add('write', on_name_edit)
                 name_entry = tk.Entry(
                     r1, textvariable=name_var, font=('Helvetica Neue', 10),
                     bg='#ffffff', fg=TEXT_PRIMARY, insertbackground=TEXT_PRIMARY,
@@ -1160,9 +1293,17 @@ class SettingsWindow:
         self.buttons.append(ref_btn)
 
         # Decision metrics
+        consistency = self.view.get('consistency_state', 'CONSISTENT')
         d_role = desired.get('target_display_role') or details.get('desired_role') or '未知'
-        d_sat = details.get('actual_role_satisfied') or ('已滿足' if actual.get('sidecar_connected') else '評估中')
-        d_reason = desired.get('reason') or details.get('reason') or '尚無背景決策資訊'
+        if consistency == 'APPLYING_CONFIG':
+            d_sat = '切換中…'
+            d_reason = '套用新設定中…（等待背景服務評估）'
+        elif consistency == 'REVISION_CONFLICT':
+            d_sat = '不同步'
+            d_reason = '⚠️ 設定檔版本與背景服務狀態不一致，正在重新整理…'
+        else:
+            d_sat = details.get('actual_role_satisfied') or ('已滿足' if actual.get('sidecar_connected') else '評估中')
+            d_reason = desired.get('reason') or details.get('reason') or '尚無背景決策資訊'
         t_state = runtime.get('transition_state') or 'IDLE'
         last_err = runtime.get('last_error') or '無'
         cooldown = runtime.get('cooldown_until', 0)
@@ -1176,9 +1317,9 @@ class SettingsWindow:
 
         tk.Label(r1, text='實際狀態：', font=('Helvetica Neue', 10, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', padx=(8, 0))
-        self.make_badge(r1, d_sat if fresh else '資料待更新',
-                        GREEN_BG if 'Satisfied' in d_sat or '滿足' in d_sat else ORANGE_BG,
-                        GREEN_FG if 'Satisfied' in d_sat or '滿足' in d_sat else ORANGE_FG).pack(side='left', padx=2)
+        self.make_badge(r1, d_sat if (fresh or consistency == 'APPLYING_CONFIG') else '資料待更新',
+                        GREEN_BG if ('Satisfied' in d_sat or '滿足' in d_sat) else ORANGE_BG,
+                        GREEN_FG if ('Satisfied' in d_sat or '滿足' in d_sat) else ORANGE_FG).pack(side='left', padx=2)
 
         tk.Label(r1, text='狀態機轉換：', font=('Helvetica Neue', 10, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', padx=(8, 0))
@@ -1337,30 +1478,50 @@ class SettingsWindow:
         if log_path.exists():
             subprocess.run(['open', str(log_path)])
 
-    def display(self, view: dict):
+    def display(self, view: dict, preserve_scroll: bool = True):
+        # Preserve identifiers if view was loaded without full scan
+        if not view.get('identifiers') and hasattr(self, 'view') and self.view.get('identifiers'):
+            view['identifiers'] = self.view['identifiers']
+
         self.view = view
-        cfg, actual = view['config'], view['actual']
+        cfg = view['config']
+        actual = view.get('actual', {})
 
         # Update sidebar summary labels
         mode_text = MODES.get(cfg.mode.value, cfg.mode.value)
-        self.side_mode_label.configure(text=f"模式：{mode_text}")
+        consistency = view.get('consistency_state', 'CONSISTENT')
+        if consistency == 'APPLYING_CONFIG':
+            self.side_mode_label.configure(text=f"模式：{mode_text} (套用中…)")
+        else:
+            self.side_mode_label.configure(text=f"模式：{mode_text}")
+
         target_name = cfg.ipad.name or '尚未指定'
         self.side_target_label.configure(text=f"主力：{target_name}")
 
         self.profiles = {pairing_key(p.to_dict()): p.to_dict() for p in cfg.paired_ipads}
         self.candidates = {d['uuid']: d for d in actual.get('sidecar_devices', []) if d.get('uuid')}
-        self.virtuals = {str(i): d for i, d in enumerate(view.get('identifiers', [])) if is_virtual_device(d)}
+        if view.get('identifiers'):
+            self.virtuals = {str(i): d for i, d in enumerate(view.get('identifiers', [])) if is_virtual_device(d)}
+        elif not hasattr(self, 'virtuals'):
+            self.virtuals = {}
         self.usbs = [u for u in actual.get('usb_devices', []) if u.get('serial')]
 
         errors = actual.get('discovery_errors', {})
         if errors:
             self.notice.configure(text='部分狀態未知：' + '；'.join(errors.values()))
+        elif consistency == 'APPLYING_CONFIG':
+            self.notice.configure(text='正在套用新設定至硬體…')
+        elif consistency == 'REVISION_CONFLICT':
+            self.notice.configure(text='⚠️ 設定版本不同步，正在重新整理…')
         else:
             ts = time.strftime('%H:%M:%S')
             count = len(self.profiles)
             self.notice.configure(text=f"更新於 {ts} · {count} 台已配對")
 
-        self.render_current_tab()
+        self.render_current_tab(preserve_scroll=preserve_scroll)
+        self._last_sync_sig = get_sync_signatures()
+        self._last_config_revision = cfg.revision
+        self._last_status_revision = view.get('status_revision', 0)
 
     def task(self, work, complete):
         if self.busy:
@@ -1398,8 +1559,12 @@ class SettingsWindow:
             if ok:
                 complete(value)
             else:
-                self.notice.configure(text='操作未完成；請檢查錯誤後重試。')
-                messagebox.showerror('PadPilot', value, parent=self.root)
+                if 'CONFIG_CONFLICT' in str(value):
+                    self.notice.configure(text='⚠️ 設定已被其他來源修改，請確認最新設定。')
+                    messagebox.showwarning('設定衝突', '此設定已被其他來源（如 Menu Bar 或 CLI）修改。\n\n您輸入的內容已保留，請檢視最新狀態後再次儲存。', parent=self.root)
+                else:
+                    self.notice.configure(text='操作未完成；請檢查錯誤後重試。')
+                    messagebox.showerror('PadPilot', value, parent=self.root)
                 if getattr(self, 'one_shot', False):
                     self.root.destroy()
 
@@ -1419,6 +1584,9 @@ class SettingsWindow:
 
         def complete(result):
             message, view = result
+            if action == 'save_pairing' and 'ipad' in payload:
+                kid = pairing_key(payload['ipad'])
+                self.dirty_fields.pop(f"name.{kid}", None)
             if getattr(self, 'one_shot', False):
                 self.root.destroy()
                 return
@@ -1493,12 +1661,24 @@ class SettingsWindow:
         cfg = self.view['config']
         current_val = cfg.betterdisplaycli_path or BetterDisplayCLI.resolve_cli_path(None) or ''
 
+        self.modal_depth += 1
         dialog = tk.Toplevel(self.root)
         dialog.title('手動設定 BetterDisplay CLI 路徑')
         dialog.configure(background='#ffffff')
         dialog.resizable(False, False)
         if self.root.state() != 'withdrawn':
             dialog.transient(self.root)
+
+        is_closed = False
+
+        def close_dialog():
+            nonlocal is_closed
+            if not is_closed:
+                is_closed = True
+                self.modal_depth = max(0, self.modal_depth - 1)
+                dialog.destroy()
+
+        dialog.protocol('WM_DELETE_WINDOW', close_dialog)
 
         box = tk.Frame(dialog, bg='#ffffff', padx=22, pady=18)
         box.pack(fill='both', expand=True)
@@ -1540,17 +1720,17 @@ class SettingsWindow:
             if not resolved:
                 messagebox.showerror('無效路徑', f'指定路徑不存在或無執行權限：\n{raw_path}', parent=dialog)
                 return
-            dialog.destroy()
+            close_dialog()
             self.change('set_betterdisplaycli_path', {'path': raw_path})
 
         save_btn = ttk.Button(btn_row, text='儲存', command=save, style='Accent.TButton')
         save_btn.pack(side='right', padx=(8, 0))
 
-        cancel_btn = ttk.Button(btn_row, text='取消', command=dialog.destroy, style='Secondary.TButton')
+        cancel_btn = ttk.Button(btn_row, text='取消', command=close_dialog, style='Secondary.TButton')
         cancel_btn.pack(side='right')
 
         dialog.bind('<Return>', lambda e: save())
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        dialog.bind('<Escape>', lambda e: close_dialog())
         dialog.grab_set()
         entry.focus()
 
@@ -1586,6 +1766,10 @@ class SettingsWindow:
             },
             'activate': is_target
         }
+        kid = pairing_key(profile)
+        draft = self.dirty_fields.get(f"name.{kid}")
+        if draft and isinstance(draft, dict) and 'base_revision' in draft:
+            payload['__expected_revision__'] = draft['base_revision']
         self.change('save_pairing', payload)
 
     def update_profile_usb(self, profile: dict, usb_index: int):

@@ -18,13 +18,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import copy
 from core.betterdisplay import BetterDisplayCLI
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
 from core.models import DisplayRole, OperationMode
 from core.state_engine import StateEngine
-from core.settings import apply_change
+from core.settings import ConflictError, apply_change
 
 logger = get_logger("Daemon")
 
@@ -34,83 +35,167 @@ SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 class PadPilotDaemon:
     def __init__(self) -> None:
         self.running = True
+        self.config_lock = threading.RLock()
         self.config = load_config()
         self.ensure_betterdisplay_running()
         self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
         self.detector = DisplayDetector(self.config, self.bd_cli)
         self.engine = StateEngine(self.config, self.detector, self.bd_cli)
 
+    @property
+    def config_lock(self) -> threading.RLock:
+        if not hasattr(self, "_config_lock") or self._config_lock is None:
+            self._config_lock = threading.RLock()
+        return self._config_lock
+
+    @config_lock.setter
+    def config_lock(self, val: threading.RLock) -> None:
+        self._config_lock = val
+
+    def apply_config_change(self, action: str, payload: dict, expected_revision: Optional[int] = None) -> tuple[bool, Any]:
+        """Short-lived config mutation transaction."""
+        with self.config_lock:
+            if not hasattr(self, "config") or self.config is None:
+                self.config = load_config()
+            if expected_revision is not None and self.config.revision != expected_revision:
+                raise ConflictError(f"CONFIG_CONFLICT: expected revision {expected_revision}, but current is {self.config.revision}")
+            new_config = copy.deepcopy(self.config)
+            changed = apply_change(new_config, action, payload, getattr(self, 'bd_cli', None))
+            if changed:
+                new_config.revision = self.config.revision + 1
+                new_config.updated_at = time.time()
+                save_config(new_config)
+                self.config = new_config
+                if hasattr(self, "detector") and self.detector is not None:
+                    self.detector.config = new_config
+                if hasattr(self, "engine") and self.engine is not None:
+                    self.engine.config = new_config
+            return changed, self.config
+
+    def _run_config_side_effects(self, action: str) -> None:
+        if action == 'set_betterdisplaycli_path':
+            self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
+            if hasattr(self, 'detector') and self.detector is not None:
+                self.detector.bd_cli = self.bd_cli
+            if hasattr(self, 'engine') and self.engine is not None:
+                self.engine.bd_cli = self.bd_cli
+                self.engine.evaluate(trigger='betterdisplaycli_path_change')
+        elif action == 'set_virtual_display':
+            if hasattr(self, 'engine') and self.engine is not None:
+                self.engine.evaluate(trigger='virtual_display_change')
+        elif action == 'set_mode':
+            if hasattr(self, 'engine') and self.engine is not None:
+                if hasattr(self.engine, 'runtime') and self.engine.runtime is not None:
+                    self.engine.runtime.mode = self.config.mode
+                    self.engine.runtime.user_override = None
+                self.engine.evaluate(trigger='mode_change')
+        elif action == 'set_autostart':
+            if hasattr(self, 'engine') and self.engine is not None and getattr(self.engine, 'actual', None) and getattr(self.engine, 'desired', None):
+                self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
+        else:
+            if hasattr(self, 'engine') and self.engine is not None:
+                if hasattr(self.engine, 'runtime') and self.engine.runtime is not None:
+                    self.engine.runtime.mode = self.config.mode
+                self.engine.reset_automation()
+
     def handle_client_cmd(self, cmd: str) -> str:
         cmd = cmd.strip()
         logger.info(f"Received IPC command: {cmd}")
+        is_json = cmd.startswith("{") and cmd.endswith("}")
+        req_id = None
+        expected_rev = None
 
-        self.config = load_config()
-        self.detector.config = self.config
-        self.engine.config = self.config
-
-        parts = cmd.split(":", 1)
-        action = parts[0]
-        arg = parts[1] if len(parts) > 1 else ""
-
-        if action == "status":
-            return "OK"
-        elif action == "set_mode":
+        if is_json:
             try:
-                mode = OperationMode(arg)
-                self.engine.set_mode(mode)
-                return f"OK: Mode set to {mode.value}"
-            except ValueError:
-                return f"ERROR: Invalid mode {arg}"
-        elif action == "use_ipad_secondary":
-            self.engine.set_user_override(DisplayRole.IPAD_SECONDARY)
-            return "OK: iPad Secondary override set"
-        elif action == "use_ipad_main":
-            self.engine.set_user_override(DisplayRole.IPAD_MAIN)
-            return "OK: iPad Main override set"
-        elif action == "disconnect_ipad":
-            self.engine.set_user_override(DisplayRole.IPAD_DISCONNECTED)
-            return "OK: Disconnect requested; automatic reconnection paused for this topology"
-        elif action == "reconnect_sidecar":
-            if not self.engine.reconnect_sidecar():
-                return "ERROR: Sidecar disconnect failed; reconnect was not started"
-            return "OK: Reconnect requested"
-        elif action == "refresh":
-            self.engine.evaluate(trigger="manual_refresh")
-            return "OK: Refreshed"
-        elif action in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path"):
-            try:
-                payload = json.loads(arg)
-                changed = apply_change(self.config, action, payload, getattr(self, 'bd_cli', None))
-                save_config(self.config)
-            except (ValueError, KeyError, TypeError, OSError) as e:
-                self.config = load_config()
-                self.detector.config = self.engine.config = self.config
-                return f"ERROR: {e}"
-            if changed:
-                if action == 'set_betterdisplaycli_path':
-                    self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
-                    self.detector.bd_cli = self.bd_cli
-                    self.engine.bd_cli = self.bd_cli
-                    self.engine.evaluate(trigger='betterdisplaycli_path_change')
-                elif action == 'set_virtual_display':
-                    self.engine.evaluate(trigger='virtual_display_change')
-                else:
-                    self.engine.runtime.mode = self.config.mode
-                    self.engine.reset_automation()
+                req = json.loads(cmd)
+            except Exception as e:
+                return json.dumps({"ok": False, "error": "INVALID_JSON", "message": str(e)}, ensure_ascii=False)
+            command = req.get("command", "")
+            params = req.get("params", {})
+            req_id = req.get("id")
+            expected_rev = req.get("expected_revision")
+        else:
+            # Deprecated compatibility protocol: action:arg
+            parts = cmd.split(":", 1)
+            command = parts[0]
+            arg = parts[1] if len(parts) > 1 else ""
+            if command == "set_mode":
+                params = {"mode": arg}
+            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart"):
+                try:
+                    params = json.loads(arg) if arg else {}
+                except Exception:
+                    params = {}
             else:
-                # Merely saving a profile must not connect or switch displays.
-                if self.engine.actual and self.engine.desired:
-                    self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
-            return "OK: 設定已更新"
-        elif action == "reset":
+                params = {}
+
+        # Handle config mutation actions
+        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path"):
+            try:
+                changed, cfg = self.apply_config_change(command, params, expected_rev)
+            except ConflictError as e:
+                curr_rev = getattr(self, 'config', None) and self.config.revision
+                resp = {"id": req_id, "ok": False, "error": "CONFIG_CONFLICT", "config_revision": curr_rev, "message": str(e)}
+                return json.dumps(resp, ensure_ascii=False) if is_json else f"ERROR: {e}"
+            except (ValueError, KeyError, TypeError, OSError) as e:
+                curr_rev = getattr(self, 'config', None) and self.config.revision
+                resp = {"id": req_id, "ok": False, "error": "VALIDATION_ERROR", "config_revision": curr_rev, "message": str(e)}
+                return json.dumps(resp, ensure_ascii=False) if is_json else f"ERROR: {e}"
+
+            if changed:
+                self._run_config_side_effects(command)
+            elif hasattr(self, 'engine') and getattr(self.engine, 'actual', None) and getattr(self.engine, 'desired', None):
+                self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
+
+            resp = {"id": req_id, "ok": True, "config_revision": cfg.revision, "message": "OK: 設定已更新"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else f"OK: 設定已更新 (rev {cfg.revision})"
+
+        # Handle runtime commands
+        if command == "status":
+            resp = {
+                "id": req_id, "ok": True,
+                "config_revision": self.config.revision,
+                "status_revision": self.engine.status_revision,
+                "message": "OK"
+            }
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK"
+        elif command == "use_ipad_secondary":
+            self.engine.set_user_override(DisplayRole.IPAD_SECONDARY)
+            resp = {"id": req_id, "ok": True, "message": "OK: iPad Secondary override set"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: iPad Secondary override set"
+        elif command == "use_ipad_main":
+            self.engine.set_user_override(DisplayRole.IPAD_MAIN)
+            resp = {"id": req_id, "ok": True, "message": "OK: iPad Main override set"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: iPad Main override set"
+        elif command == "disconnect_ipad":
+            self.engine.set_user_override(DisplayRole.IPAD_DISCONNECTED)
+            msg = "OK: Disconnect requested; automatic reconnection paused for this topology"
+            resp = {"id": req_id, "ok": True, "message": msg}
+            return json.dumps(resp, ensure_ascii=False) if is_json else msg
+        elif command == "reconnect_sidecar":
+            if not self.engine.reconnect_sidecar():
+                msg = "ERROR: Sidecar disconnect failed; reconnect was not started"
+                resp = {"id": req_id, "ok": False, "message": msg}
+                return json.dumps(resp, ensure_ascii=False) if is_json else msg
+            resp = {"id": req_id, "ok": True, "message": "OK: Reconnect requested"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Reconnect requested"
+        elif command == "refresh":
+            self.engine.evaluate(trigger="manual_refresh")
+            resp = {"id": req_id, "ok": True, "message": "OK: Refreshed"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Refreshed"
+        elif command == "reset":
             self.engine.reset_automation()
-            return "OK: Automation state reset"
-        elif action == "stop":
+            resp = {"id": req_id, "ok": True, "message": "OK: Automation state reset"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Automation state reset"
+        elif command == "stop":
             logger.info("Daemon stop requested via IPC")
             self.running = False
-            return "OK: Daemon stopping"
+            resp = {"id": req_id, "ok": True, "message": "OK: Daemon stopping"}
+            return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Daemon stopping"
         else:
-            return f"ERROR: Unknown command {cmd}"
+            msg = f"ERROR: Unknown command {command}"
+            resp = {"id": req_id, "ok": False, "message": msg}
+            return json.dumps(resp, ensure_ascii=False) if is_json else msg
 
     def run_ipc_server(self) -> None:
         """Lightweight Unix Domain Socket server for instant IPC response."""
@@ -137,8 +222,7 @@ class PadPilotDaemon:
                         continue
                     data = raw.decode("utf-8")
                     if data:
-                        with self.engine._eval_lock:
-                            resp = self.handle_client_cmd(data)
+                        resp = self.handle_client_cmd(data)
                         conn.sendall(resp.encode("utf-8"))
             except socket.timeout:
                 continue

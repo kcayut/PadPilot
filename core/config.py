@@ -53,6 +53,8 @@ class Config:
     virtual_display_name: str = DEFAULT_VIRTUAL_DISPLAY_NAME
     betterdisplaycli_path: Optional[str] = None
     swiftbar_plugin_id: str = SWIFTBAR_PLUGIN_ID
+    revision: int = 1
+    updated_at: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -68,6 +70,8 @@ class Config:
             "virtual_display_name": self.virtual_display_name,
             "betterdisplaycli_path": self.betterdisplaycli_path,
             "swiftbar_plugin_id": self.swiftbar_plugin_id,
+            "revision": self.revision,
+            "updated_at": self.updated_at,
         }
 
     @classmethod
@@ -102,6 +106,8 @@ class Config:
             virtual_display_name=str(data.get("virtual_display_name", DEFAULT_VIRTUAL_DISPLAY_NAME)),
             betterdisplaycli_path=data.get("betterdisplaycli_path"),
             swiftbar_plugin_id=str(data.get("swiftbar_plugin_id", SWIFTBAR_PLUGIN_ID)),
+            revision=int(data.get("revision", 1)),
+            updated_at=float(data.get("updated_at", 0.0)),
         )
 
     def remember_ipad(self, data: dict, activate: bool = False) -> bool:
@@ -171,26 +177,23 @@ def load_config() -> Config:
 
 
 def save_config(cfg: Config) -> None:
-    """Atomically save config to ~/Library/Application Support/PadPilot/config.json with /tmp fallback."""
-    for target_dir, target_file in [
-        (APP_SUPPORT_DIR, CONFIG_FILE),
-        (Path("/tmp/PadPilot"), Path("/tmp/PadPilot/config.json")),
-    ]:
-        try:
-            target_dir.mkdir(parents=True, exist_ok=True)
-            tmp_file = target_dir / f"config.json.{os.getpid()}_{time.time()}.tmp"
-            with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(cfg.to_dict(), f, indent=2, ensure_ascii=False)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp_file, target_file)
-            logger.info(f"Saved configuration successfully to {target_file}")
-            return
-        except (PermissionError, OSError) as e:
-            if target_dir == APP_SUPPORT_DIR:
-                continue
-            logger.error(f"Failed to save configuration: {e}")
-            raise
+    """Atomically save config to ~/Library/Application Support/PadPilot/config.json."""
+    target_dir = APP_SUPPORT_DIR
+    target_file = CONFIG_FILE
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        target_dir = Path("/tmp/PadPilot")
+        target_file = target_dir / "config.json"
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+    tmp_file = target_dir / f"config.json.{os.getpid()}_{time.time()}.tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump(cfg.to_dict(), f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_file, target_file)
+    logger.info(f"Saved configuration successfully to {target_file}")
 
 
 def write_atomic_status(snapshot: StatusSnapshot) -> None:
@@ -199,29 +202,29 @@ def write_atomic_status(snapshot: StatusSnapshot) -> None:
     Prevents race condition where SwiftBar reads a partially written file.
     Uses unique temp file name to prevent collision between concurrent writes.
     """
-    for r_dir, s_file in [
-        (RUNTIME_DIR, STATUS_FILE),
-        (Path("/tmp/PadPilot/runtime"), Path("/tmp/PadPilot/runtime/status.json")),
-    ]:
-        tmp_file = None
-        try:
-            r_dir.mkdir(parents=True, exist_ok=True)
-            tmp_file = r_dir / f"status.json.{os.getpid()}_{threading.get_ident()}_{time.time()}.tmp"
-            with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(snapshot.to_dict(), f, indent=2, ensure_ascii=False)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp_file, s_file)
-            return
-        except (PermissionError, OSError) as e:
-            if tmp_file and tmp_file.exists():
-                try:
-                    tmp_file.unlink()
-                except OSError:
-                    pass
-            if r_dir == RUNTIME_DIR:
-                continue
-            logger.warning(f"Failed to write atomic status: {e}")
+    r_dir = RUNTIME_DIR
+    s_file = STATUS_FILE
+    try:
+        r_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        r_dir = Path("/tmp/PadPilot/runtime")
+        s_file = r_dir / "status.json"
+        r_dir.mkdir(parents=True, exist_ok=True)
+
+    tmp_file = r_dir / f"status.json.{os.getpid()}_{threading.get_ident()}_{time.time()}.tmp"
+    try:
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(snapshot.to_dict(), f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_file, s_file)
+    except Exception as e:
+        if tmp_file and tmp_file.exists():
+            try:
+                tmp_file.unlink()
+            except OSError:
+                pass
+        logger.warning(f"Failed to write atomic status: {e}")
 
 
 def read_status() -> Optional[dict[str, Any]]:

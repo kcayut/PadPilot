@@ -1,6 +1,12 @@
 """Validated settings changes shared by the daemon and offline CLI."""
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config
+from core.models import OperationMode
+
+
+class ConflictError(Exception):
+    """Raised when expected_revision does not match current configuration revision."""
+    pass
 
 
 def is_virtual_device(device: dict) -> bool:
@@ -11,6 +17,24 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
     """Return whether the state engine needs to re-evaluate its target."""
     if not isinstance(payload, dict):
         raise ValueError('無效的設定資料')
+    if action == 'set_mode':
+        mode_val = payload.get('mode')
+        if not isinstance(mode_val, str):
+            raise ValueError('無效的模式設定')
+        try:
+            mode = OperationMode(mode_val.lower())
+        except ValueError:
+            raise ValueError(f'無效的模式: {mode_val}')
+        changed = cfg.mode != mode
+        cfg.mode = mode
+        return changed
+    if action == 'set_autostart':
+        enabled = payload.get('enabled')
+        if not isinstance(enabled, bool):
+            raise ValueError('無效的自動啟動設定')
+        changed = cfg.autostart_on_login != enabled
+        cfg.autostart_on_login = enabled
+        return changed
     if action == 'save_pairing':
         if set(payload) != {'ipad', 'activate'} or type(payload['activate']) is not bool:
             raise ValueError('無效的配對命令')

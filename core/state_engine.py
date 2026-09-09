@@ -49,6 +49,8 @@ class StateEngine:
         self._transition_lock = threading.Lock()
         # ponytail: serialize one display topology; use a command queue if IPC latency matters.
         self._eval_lock = threading.RLock()
+        self.status_revision = 0
+        self._last_exported_meaningful_content = None
 
     def set_mode(self, mode: OperationMode) -> None:
         """Update operational mode."""
@@ -417,7 +419,7 @@ class StateEngine:
                     connected = False
                     while not connected and self.runtime.retry_count < self.config.max_retries:
                         self.runtime.transition_state = TransitionState.CONNECTING_SIDECAR
-                        self._export_status(satisfied=False)
+                        self._export_status(satisfied=False, evaluation_state="applying")
 
                         # Connect Sidecar
                         specifier = self.config.ipad.sidecar_uuid or self.config.ipad.name or "iPad"
@@ -428,7 +430,7 @@ class StateEngine:
                             self.runtime.cooldown_until = 0.0
                             self.runtime.last_error = None
                             self.runtime.transition_state = TransitionState.WAITING_FOR_DISPLAY
-                            self._export_status(satisfied=False)
+                            self._export_status(satisfied=False, evaluation_state="applying")
                             # Wait for Sidecar display to register in macOS
                             time.sleep(1.0)
                             break
@@ -464,7 +466,7 @@ class StateEngine:
 
                 if success and desired.needs_main_display_target:
                     self.runtime.transition_state = TransitionState.SETTING_MAIN
-                    self._export_status(satisfied=False)
+                    self._export_status(satisfied=False, evaluation_state="applying")
 
                     target_name = desired.needs_main_display_target
                     if target_name == "ipad":
@@ -518,8 +520,8 @@ class StateEngine:
 
         return IconStatus.VIRTUAL.value
 
-    def _export_status(self, satisfied: bool) -> None:
-        """Atomically persist status snapshot and ping SwiftBar."""
+    def _export_status(self, satisfied: bool, evaluation_state: str = "idle") -> None:
+        """Atomically persist status snapshot and ping SwiftBar only if meaningful content changed."""
         if not self.actual or not self.desired:
             return
 
@@ -543,6 +545,27 @@ class StateEngine:
             "virtual_display_name": self.config.virtual_display_name,
         }
 
+        meaningful_content = (
+            self.runtime.mode.value,
+            icon,
+            self.config.revision,
+            self.runtime.topology_generation,
+            evaluation_state,
+            satisfied,
+            self.actual.to_dict(),
+            self.desired.to_dict(),
+            self.runtime.to_dict(),
+            self.config.ipad.to_dict(),
+            tuple(sorted((p.get('sidecar_uuid', ''), p.get('usb_serial', ''), p.get('name', '')) for p in [ipad.to_dict() for ipad in self.config.paired_ipads])),
+            tuple(sorted(status_details.items())),
+        )
+
+        if meaningful_content == self._last_exported_meaningful_content:
+            return
+
+        self._last_exported_meaningful_content = meaningful_content
+        self.status_revision += 1
+
         snapshot = StatusSnapshot(
             timestamp=time.time(),
             mode=self.runtime.mode.value,
@@ -554,6 +577,10 @@ class StateEngine:
             paired_ipads=[ipad.to_dict() for ipad in self.config.paired_ipads],
             summary_text=f"{icon} PadPilot | {self.runtime.mode.value.title()}",
             status_details=status_details,
+            config_revision=self.config.revision,
+            status_revision=self.status_revision,
+            topology_generation=self.runtime.topology_generation,
+            evaluation_state=evaluation_state,
         )
 
         write_atomic_status(snapshot)

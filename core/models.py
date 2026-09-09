@@ -197,6 +197,10 @@ class StatusSnapshot:
     summary_text: str
     status_details: dict[str, str]
     paired_ipads: List[dict[str, str]] = field(default_factory=list)
+    config_revision: int = 1
+    status_revision: int = 1
+    topology_generation: int = 0
+    evaluation_state: str = "idle"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

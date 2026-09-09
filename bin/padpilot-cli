@@ -42,23 +42,34 @@ SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 MENU_HIDDEN = APP_SUPPORT_DIR / "menu-hidden"
 
 
-def send_daemon_cmd(cmd: str, timeout: float = 3.0) -> str:
-    """Send command to running daemon via Unix socket."""
-    if not SOCKET_PATH.exists():
-        return "Daemon is not running. (Socket not found)"
+def send_daemon_cmd(cmd: str, timeout: float = 3.0, retries: int = 3, retry_delay: float = 0.1) -> str:
+    """Send command to running daemon via Unix socket with brief retry for transient startup races."""
+    last_err = ""
+    for attempt in range(retries):
+        if not SOCKET_PATH.exists():
+            last_err = "Socket not found"
+            if attempt < retries - 1:
+                time.sleep(retry_delay)
+                continue
+            return "Daemon is not running. (Socket not found)"
 
-    try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-            s.settimeout(timeout)
-            s.connect(str(SOCKET_PATH))
-            s.sendall((cmd + "\n").encode("utf-8"))
-            return s.recv(2048).decode("utf-8")
-    except socket.timeout:
-        return "Daemon response timed out; the command may still be running."
-    except (ConnectionRefusedError, FileNotFoundError) as e:
-        return f"Daemon is not running. (Connection error: {e})"
-    except OSError as e:
-        return f"Daemon communication failed: {e}"
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(timeout)
+                s.connect(str(SOCKET_PATH))
+                s.sendall((cmd + "\n").encode("utf-8"))
+                return s.recv(8192).decode("utf-8")
+        except (ConnectionRefusedError, FileNotFoundError) as e:
+            last_err = str(e)
+            if attempt < retries - 1:
+                time.sleep(retry_delay)
+                continue
+            return f"Daemon is not running. (Connection error: {e})"
+        except socket.timeout:
+            return "Daemon response timed out; the command may still be running."
+        except OSError as e:
+            return f"Daemon communication failed: {e}"
+    return f"Daemon is not running. ({last_err})"
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -97,22 +108,29 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
         print(f"Invalid mode '{mode_str}'. Must be one of: {', '.join(valid_modes)}")
         sys.exit(1)
 
-    # 1. Immediately persist mode change in config.json
-    cfg = load_config()
-    cfg.mode = OperationMode(mode_str)
-    save_config(cfg)
+    req = json.dumps({"command": "set_mode", "params": {"mode": mode_str}}, ensure_ascii=False)
+    resp_raw = send_daemon_cmd(req)
 
-    # 2. Inform running daemon via IPC
-    resp = send_daemon_cmd(f"set_mode:{mode_str}")
-    if "Daemon is not running" in resp:
-        cmd_start(args)
-        time.sleep(1.0)
-        resp = send_daemon_cmd(f"set_mode:{mode_str}")
+    if resp_raw.startswith("Daemon is not running"):
+        # Offline configuration mutation
+        cfg = load_config()
+        cfg.mode = OperationMode(mode_str)
+        cfg.revision += 1
+        cfg.updated_at = time.time()
+        save_config(cfg)
+        print("✓ 設定已儲存；背景服務尚未啟動，將於下次啟動時生效。")
+    else:
+        try:
+            resp = json.loads(resp_raw)
+            if resp.get("ok"):
+                print(f"✓ 運作模式已切換為：{mode_str} (rev {resp.get('config_revision')})")
+            else:
+                print(f"ERROR: {resp.get('message') or resp.get('error')}")
+                sys.exit(1)
+        except Exception:
+            print(resp_raw)
 
-    # 3. Refresh SwiftBar immediately
-    from core.autostart import notify_swiftbar
-    notify_swiftbar(cfg.swiftbar_plugin_id)
-    print(resp)
+    refresh_menu()
 
 
 def cmd_action(args: argparse.Namespace) -> None:
@@ -128,16 +146,39 @@ def save_pairing(device: dict, activate: bool) -> None:
     submit_settings("save_pairing", {"ipad": device, "activate": activate})
 
 
-def submit_settings(action: str, payload: dict) -> None:
-    response = send_daemon_cmd(action + ":" + json.dumps(payload, ensure_ascii=False), timeout=60.0)
-    if response.startswith("Daemon is not running"):
+def submit_settings(action: str, payload: dict, expected_revision: Optional[int] = None) -> None:
+    req = {
+        "command": action,
+        "params": payload,
+    }
+    if expected_revision is not None:
+        req["expected_revision"] = expected_revision
+    resp_raw = send_daemon_cmd(json.dumps(req, ensure_ascii=False), timeout=60.0)
+
+    if not resp_raw or resp_raw.startswith("Daemon is not running"):
         cfg = load_config()
+        if expected_revision is not None and cfg.revision != expected_revision:
+            raise RuntimeError(f"CONFIG_CONFLICT: expected revision {expected_revision}, but current is {cfg.revision}")
         bd = BetterDisplayCLI(cfg.betterdisplaycli_path) if action == "set_virtual_display" else None
-        apply_change(cfg, action, payload, bd)
-        save_config(cfg)
-        response = "✓ 設定已儲存；背景服務尚未啟動。"
-    elif not response.startswith("OK:"):
-        raise RuntimeError(response)
+        changed = apply_change(cfg, action, payload, bd)
+        if changed:
+            cfg.revision += 1
+            cfg.updated_at = time.time()
+            save_config(cfg)
+        response = "✓ 設定已儲存；背景服務尚未啟動，將於下次啟動時生效。"
+    else:
+        try:
+            resp = json.loads(resp_raw)
+            if not resp.get("ok"):
+                if resp.get("error") == "CONFIG_CONFLICT":
+                    raise RuntimeError(f"CONFIG_CONFLICT: {resp.get('message')}")
+                raise RuntimeError(resp.get("message") or resp.get("error") or "Operation failed")
+            response = resp.get("message", "OK: 設定已更新")
+        except json.JSONDecodeError:
+            if not resp_raw.startswith("OK:"):
+                raise RuntimeError(resp_raw)
+            response = resp_raw
+
     refresh_menu()
     print(response)
 
@@ -147,7 +188,9 @@ def cmd_change_settings(args: argparse.Namespace) -> None:
     raw = sys.stdin.read(8193)
     if len(raw.encode('utf-8')) > 8000:
         raise ValueError("設定資料過長")
-    submit_settings(args.operation, json.loads(raw))
+    payload = json.loads(raw)
+    expected_rev = payload.pop("__expected_revision__", None) if isinstance(payload, dict) else None
+    submit_settings(args.operation, payload, expected_revision=expected_rev)
 
 
 def cmd_gui(args: argparse.Namespace) -> None:
