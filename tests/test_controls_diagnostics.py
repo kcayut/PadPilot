@@ -363,6 +363,60 @@ class ControlsTests(unittest.TestCase):
         finally:
             root.destroy()
 
+    def test_paired_ipad_controls_layout_and_setting_button_boundary(self):
+        import tkinter as tk
+        from core.gui import SettingsWindow
+        root = tk.Tk()
+        try:
+            cfg = Config.from_dict({
+                'ipad': {'name': 'iPad pro m2',
+                         'sidecar_uuid': '11111111-1111-4111-8111-111111111111',
+                         'usb_serial': 'USB123'},
+                'paired_ipads': [{
+                    'name': 'iPad pro m2',
+                    'sidecar_uuid': '11111111-1111-4111-8111-111111111111',
+                    'usb_serial': 'USB123'
+                }]
+            })
+            with patch.object(SettingsWindow, 'search'), patch.object(SettingsWindow, '_check_external_sync'):
+                app = SettingsWindow(root)
+                root.geometry('840x500')
+                app.display({'config': cfg, 'actual': {}, 'fresh': True, 'identifiers': [], 'status': {}})
+                root.update()
+
+                def descendants(widget):
+                    for child in widget.winfo_children():
+                        yield child
+                        yield from descendants(child)
+
+                names = ['作為副螢幕', '設為主螢幕', '中斷連線', '重新連線']
+                controls = [w for w in descendants(root) if w.winfo_class() == 'TButton' and w.cget('text') in names]
+                exp_btns = [w for w in descendants(root) if w.winfo_class() == 'TButton' and '設定' in w.cget('text')]
+                ctrl_lbls = [w for w in descendants(root) if w.winfo_class() == 'Label' and w.cget('text') == '控制']
+                usb_lbls = [w for w in descendants(root) if w.winfo_class() == 'Label' and 'USB 序號' in w.cget('text')]
+
+                self.assertEqual(len(controls), 4)
+                self.assertEqual(len(exp_btns), 1)
+                self.assertEqual(len(ctrl_lbls), 1)
+                self.assertEqual(len(usb_lbls), 1)
+
+                exp_btn = exp_btns[0]
+                ctrl_lbl = ctrl_lbls[0]
+                usb_lbl = usb_lbls[0]
+
+                # 1. Controls are on the same row
+                self.assertEqual(len({w.winfo_rooty() for w in controls}), 1)
+                # 2. '控制' label is vertically aligned with the control buttons in the same row
+                self.assertLessEqual(abs(ctrl_lbl.winfo_rooty() - controls[0].winfo_rooty()), 6)
+                # 3. '設定' button is vertically aligned with 'USB 序號' in the same row
+                self.assertLessEqual(abs(exp_btn.winfo_rooty() - usb_lbl.winfo_rooty()), 6)
+                # 4. None of the control buttons intrude into the vertical plane of the '設定' button
+                for w in controls:
+                    right_edge = w.winfo_rootx() + w.winfo_width()
+                    self.assertLessEqual(right_edge, exp_btn.winfo_rootx())
+        finally:
+            root.destroy()
+
 
 if __name__ == '__main__':
     unittest.main()

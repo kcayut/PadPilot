@@ -702,32 +702,24 @@ class SettingsWindow:
             card = Card(self.scroll_frame, padx=14, pady=8)
             card.pack(fill='x', padx=18, pady=4)
 
-            # Upper header: Left info (Title, UUID, USB) and Right action column (刪除配對 + 設定/收合)
+            # Upper header: Left info (Title, UUID, USB) and Right action column (刪除配對)
             header_box = tk.Frame(card.body, bg=CARD_BG)
             header_box.pack(fill='x')
-
-            info_col = tk.Frame(header_box, bg=CARD_BG)
-            info_col.pack(side='left', fill='x', expand=True)
 
             action_col = tk.Frame(header_box, bg=CARD_BG)
             action_col.pack(side='right', anchor='ne', padx=(10, 0))
 
-            # Action buttons vertically stacked on the right
+            # Action button on the top-right
             del_btn = ttk.Button(
                 action_col, text='刪除配對',
                 command=lambda k=key: self.delete_selected(k),
                 style='Danger.TButton'
             )
-            del_btn.pack(fill='x', pady=(0, 4))
+            del_btn.pack(fill='x')
             self.buttons.append(del_btn)
 
-            exp_btn = ttk.Button(
-                action_col, text='收合 ▲' if is_expanded else '設定 ▼',
-                command=lambda k=kid: self.toggle_profile_expand(k),
-                style='Secondary.TButton'
-            )
-            exp_btn.pack(fill='x')
-            self.buttons.append(exp_btn)
+            info_col = tk.Frame(header_box, bg=CARD_BG)
+            info_col.pack(side='left', fill='x', expand=True)
 
             # Info Line 1: Name & Badges
             top_line = tk.Frame(info_col, bg=CARD_BG)
@@ -758,17 +750,23 @@ class SettingsWindow:
             else:
                 self.make_badge(top_line, '○ 離線未連線', '#f2f2f7', TEXT_TERTIARY).pack(side='left', padx=2)
 
-            controls = tk.Frame(card.body, bg=CARD_BG)
-            controls.pack(fill='x', pady=(6, 2))
-            tk.Label(controls, text='控制', font=('Helvetica Neue', 10, 'bold'),
-                     fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
-            row = tk.Frame(controls, bg=CARD_BG)
-            row.pack(fill='x', pady=(3, 0))
+            controls = tk.Frame(info_col, bg=CARD_BG)
+            controls.pack(fill='x', pady=(6, 2), padx=(0, 24))
+
+            ctrl_row = tk.Frame(controls, bg=CARD_BG)
+            ctrl_row.pack(fill='x')
+
+            tk.Label(ctrl_row, text='控制', font=('Helvetica Neue', 10, 'bold'),
+                     fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', padx=(0, 6))
+
+            btn_box = tk.Frame(ctrl_row, bg=CARD_BG)
+            btn_box.pack(side='left', fill='x', expand=True)
+
             for col, (title, action) in enumerate((('作為副螢幕', 'use_ipad_secondary'),
                     ('設為主螢幕', 'use_ipad_main'), ('中斷連線', 'disconnect_ipad'),
                     ('重新連線', 'reconnect_sidecar'))):
-                row.columnconfigure(col, weight=1, uniform='controls')
-                button = ttk.Button(row, text=title, width=9, style='Secondary.TButton',
+                btn_box.columnconfigure(col, weight=1, uniform='controls')
+                button = ttk.Button(btn_box, text=title, style='Secondary.TButton',
                                     command=lambda a=action, pr=p: self.control_ipad(pr, a))
                 button.grid(row=0, column=col, sticky='ew', padx=(0, 4 if col < 3 else 0))
                 if is_target and p.get('sidecar_uuid') and not self.readonly:
@@ -777,18 +775,29 @@ class SettingsWindow:
                     button.state(['disabled'])
             if not is_target:
                 tk.Label(controls, text='請先在「設定」中設為主要管理 iPad。',
-                         fg=TEXT_SECONDARY, bg=CARD_BG, font=('Helvetica Neue', 9)).pack(anchor='w')
+                         fg=TEXT_SECONDARY, bg=CARD_BG, font=('Helvetica Neue', 9)).pack(anchor='w', pady=(2, 0))
 
             # Info Line 2: Sidecar UUID
             uuid_str = p.get('sidecar_uuid') or '未設定'
             tk.Label(card.body, text=f"Sidecar UUID: {uuid_str}", font=('Menlo', 9),
                      fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(4, 0))
 
-            # Info Line 3: USB 序號
+            # Info Line 3: USB 序號 & 設定/收合按鈕在右下角
+            usb_row = tk.Frame(card.body, bg=CARD_BG)
+            usb_row.pack(fill='x', pady=(2, 0))
+
+            exp_btn = ttk.Button(
+                usb_row, text='收合 ▲' if is_expanded else '設定 ▼',
+                command=lambda k=kid: self.toggle_profile_expand(k),
+                style='Secondary.TButton'
+            )
+            exp_btn.pack(side='right', padx=(10, 0))
+            self.buttons.append(exp_btn)
+
             usb_str = p.get('usb_serial') or '未設定'
             usb_suffix = ' (目前已接上 USB)' if any(u.get('serial') == p.get('usb_serial') for u in self.view['actual'].get('usb_devices', [])) else ''
-            tk.Label(card.body, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
-                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(1, 0))
+            tk.Label(usb_row, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
+                     fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(side='left', fill='x', expand=True)
 
             # Expanded settings drawer
             if is_expanded:
@@ -1498,7 +1507,7 @@ class SettingsWindow:
 
         self.log_text = tk.Text(
             log_frame, bg='#1a1b20', fg='#f2f2f7',
-            font=('Menlo', 9), wrap='word', height=12, width=1, borderwidth=0, highlightthickness=0
+            font=('Menlo', 9), wrap='word', height=24, width=1, borderwidth=0, highlightthickness=0
         )
         log_scroll = ttk.Scrollbar(log_frame, orient='vertical', command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=log_scroll.set)
@@ -1533,7 +1542,7 @@ class SettingsWindow:
 
         try:
             with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
-                lines = f.readlines()[-200:]
+                lines = f.readlines()[-400:]
         except Exception as e:
             self.log_text.configure(state='normal')
             self.log_text.delete('1.0', 'end')
