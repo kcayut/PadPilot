@@ -113,7 +113,7 @@ class TestPadPilotAutostart(unittest.TestCase):
         notify_swiftbar("padpilot.30s.py", delay=0.0)
         mock_popen.assert_called_once()
         cmd = mock_popen.call_args[0][0]
-        self.assertEqual(cmd, ["open", "-g", "swiftbar://refreshplugin?plugin=padpilot.30s.py"])
+        self.assertEqual(cmd, ["open", "-g", "swiftbar://refreshallplugins"])
 
     @patch("subprocess.Popen")
     def test_notify_swiftbar_debounce_single_flight(self, mock_popen: MagicMock) -> None:

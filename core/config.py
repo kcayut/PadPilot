@@ -74,6 +74,17 @@ class Config:
             "updated_at": self.updated_at,
         }
 
+    def semantic_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
+        data.pop("revision", None)
+        data.pop("updated_at", None)
+        return data
+
+    def content_equals(self, other: object) -> bool:
+        if not isinstance(other, Config):
+            return False
+        return self.semantic_dict() == other.semantic_dict()
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Config:
         mode_str = data.get("mode", OperationMode.AUTOMATIC.value)

@@ -9,6 +9,7 @@
 <swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>
 <swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>
 <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
+<swiftbar.refreshOnOpen>true</swiftbar.refreshOnOpen>
 """
 from __future__ import annotations
 
@@ -104,7 +105,12 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     errors = actual.get('discovery_errors') or {}
     if fresh and 'sidecar_devices' not in actual:
         errors = dict(errors, sidecar='背景服務尚未提供裝置清單，請重新啟動')
-    mode = status.get('mode', config.get('mode', 'automatic'))
+    cfg_rev = config.get('revision', 0)
+    status_cfg_rev = status.get('config_revision', 0)
+    is_applying = bool(status and status_cfg_rev < cfg_rev)
+    is_out_of_sync = bool(status and status_cfg_rev > cfg_rev)
+
+    mode = config.get('mode') or status.get('mode', 'automatic')
     known_target = bool(target.get('sidecar_uuid') or target.get('usb_serial'))
     controls = fresh and known_target and same_device(target, status.get('configured_ipad') or {})
     main = actual.get('main_display') or {}
@@ -112,9 +118,20 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item(f'{icon} PadPilot')
     separator()
     item(f"主螢幕：{main.get('name') or '未偵測到'}" + ('' if fresh else '（尚無最新狀態）'))
-    state = '資料待更新' if not fresh else ('偵測異常' if errors else
-            ('發生錯誤' if runtime.get('last_error') else
-             ('處理中' if runtime.get('transition_state', 'IDLE') != 'IDLE' else '運作中')))
+    if is_out_of_sync:
+        state = '同步狀態重新讀取中…'
+    elif is_applying:
+        state = '套用設定中…'
+    elif not fresh:
+        state = '資料待更新'
+    elif errors:
+        state = '偵測異常'
+    elif runtime.get('last_error'):
+        state = '發生錯誤'
+    elif runtime.get('transition_state', 'IDLE') != 'IDLE':
+        state = '處理中'
+    else:
+        state = '運作中'
     item(f"模式：{MODES.get(mode, mode)}｜{state}")
     separator()
     item('螢幕與裝置')
@@ -189,12 +206,25 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
         item(title, 1, ('set-mode', value), checked=mode == value)
     item('設定與配對', args=('gui',))
     item('狀態與診斷')
+    if is_out_of_sync:
+        desired_role = '狀態同步中…'
+        actual_role = '狀態同步中…'
+        current_reason = '等待設定與背景狀態同步…'
+    elif is_applying:
+        desired_role = '套用新設定中…'
+        actual_role = '資料待更新'
+        current_reason = '套用新設定中…'
+    else:
+        desired_role = details.get('desired_role', '未知')
+        actual_role = details.get('actual_role_satisfied', '未知') if fresh else '資料待更新'
+        current_reason = details.get('reason', '尚無背景狀態')
+
     for title, value in (
-        ('期望狀態', details.get('desired_role', '未知')),
-        ('實際狀態', details.get('actual_role_satisfied', '未知') if fresh else '資料待更新'),
-        ('目前原因', details.get('reason', '尚無背景狀態')),
-        ('USB', '狀態未知' if not fresh or errors.get('usb') else '已接上' if actual.get('ipad_usb_present') else '未偵測到'),
-        ('Sidecar', '狀態未知' if not fresh else '已連線' if actual.get('sidecar_connected') else '未確認連線'),
+        ('期望狀態', desired_role),
+        ('實際狀態', actual_role),
+        ('目前原因', current_reason),
+        ('USB', '狀態未知' if (not fresh or is_out_of_sync or errors.get('usb')) else '已接上' if actual.get('ipad_usb_present') else '未偵測到'),
+        ('Sidecar', '狀態未知' if (not fresh or is_out_of_sync) else '已連線' if actual.get('sidecar_connected') else '未確認連線'),
         ('最後更新', time.strftime('%H:%M:%S', time.localtime(timestamp)) if isinstance(timestamp, (int, float)) and timestamp > 0 else '未知'),
         ('最近錯誤', runtime.get('last_error') or '無'),
     ):

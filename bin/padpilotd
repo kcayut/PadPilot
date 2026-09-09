@@ -20,6 +20,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import copy
 from core.betterdisplay import BetterDisplayCLI
+from core.autostart import notify_swiftbar
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
@@ -60,8 +61,8 @@ class PadPilotDaemon:
             if expected_revision is not None and self.config.revision != expected_revision:
                 raise ConflictError(f"CONFIG_CONFLICT: expected revision {expected_revision}, but current is {self.config.revision}")
             new_config = copy.deepcopy(self.config)
-            changed = apply_change(new_config, action, payload, getattr(self, 'bd_cli', None))
-            if changed:
+            needs_transition = apply_change(new_config, action, payload, getattr(self, 'bd_cli', None))
+            if not new_config.content_equals(self.config):
                 new_config.revision = self.config.revision + 1
                 new_config.updated_at = time.time()
                 save_config(new_config)
@@ -70,7 +71,8 @@ class PadPilotDaemon:
                     self.detector.config = new_config
                 if hasattr(self, "engine") and self.engine is not None:
                     self.engine.config = new_config
-            return changed, self.config
+                notify_swiftbar(delay=0.1)
+            return needs_transition, self.config
 
     def _run_config_side_effects(self, action: str) -> None:
         if action == 'set_betterdisplaycli_path':
@@ -90,8 +92,8 @@ class PadPilotDaemon:
                     self.engine.runtime.user_override = None
                 self.engine.evaluate(trigger='mode_change')
         elif action == 'set_autostart':
-            if hasattr(self, 'engine') and self.engine is not None and getattr(self.engine, 'actual', None) and getattr(self.engine, 'desired', None):
-                self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
+            if hasattr(self, 'engine') and self.engine is not None:
+                self.engine.evaluate(trigger='autostart_change')
         else:
             if hasattr(self, 'engine') and self.engine is not None:
                 if hasattr(self.engine, 'runtime') and self.engine.runtime is not None:
@@ -144,8 +146,6 @@ class PadPilotDaemon:
 
             if changed:
                 self._run_config_side_effects(command)
-            elif hasattr(self, 'engine') and getattr(self.engine, 'actual', None) and getattr(self.engine, 'desired', None):
-                self.engine._export_status(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
 
             resp = {"id": req_id, "ok": True, "config_revision": cfg.revision, "message": "OK: 設定已更新"}
             return json.dumps(resp, ensure_ascii=False) if is_json else f"OK: 設定已更新 (rev {cfg.revision})"

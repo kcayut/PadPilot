@@ -18,10 +18,12 @@ from urllib.parse import urlencode
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import copy
 from core.autostart import (
     disable_autostart,
     enable_autostart,
     is_autostart_enabled,
+    notify_swiftbar,
     toggle_autostart,
 )
 from core.betterdisplay import BetterDisplayCLI
@@ -114,10 +116,13 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
     if resp_raw.startswith("Daemon is not running"):
         # Offline configuration mutation
         cfg = load_config()
+        old_cfg = copy.deepcopy(cfg)
         cfg.mode = OperationMode(mode_str)
-        cfg.revision += 1
-        cfg.updated_at = time.time()
-        save_config(cfg)
+        if not cfg.content_equals(old_cfg):
+            cfg.revision += 1
+            cfg.updated_at = time.time()
+            save_config(cfg)
+            notify_swiftbar(delay=0.0)
         print("✓ 設定已儲存；背景服務尚未啟動，將於下次啟動時生效。")
     else:
         try:
@@ -158,11 +163,13 @@ def submit_settings(action: str, payload: dict, expected_revision: Optional[int]
         if expected_revision is not None and cfg.revision != expected_revision:
             raise RuntimeError(f"CONFIG_CONFLICT: expected revision {expected_revision}, but current is {cfg.revision}")
         bd = BetterDisplayCLI(cfg.betterdisplaycli_path) if action == "set_virtual_display" else None
-        changed = apply_change(cfg, action, payload, bd)
-        if changed:
+        old_cfg = copy.deepcopy(cfg)
+        apply_change(cfg, action, payload, bd)
+        if not cfg.content_equals(old_cfg):
             cfg.revision += 1
             cfg.updated_at = time.time()
             save_config(cfg)
+            notify_swiftbar(delay=0.0)
         response = "✓ 設定已儲存；背景服務尚未啟動，將於下次啟動時生效。"
     else:
         try:
