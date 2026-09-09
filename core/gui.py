@@ -51,7 +51,7 @@ MODES = {
     'prefer_ipad': '偏好 iPad 模式'
 }
 MODE_DESCS = {
-    'automatic': '無實體螢幕時自動連線 iPad 並設為主螢幕；接有實體螢幕時保持安靜不干涉。',
+    'automatic': '無實體螢幕時自動連線 iPad 並設為主螢幕；有實體螢幕時以實體為主，已連線的 iPad 保持為副螢幕。',
     'manual_only': '自動化程序暫停，不主動連線或斷開，完全由使用者自 Menu Bar 手動操控。',
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
@@ -257,7 +257,7 @@ class SettingsWindow:
         self.selected_candidate = None
         self.selected_virtual = None
         self.log_filter_var = tk.StringVar(value='全部')
-        self.log_search_var = tk.StringVar(value='')
+        self.logs_expanded = True
 
         # Window setup: font sizes reduced by 2 points across the board
         root.title('PadPilot — 螢幕與配對管理')
@@ -413,29 +413,19 @@ class SettingsWindow:
         def _update_scrollregion():
             if not self.canvas.winfo_exists():
                 return
-            try:
-                self.root.update_idletasks()
-            except Exception:
-                pass
             canvas_width = self.canvas.winfo_width()
             canvas_height = self.canvas.winfo_height()
             if canvas_width <= 1 or canvas_height <= 1:
                 return
 
-            if self.current_tab == 'diagnostics':
-                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=canvas_height)
-                self.canvas.configure(scrollregion=(0, 0, canvas_width, canvas_height))
+            height = max(self.scroll_frame.winfo_reqheight(), canvas_height)
+            dimensions = (canvas_width, height)
+            if dimensions != getattr(self, '_scroll_dimensions', None):
+                self._scroll_dimensions = dimensions
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=height)
+                self.canvas.configure(scrollregion=(0, 0, canvas_width, height))
+            if height <= canvas_height:
                 self.canvas.yview_moveto(0.0)
-                return
-
-            req_h = self.scroll_frame.winfo_reqheight()
-            if req_h <= canvas_height:
-                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=canvas_height)
-                self.canvas.configure(scrollregion=(0, 0, canvas_width, max(canvas_height, 1)))
-                self.canvas.yview_moveto(0.0)
-            else:
-                self.canvas.itemconfig(self.canvas_window, width=canvas_width, height=req_h)
-                self.canvas.configure(scrollregion=(0, 0, canvas_width, req_h))
 
         self._update_scrollregion = _update_scrollregion
         self.scroll_frame.bind('<Configure>', lambda e: _update_scrollregion())
@@ -451,8 +441,7 @@ class SettingsWindow:
         def _on_mousewheel(event):
             if not self.canvas.winfo_exists():
                 return
-            # Diagnostics page is full-screen and never scrolls the outer window
-            if self.current_tab == 'diagnostics':
+            if isinstance(getattr(event, 'widget', None), tk.Text):
                 return
             try:
                 # Check pointer position to ensure mouse is within PadPilot window
@@ -602,6 +591,8 @@ class SettingsWindow:
         self.subtitle_label.configure(text=st)
 
         self.render_current_tab(preserve_scroll=False)
+        if tab_id == 'diagnostics' and not self.view.get('system_checks') and not self.busy:
+            self.root.after_idle(self.search)
         if hasattr(self, '_update_scrollregion'):
             self.root.after_idle(self._update_scrollregion)
 
@@ -731,15 +722,36 @@ class SettingsWindow:
             else:
                 self.make_badge(top_line, '○ 離線未連線', '#f2f2f7', TEXT_TERTIARY).pack(side='left', padx=2)
 
+            controls = tk.Frame(card.body, bg=CARD_BG)
+            controls.pack(fill='x', pady=(6, 2))
+            tk.Label(controls, text='控制', font=('Helvetica Neue', 10, 'bold'),
+                     fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
+            row = tk.Frame(controls, bg=CARD_BG)
+            row.pack(fill='x', pady=(3, 0))
+            for col, (title, action) in enumerate((('作為副螢幕', 'use_ipad_secondary'),
+                    ('設為主螢幕', 'use_ipad_main'), ('中斷連線', 'disconnect_ipad'),
+                    ('重新連線', 'reconnect_sidecar'))):
+                row.columnconfigure(col, weight=1, uniform='controls')
+                button = ttk.Button(row, text=title, width=9, style='Secondary.TButton',
+                                    command=lambda a=action, pr=p: self.control_ipad(pr, a))
+                button.grid(row=0, column=col, sticky='ew', padx=(0, 4 if col < 3 else 0))
+                if is_target and p.get('sidecar_uuid') and not self.readonly:
+                    self.buttons.append(button)
+                else:
+                    button.state(['disabled'])
+            if not is_target:
+                tk.Label(controls, text='請先在「設定」中設為主要管理 iPad。',
+                         fg=TEXT_SECONDARY, bg=CARD_BG, font=('Helvetica Neue', 9)).pack(anchor='w')
+
             # Info Line 2: Sidecar UUID
             uuid_str = p.get('sidecar_uuid') or '未設定'
-            tk.Label(info_col, text=f"Sidecar UUID: {uuid_str}", font=('Menlo', 9),
+            tk.Label(card.body, text=f"Sidecar UUID: {uuid_str}", font=('Menlo', 9),
                      fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(4, 0))
 
             # Info Line 3: USB 序號
             usb_str = p.get('usb_serial') or '未設定'
             usb_suffix = ' (目前已接上 USB)' if any(u.get('serial') == p.get('usb_serial') for u in self.view['actual'].get('usb_devices', [])) else ''
-            tk.Label(info_col, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
+            tk.Label(card.body, text=f"USB 序號:      {usb_str}{usb_suffix}", font=('Menlo', 9),
                      fg=TEXT_SECONDARY, bg=CARD_BG, anchor='w').pack(fill='x', pady=(1, 0))
 
             # Expanded settings drawer
@@ -1264,6 +1276,17 @@ class SettingsWindow:
                 self.buttons.append(set_btn)
 
     def render_diagnostics_tab(self):
+        self.diagnostic_hosts = {}
+        for section in ('decision', 'system_checks', 'authenticated_checks', 'logs'):
+            host = tk.Frame(self.scroll_frame, bg=BG)
+            host.pack(fill='x')
+            self.diagnostic_hosts[section] = host
+        self.render_decision_card()
+        self.render_checks_card('system_checks')
+        self.render_checks_card('authenticated_checks')
+        self.render_logs_card()
+
+    def render_decision_card(self):
         status = self.view.get('status') or {}
         actual = self.view.get('actual') or {}
         desired = status.get('desired') or {}
@@ -1272,7 +1295,7 @@ class SettingsWindow:
         fresh = self.view.get('fresh', False)
 
         # Card 1: 決策與系統診斷 (Decision & System Diagnostics)
-        diag_card = Card(self.scroll_frame, padx=12, pady=6)
+        diag_card = Card(self.diagnostic_hosts['decision'], padx=12, pady=6)
         diag_card.pack(fill='x', padx=18, pady=(0, 4))
 
         top_r = tk.Frame(diag_card.body, bg=CARD_BG)
@@ -1286,7 +1309,7 @@ class SettingsWindow:
 
         ref_btn = ttk.Button(
             act_box, text='重新整理',
-            command=self.search,
+            command=lambda: self.refresh_diagnostic('decision'),
             style='Secondary.TButton'
         )
         ref_btn.pack(side='left')
@@ -1334,7 +1357,7 @@ class SettingsWindow:
         tk.Label(r2, text='決策依據：', font=('Helvetica Neue', 10, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
         tk.Label(r2, text=d_reason, font=('Helvetica Neue', 10),
-                 fg=TEXT_SECONDARY, bg=CARD_BG, justify='left').pack(side='left', padx=2)
+                 fg=TEXT_SECONDARY, bg=CARD_BG, justify='left', wraplength=480).pack(side='left', padx=2)
 
         # Errors if any
         if last_err and last_err != '無':
@@ -1343,10 +1366,37 @@ class SettingsWindow:
             tk.Label(r3, text='最近錯誤：', font=('Helvetica Neue', 10, 'bold'),
                      fg=RED, bg=CARD_BG).pack(side='left')
             tk.Label(r3, text=last_err, font=('Helvetica Neue', 10),
-                     fg=RED, bg=CARD_BG).pack(side='left', padx=2)
+                     fg=RED, bg=CARD_BG, wraplength=480, justify='left').pack(side='left', padx=2)
 
+    def render_checks_card(self, section):
+        authenticated = section == 'authenticated_checks'
+        card = Card(self.diagnostic_hosts[section], padx=12, pady=8)
+        card.pack(fill='x', padx=18, pady=(0, 6))
+        top = tk.Frame(card.body, bg=CARD_BG)
+        top.pack(fill='x')
+        title = '啟動與必要設定偵測 — 需要系統驗證' if authenticated else '啟動與必要設定偵測 — 不需帳號密碼'
+        tk.Label(top, text=title, font=('Helvetica Neue', 11, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+        refresh = ttk.Button(top, text='重新整理', style='Secondary.TButton',
+                             command=lambda: self.refresh_diagnostic(section))
+        refresh.pack(side='right')
+        self.buttons.append(refresh)
+        if authenticated:
+            note = tk.Label(card.body, text='查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。'
+                            '請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。',
+                            font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg=CARD_BG,
+                            anchor='w', justify='left', wraplength=500)
+            note.pack(fill='x', pady=(5, 3))
+        checks = self.view.get(section) or [('偵測', '尚未檢查；請按此區「重新整理」')]
+        for label, value in checks:
+            line = tk.Label(card.body, text=f'{label}：{value}', anchor='w', justify='left',
+                            font=('Helvetica Neue', 10), fg=TEXT_PRIMARY, bg=CARD_BG)
+            line.pack(fill='x', pady=2)
+            line.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 8)))
+
+    def render_logs_card(self):
         # Card 2: 系統運行日誌 (System Logs) - expands to fill remaining space
-        log_card = Card(self.scroll_frame, padx=12, pady=6)
+        log_card = Card(self.diagnostic_hosts['logs'], padx=12, pady=6)
         log_card.pack(fill='both', expand=True, padx=18, pady=(0, 4))
 
         l_top = tk.Frame(log_card.body, bg=CARD_BG)
@@ -1355,8 +1405,14 @@ class SettingsWindow:
         tk.Label(l_top, text='📜 系統運行日誌 (padpilot.log)', font=('Helvetica Neue', 11, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
 
-        l_tools = tk.Frame(l_top, bg=CARD_BG)
-        l_tools.pack(side='right')
+        toggle = ttk.Button(l_top, text='收合 ▲' if self.logs_expanded else '展開 ▼',
+                            command=self.toggle_logs, style='Secondary.TButton')
+        toggle.pack(side='right')
+        self.buttons.append(toggle)
+        if not self.logs_expanded:
+            return
+        l_tools = tk.Frame(log_card.body, bg=CARD_BG)
+        l_tools.pack(fill='x', pady=(0, 4))
 
         # Filter combobox
         tk.Label(l_tools, text='篩選：', font=('Helvetica Neue', 9),
@@ -1368,15 +1424,6 @@ class SettingsWindow:
         )
         filter_cb.pack(side='left', padx=(0, 6))
         filter_cb.bind('<<ComboboxSelected>>', lambda e: self.refresh_logs())
-
-        # Search keyword entry
-        search_entry = tk.Entry(
-            l_tools, textvariable=self.log_search_var, font=('Helvetica Neue', 9),
-            width=12, bg='#ffffff', fg=TEXT_PRIMARY, insertbackground=TEXT_PRIMARY,
-            highlightbackground='#d1d1d6', highlightthickness=1, relief='flat'
-        )
-        search_entry.pack(side='left', padx=(0, 6))
-        search_entry.bind('<KeyRelease>', lambda e: self.refresh_logs())
 
         reload_log_btn = ttk.Button(l_tools, text='🔄 刷新日誌', command=self.refresh_logs, style='Secondary.TButton')
         reload_log_btn.pack(side='left', padx=(0, 4))
@@ -1393,7 +1440,7 @@ class SettingsWindow:
 
         self.log_text = tk.Text(
             log_frame, bg='#1a1b20', fg='#f2f2f7',
-            font=('Menlo', 9), wrap='word', borderwidth=0, highlightthickness=0
+            font=('Menlo', 9), wrap='word', height=12, width=1, borderwidth=0, highlightthickness=0
         )
         log_scroll = ttk.Scrollbar(log_frame, orient='vertical', command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=log_scroll.set)
@@ -1410,6 +1457,10 @@ class SettingsWindow:
         self.log_text.tag_configure('msg', foreground='#f2f2f7')
 
         self.refresh_logs()
+
+    def toggle_logs(self):
+        self.logs_expanded = not self.logs_expanded
+        self.render_current_tab(preserve_scroll=True)
 
     def refresh_logs(self):
         if not hasattr(self, 'log_text') or not self.log_text.winfo_exists():
@@ -1433,7 +1484,6 @@ class SettingsWindow:
             return
 
         filter_val = self.log_filter_var.get()
-        search_val = self.log_search_var.get().strip().lower()
 
         self.log_text.configure(state='normal')
         self.log_text.delete('1.0', 'end')
@@ -1443,8 +1493,6 @@ class SettingsWindow:
         matched_count = 0
         for line in lines:
             line_str = line.rstrip('\n')
-            if search_val and search_val not in line_str.lower():
-                continue
 
             m = pattern.match(line_str)
             if m:
@@ -1480,9 +1528,12 @@ class SettingsWindow:
 
     def display(self, view: dict, preserve_scroll: bool = True):
         # Preserve identifiers if view was loaded without full scan
-        if not view.get('identifiers') and hasattr(self, 'view') and self.view.get('identifiers'):
+        if not view.get('scanned') and not view.get('identifiers') and hasattr(self, 'view') and self.view.get('identifiers'):
             view['identifiers'] = self.view['identifiers']
 
+        for section in ('system_checks', 'authenticated_checks'):
+            if section not in view and hasattr(self, 'view'):
+                view[section] = self.view.get(section, [])
         self.view = view
         cfg = view['config']
         actual = view.get('actual', {})
@@ -1502,7 +1553,7 @@ class SettingsWindow:
         self.candidates = {d['uuid']: d for d in actual.get('sidecar_devices', []) if d.get('uuid')}
         if view.get('identifiers'):
             self.virtuals = {str(i): d for i, d in enumerate(view.get('identifiers', [])) if is_virtual_device(d)}
-        elif not hasattr(self, 'virtuals'):
+        elif view.get('scanned') or not hasattr(self, 'virtuals'):
             self.virtuals = {}
         self.usbs = [u for u in actual.get('usb_devices', []) if u.get('serial')]
 
@@ -1527,7 +1578,8 @@ class SettingsWindow:
         if self.busy:
             return
         self.busy = True
-        for button in list(self.buttons):
+        button_states = [(b, b.instate(['disabled'])) for b in self.buttons]
+        for button, _disabled in button_states:
             try:
                 button.state(['disabled'])
             except Exception:
@@ -1551,9 +1603,9 @@ class SettingsWindow:
             self.busy = False
             self.progress.stop()
             self.progress.pack_forget()
-            for button in list(self.buttons):
+            for button, was_disabled in button_states:
                 try:
-                    button.state(['!disabled'])
+                    button.state(['disabled'] if was_disabled else ['!disabled'])
                 except Exception:
                     pass
             if ok:
@@ -1572,7 +1624,78 @@ class SettingsWindow:
         self.root.after(100, poll)
 
     def search(self):
-        self.task(lambda: read_view(scan=True), self.display)
+        diagnostics = self.current_tab == 'diagnostics'
+        def work():
+            from core.autostart import is_daemon_running
+            if is_daemon_running():
+                self.run_action('refresh')
+            view = read_view(scan=True)
+            if diagnostics:
+                from core.diagnostics import collect_system_checks
+                view['system_checks'] = collect_system_checks(view['config'], view['actual'])
+            return view
+        self.task(work, self.display)
+
+    def refresh_diagnostic(self, section):
+        if section not in ('decision', 'system_checks', 'authenticated_checks'):
+            return
+        def work():
+            if section == 'authenticated_checks':
+                from core.diagnostics import collect_authenticated_checks
+                return collect_authenticated_checks()
+            if section == 'system_checks':
+                from core.diagnostics import collect_system_checks
+                view = read_view(scan=True)
+                return collect_system_checks(view['config'], view['actual'])
+            from core.autostart import is_daemon_running
+            if is_daemon_running():
+                self.run_action('refresh')
+            return read_view()
+
+        def complete(result):
+            if section == 'decision':
+                self.view.update(result)
+                self._last_sync_sig = get_sync_signatures()
+                self._last_config_revision = result['config'].revision
+                self._last_status_revision = result.get('status_revision', 0)
+            else:
+                self.view[section] = result
+            if self.current_tab == 'diagnostics':
+                for widget in self.diagnostic_hosts[section].winfo_children():
+                    widget.destroy()
+                self.buttons = [button for button in self.buttons if button.winfo_exists()]
+                if section == 'decision':
+                    self.render_decision_card()
+                else:
+                    self.render_checks_card(section)
+                self._update_scrollregion()
+            self.notice.configure(text='此卡片已更新於 ' + time.strftime('%H:%M:%S'))
+        self.task(work, complete)
+
+    @staticmethod
+    def run_action(action):
+        result = subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'action', action],
+                                capture_output=True, text=True, timeout=70)
+        if result.returncode:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or '操作失敗')
+        return result.stdout.strip()
+
+    def control_ipad(self, profile, action):
+        if self.readonly or self.busy:
+            return
+        if profile != self.view['config'].ipad.to_dict():
+            return
+        def work():
+            current = read_view()
+            if current['config'].ipad.to_dict() != profile:
+                raise RuntimeError('控制目標已變更，請重新整理後再操作。')
+            message = self.run_action(action)
+            return message, read_view(scan=True)
+        def complete(result):
+            message, view = result
+            self.display(view)
+            self.notice.configure(text=message)
+        self.task(work, complete)
 
     def change(self, action: str, payload: dict):
         if self.readonly or self.busy:
@@ -1585,7 +1708,7 @@ class SettingsWindow:
         def complete(result):
             message, view = result
             if action == 'save_pairing' and 'ipad' in payload:
-                kid = pairing_key(payload['ipad'])
+                kid = payload['ipad'].get('sidecar_uuid') or pairing_key(payload['ipad'])
                 self.dirty_fields.pop(f"name.{kid}", None)
             if getattr(self, 'one_shot', False):
                 self.root.destroy()
@@ -1609,7 +1732,7 @@ class SettingsWindow:
         def work():
             res = subprocess.run(
                 [sys.executable, str(ROOT / 'bin/padpilot-cli'), 'set-mode', mode_key],
-                capture_output=True, text=True, timeout=20
+                capture_output=True, text=True, timeout=70
             )
             if res.returncode != 0:
                 raise RuntimeError(res.stderr.strip() or res.stdout.strip() or '切換模式失敗')
@@ -1635,6 +1758,8 @@ class SettingsWindow:
         def work():
             from core.autostart import toggle_autostart
             ok, msg = toggle_autostart()
+            if not ok:
+                raise RuntimeError(msg)
             return msg, read_view(scan=False)
 
         def complete(result):
@@ -1766,7 +1891,7 @@ class SettingsWindow:
             },
             'activate': is_target
         }
-        kid = pairing_key(profile)
+        kid = profile.get('sidecar_uuid') or pairing_key(profile)
         draft = self.dirty_fields.get(f"name.{kid}")
         if draft and isinstance(draft, dict) and 'base_revision' in draft:
             payload['__expected_revision__'] = draft['base_revision']

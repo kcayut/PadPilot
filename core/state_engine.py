@@ -107,7 +107,12 @@ class StateEngine:
                 if actual.physical_displays and self.runtime.mode != OperationMode.PREFER_IPAD:
                     role = DisplayRole.IPAD_SECONDARY
             if actual.sidecar_connected and not self.bd_cli.disconnect_sidecar(specifier):
+                self.runtime.last_error = "無法確認 Sidecar 已中斷；未開始重新連線。"
+                self._export_status(satisfied=False)
                 return False
+            # Observe the intentional disconnect before registering the new override.
+            # Otherwise _observe expires it as an external disconnect.
+            self._observe()
             self.runtime.cooldown_until = 0.0
             self.runtime.retry_count = 0
             self.set_user_override(role)
@@ -360,6 +365,14 @@ class StateEngine:
             # 4. Check Satisfaction
             satisfied = self.is_satisfied(actual, desired)
 
+            if (satisfied and not actual.discovery_errors and
+                    (actual.sidecar_connected and actual.sidecar_display_online or
+                     self.runtime.cooldown_until <= time.time())):
+                self.runtime.last_error = None
+                self.runtime.cooldown_until = 0.0
+                self.runtime.retry_count = 0
+                self.runtime.transition_state = TransitionState.IDLE
+
             phys_names = [d.name for d in actual.physical_displays]
             logger.info(
                 f"Eval [{trigger}]: Mode={self.runtime.mode.value}, Physical={phys_names}, "
@@ -470,8 +483,12 @@ class StateEngine:
 
                     target_name = desired.needs_main_display_target
                     if target_name == "ipad":
-                        spec = self.config.ipad.name or "iPad"
-                        success = self.bd_cli.set_main_display(spec)
+                        live_names = [d.get("name") for d in actual.sidecar_devices
+                                      if d.get("uuid", "").casefold() == self.config.ipad.sidecar_uuid.casefold()]
+                        name = live_names[0] if len(live_names) == 1 and live_names[0] else self.config.ipad.name
+                        matches = [d for d in actual.online_displays if d.is_sidecar and d.name == name]
+                        spec = matches[0].uuid or matches[0].name if len(matches) == 1 else name
+                        success = bool(spec) and self.bd_cli.set_main_display(spec)
                     elif target_name == "virtual":
                         success = actual.virtual_display_connected or self.bd_cli.connect_virtual_display(self.config.virtual_display_name)
                         if success:
@@ -505,7 +522,7 @@ class StateEngine:
                     break
 
     def _determine_icon(self, satisfied: bool) -> str:
-        if self.runtime.cooldown_until > time.time() or self.runtime.last_error:
+        if self.runtime.cooldown_until > time.time() or self.runtime.last_error or (self.actual and self.actual.discovery_errors):
             return IconStatus.WARNING.value
         if self.runtime.mode == OperationMode.MANUAL_ONLY:
             return IconStatus.PAUSED.value

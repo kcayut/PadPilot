@@ -224,6 +224,12 @@ class DisplayDetector:
         target_sidecar_uuid = self.config.ipad.sidecar_uuid
         target_usb_serial = self.config.ipad.usb_serial
         target_name = self.config.ipad.name
+        # Saved names are user labels. Resolve the current name through the session UUID.
+        targets = [d for d in sidecar_list if target_sidecar_uuid and
+                   d.get("uuid", "").casefold() == target_sidecar_uuid.casefold()]
+        if len(targets) == 1 and targets[0].get("name"):
+            target_name = targets[0]["name"]
+        session_connected = self.bd_cli.get_sidecar_connected(target_sidecar_uuid or target_name)
 
         if target_sidecar_uuid:
             sidecar_available = any(d.get("uuid", "").upper() == target_sidecar_uuid.upper() for d in sidecar_list)
@@ -261,7 +267,7 @@ class DisplayDetector:
                     not (target_sidecar_uuid or target_name)
                     or (d.uuid and target_sidecar_uuid and d.uuid.upper() == target_sidecar_uuid.upper())
                     or (target_name and d_name_lower == target_name.lower() and
-                        sum(p.name.casefold() == target_name.casefold() for p in self.config.paired_ipads) <= 1)
+                        sum(s.get("name", "").casefold() == target_name.casefold() for s in sidecar_list) <= 1)
                 )
                 if matches_target:
                     sidecar_display_online = True
@@ -273,6 +279,11 @@ class DisplayDetector:
                 continue
 
             physical_displays.append(d)
+
+        if isinstance(session_connected, bool):
+            sidecar_connected = session_connected
+            if not session_connected:
+                sidecar_display_online = False
 
         # Deterministic topology signature per requirement 1:
         # Tuple of (tuple of sorted physical display IDs, ipad_usb_present)
@@ -289,6 +300,7 @@ class DisplayDetector:
                 ("displays", getattr(self, "display_error", "")),
                 ("usb", getattr(self, "usb_error", "")),
                 ("sidecar", getattr(self.bd_cli, "sidecar_error", "")),
+                ("sidecar_connection", getattr(self.bd_cli, "connection_error", "")),
                 ("identifiers", getattr(self.bd_cli, "identifiers_error", "")),
             ) if isinstance(error, str) and error},
             main_display=main_display,

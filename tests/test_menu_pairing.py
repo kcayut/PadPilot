@@ -87,7 +87,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertNotIn(' | bash=/tmp/evil', text)
         self.assertIn('設定與配對', text)
         exit_line = text.splitlines()[-1]
-        self.assertTrue(exit_line.startswith('Exit PadPilot |'))
+        self.assertTrue(exit_line.startswith('Exit |'))
         self.assertIn('param1=exit', exit_line)
         self.assertIn('refresh=true', exit_line)
         self.assertNotIn('quit', text.lower())
@@ -98,7 +98,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertIn('工作 iPad — 狀態未知', text)
         line = next(l for l in text.splitlines() if l.startswith('--設為主螢幕'))
         self.assertNotIn('bash=', line)
-        self.assertIn('Exit PadPilot', text)
+        self.assertIn('Exit', text)
         status = {'configured_ipad': DEVICE, 'actual': {'timestamp': 1000,
                   'sidecar_devices': [], 'discovery_errors': {'sidecar': 'timeout'}}}
         self.assertIn('工作 iPad — 狀態未知', rendered(status, cfg))

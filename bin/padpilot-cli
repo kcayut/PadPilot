@@ -111,7 +111,7 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     req = json.dumps({"command": "set_mode", "params": {"mode": mode_str}}, ensure_ascii=False)
-    resp_raw = send_daemon_cmd(req)
+    resp_raw = send_daemon_cmd(req, timeout=60.0)
 
     if resp_raw.startswith("Daemon is not running"):
         # Offline configuration mutation
@@ -132,16 +132,18 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
             else:
                 print(f"ERROR: {resp.get('message') or resp.get('error')}")
                 sys.exit(1)
-        except Exception:
-            print(resp_raw)
+        except json.JSONDecodeError:
+            raise RuntimeError(resp_raw)
 
 
 def cmd_action(args: argparse.Namespace) -> None:
-    resp = send_daemon_cmd(args.action)
+    resp = send_daemon_cmd(args.action, timeout=60.0)
     if "Daemon is not running" in resp:
         cmd_start(args)
         time.sleep(1.0)
-        resp = send_daemon_cmd(args.action)
+        resp = send_daemon_cmd(args.action, timeout=60.0)
+    if not resp.startswith("OK"):
+        raise RuntimeError(resp)
     print(resp)
 
 
@@ -412,6 +414,9 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         ok, msg = toggle_autostart()
         print(msg)
 
+    if action != "status" and not ok:
+        raise RuntimeError(msg)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
@@ -423,7 +428,7 @@ def main() -> None:
     p_gui.add_argument("--select", help="Show confirmation for a saved target key")
     p_gui.set_defaults(func=cmd_gui)
     p_change = subparsers.add_parser("change-settings", help="Apply a validated JSON settings command from stdin")
-    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display"])
+    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path"])
     p_change.set_defaults(func=cmd_change_settings)
 
     # start

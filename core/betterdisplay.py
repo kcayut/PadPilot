@@ -162,6 +162,18 @@ class BetterDisplayCLI:
         logger.warning(f"connect_sidecar failed (code {code}): {err or out}")
         return False
 
+    def get_sidecar_connected(self, specifier: str) -> Optional[bool]:
+        """Query the session UUID, which is distinct from the macOS display UUID."""
+        self.connection_error = ""
+        if not specifier:
+            self.connection_error = "尚未設定 Sidecar 控制目標"
+            return None
+        code, out, err = self.run_cmd(["get", "-sidecarConnected", f"-specifier={specifier}"], timeout=5.0)
+        if code == 0 and out.lower() in ("on", "off"):
+            return out.lower() == "on"
+        self.connection_error = err or out or "Sidecar 連線狀態未知"
+        return None
+
     def disconnect_sidecar(self, specifier: str) -> bool:
         """Disconnect Sidecar display using name or UUID."""
         if not self.is_available():
@@ -170,8 +182,15 @@ class BetterDisplayCLI:
         logger.info(f"Disconnecting Sidecar with specifier: {specifier}")
         code, out, err = self.run_cmd(["set", "-sidecarConnected=off", f"-specifier={specifier}"], timeout=8.0)
         if code == 0:
-            logger.info("disconnect_sidecar command completed successfully")
-            return True
+            import time
+            for attempt in range(6):
+                if self.get_sidecar_connected(specifier) is False:
+                    logger.info("Sidecar disconnect verified")
+                    return True
+                if attempt < 5:
+                    time.sleep(0.5)
+            logger.warning("Sidecar disconnect could not be verified")
+            return False
         logger.warning(f"disconnect_sidecar failed (code {code}): {err or out}")
         return False
 
@@ -183,7 +202,7 @@ class BetterDisplayCLI:
         logger.info(f"Setting main display to: {specifier}")
         # Try -namelike first, or -uuid if it matches uuid pattern
         is_uuid = re.match(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", specifier)
-        arg = f"-uuid={specifier}" if is_uuid else f"-namelike={specifier}"
+        arg = f"-uuid={specifier}" if is_uuid else f"-name={specifier}"
         code, out, err = self.run_cmd(["set", arg, "-main=on"], timeout=8.0)
         if code == 0:
             logger.info(f"Successfully set main display to {specifier}")

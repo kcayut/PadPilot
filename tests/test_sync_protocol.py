@@ -170,6 +170,7 @@ class SyncProtocolTests(unittest.TestCase):
 
         # In GUI render: verify stale reason is NOT displayed
         app = SettingsWindow.__new__(SettingsWindow)
+        app.logs_expanded = True
         app.view = view
         app.dirty_fields = {}
         app.expanded_profiles = set()
@@ -178,7 +179,6 @@ class SyncProtocolTests(unittest.TestCase):
         app.search = MagicMock()
         app.make_badge = MagicMock(return_value=MagicMock())
         app.log_filter_var = MagicMock()
-        app.log_search_var = MagicMock()
         app.refresh_logs = MagicMock()
 
         with patch("tkinter.Frame", return_value=MagicMock()), \
@@ -201,6 +201,7 @@ class SyncProtocolTests(unittest.TestCase):
         from core.gui import SettingsWindow
 
         app = SettingsWindow.__new__(SettingsWindow)
+        app.logs_expanded = True
         app.busy = False
         app.one_shot = False
         app.modal_depth = 0
@@ -247,6 +248,7 @@ class SyncProtocolTests(unittest.TestCase):
         from core.gui import SettingsWindow
 
         app = SettingsWindow.__new__(SettingsWindow)
+        app.logs_expanded = True
         app.root = MagicMock()
         app.busy = False
         app.readonly = False
@@ -379,9 +381,9 @@ class SyncProtocolTests(unittest.TestCase):
             # Diagnostics suppresses stale reason and desired role
             self.assertNotIn("Stale automatic reason from previous mode", output)
             self.assertNotIn("iPadSecondary", output)
-            self.assertIn("期望狀態：套用新設定中…", output)
-            self.assertIn("實際狀態：資料待更新", output)
-            self.assertIn("目前原因：套用新設定中…", output)
+            self.assertIn("套用設定中…", output)
+            self.assertIn("param2=diagnostics", output)
+            self.assertNotIn("--期望狀態", output)
 
     # 8. Revision conflict (status ahead of config) displays out-of-sync reload state
     def test_swiftbar_revision_conflict_displays_out_of_sync_reload(self):
@@ -402,7 +404,7 @@ class SyncProtocolTests(unittest.TestCase):
 
             self.assertIn("模式：自動｜同步狀態重新讀取中…", output)
             self.assertNotIn("Future status reason", output)
-            self.assertIn("等待設定與背景狀態同步…", output)
+            self.assertIn("同步狀態重新讀取中…", output)
 
     # 9. Rename inactive iPad increments revision and saves without display transition
     def test_rename_inactive_ipad_increments_revision_and_saves_without_display_transition(self):

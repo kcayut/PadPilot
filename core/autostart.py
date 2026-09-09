@@ -127,7 +127,7 @@ def enable_autostart(
         subprocess.run(["launchctl", "unload", str(target_plist)], capture_output=True, check=False)
         res = subprocess.run(["launchctl", "load", str(target_plist)], capture_output=True, text=True, check=False)
         if res.returncode != 0 and "service already loaded" not in res.stderr.lower():
-            logger.warning(f"launchctl load returned code {res.returncode}: {res.stderr}")
+            raise RuntimeError(f"登入設定已寫入，但背景服務啟動失敗：{res.stderr.strip()}")
 
         # Trigger SwiftBar refresh
         notify_swiftbar(cfg.swiftbar_plugin_id)
@@ -151,10 +151,7 @@ def disable_autostart(
 
         if target_plist.is_file():
             subprocess.run(["launchctl", "unload", str(target_plist)], capture_output=True, check=False)
-            try:
-                target_plist.unlink()
-            except OSError:
-                pass
+            target_plist.unlink()
 
         # Update config
         cfg = load_config()

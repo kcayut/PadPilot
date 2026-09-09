@@ -58,6 +58,8 @@ def clean(value: object) -> str:
 def item(title: str, depth: int = 0, args: tuple = (), *, terminal: bool = False,
          enabled: bool = True, checked: bool = False) -> None:
     params = ['ansi=false', 'emojize=false', 'symbolize=false']
+    if enabled:
+        params.append('color=#1c1c1e,#f2f2f7')
     if checked:
         params.append('checked=true')
     if args and enabled:
@@ -112,7 +114,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
 
     mode = config.get('mode') or status.get('mode', 'automatic')
     known_target = bool(target.get('sidecar_uuid') or target.get('usb_serial'))
-    controls = fresh and known_target and same_device(target, status.get('configured_ipad') or {})
+    controls = fresh and known_target and not (is_applying or is_out_of_sync) and same_device(target, status.get('configured_ipad') or {})
     main = actual.get('main_display') or {}
     icon = status.get('icon', '⏸️') if fresh else '⚠️'
     item(f'{icon} PadPilot')
@@ -204,41 +206,16 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item('運作模式')
     for value, title in MODES.items():
         item(title, 1, ('set-mode', value), checked=mode == value)
-    item('設定與配對', args=('gui',))
-    item('狀態與診斷')
-    if is_out_of_sync:
-        desired_role = '狀態同步中…'
-        actual_role = '狀態同步中…'
-        current_reason = '等待設定與背景狀態同步…'
-    elif is_applying:
-        desired_role = '套用新設定中…'
-        actual_role = '資料待更新'
-        current_reason = '套用新設定中…'
-    else:
-        desired_role = details.get('desired_role', '未知')
-        actual_role = details.get('actual_role_satisfied', '未知') if fresh else '資料待更新'
-        current_reason = details.get('reason', '尚無背景狀態')
-
-    for title, value in (
-        ('期望狀態', desired_role),
-        ('實際狀態', actual_role),
-        ('目前原因', current_reason),
-        ('USB', '狀態未知' if (not fresh or is_out_of_sync or errors.get('usb')) else '已接上' if actual.get('ipad_usb_present') else '未偵測到'),
-        ('Sidecar', '狀態未知' if (not fresh or is_out_of_sync) else '已連線' if actual.get('sidecar_connected') else '未確認連線'),
-        ('最後更新', time.strftime('%H:%M:%S', time.localtime(timestamp)) if isinstance(timestamp, (int, float)) and timestamp > 0 else '未知'),
-        ('最近錯誤', runtime.get('last_error') or '無'),
-    ):
-        item(f'{title}：{value}', 1)
-    for source, error in errors.items():
-        item(f'{source}：{error}', 1)
-    item('開啟日誌', 1, ('gui', 'diagnostics'))
-    separator()
-    item('重新整理螢幕狀態', args=('action', 'refresh'))
     item('背景服務')
     item('登入時自動啟動', 1, ('autostart', 'toggle'), checked=autostart)
-    item('停止背景服務（保留選單）', 1, ('stop',))
+    item('啟動背景服務', 1, ('start',), enabled=not fresh)
+    item('停止背景服務（保留選單）', 1, ('stop',), enabled=fresh)
+    item('設定與配對', args=('gui',))
+    item('狀態與診斷', args=('gui', 'diagnostics'))
+    item('重新整理螢幕狀態', args=('action', 'refresh'))
     separator()
-    item('Exit PadPilot', args=('exit',))
+    item('Exit', args=('exit',))
+
 
 
 def main() -> None:
