@@ -132,6 +132,18 @@ class ControlsTests(unittest.TestCase):
         expected = ['螢幕與裝置', 'iPad 控制', '運作模式', '背景服務', '設定與配對',
                     '狀態與診斷', '重新整理螢幕狀態', 'Exit']
         self.assertEqual(titles[-8:], expected)
+        # Verify separators in the bottom menu section
+        clean_lines = [l.split(' |')[0] for l in lines]
+        daemon_stop_idx = clean_lines.index('--停止背景服務（保留選單）')
+        settings_idx = clean_lines.index('設定與配對')
+        diag_idx = clean_lines.index('狀態與診斷')
+        refresh_idx = clean_lines.index('重新整理螢幕狀態')
+        exit_idx = clean_lines.index('Exit')
+
+        self.assertEqual(clean_lines[daemon_stop_idx + 1:settings_idx], ['---'])
+        self.assertEqual(clean_lines[diag_idx + 1:refresh_idx], ['---'])
+        self.assertEqual(clean_lines[refresh_idx + 1:exit_idx], ['---'])
+
         diag = next(line for line in lines if line.startswith('狀態與診斷'))
         self.assertIn('param1=gui param2=diagnostics', diag)
         self.assertIn('color=#1c1c1e,#f2f2f7', diag)
