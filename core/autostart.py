@@ -6,6 +6,7 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional, Tuple
@@ -218,17 +219,43 @@ def is_swiftbar_recovery_bug_present() -> bool:
         return False
 
 
-def notify_swiftbar(plugin_id: str) -> None:
-    if is_swiftbar_recovery_bug_present():
-        logger.debug("Skipping SwiftBar URL notify to prevent 'SwiftBar is already running' alert on macOS >= 26")
-        return
+_notify_lock = threading.Lock()
+_notify_timers: dict[str, threading.Timer] = {}
+
+
+def _fire_swiftbar_notification(plugin_id: str) -> None:
+    with _notify_lock:
+        _notify_timers.pop(plugin_id, None)
     try:
-        subprocess.run(
+        subprocess.Popen(
             ["open", "-g", f"swiftbar://refreshplugin?plugin={plugin_id}"],
-            capture_output=True,
-            check=False,
-            timeout=2.0,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
     except Exception as e:
-        logger.debug(f"SwiftBar refresh notification skipped: {e}")
+        logger.warning(f"SwiftBar refresh notification failed: {e}")
+
+
+def notify_swiftbar(plugin_id: str, delay: float = 0.1) -> None:
+    """Trigger thread-safe debounced non-blocking SwiftBar UI refresh via URL scheme.
+
+    100ms debounce ensures rapid transitions or mutations (e.g. config update -> evaluation -> export)
+    coalesce into a single URL event, preventing duplicate execution or menu flicker.
+    Uses subprocess.Popen to guarantee the state engine and caller threads are never blocked.
+    """
+    with _notify_lock:
+        existing = _notify_timers.pop(plugin_id, None)
+        if existing is not None:
+            existing.cancel()
+
+        if delay <= 0:
+            timer = None
+        else:
+            timer = threading.Timer(delay, _fire_swiftbar_notification, args=[plugin_id])
+            timer.daemon = True
+            _notify_timers[plugin_id] = timer
+            timer.start()
+
+    if delay <= 0:
+        _fire_swiftbar_notification(plugin_id)
 

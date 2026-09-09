@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -107,19 +108,33 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertTrue(ok)
                 self.assertFalse(is_autostart_enabled(test_plist))
 
-    @patch("core.autostart.is_swiftbar_recovery_bug_present", return_value=True)
-    @patch("subprocess.run")
-    def test_notify_swiftbar_skipped_when_bug_present(self, mock_run: MagicMock, mock_bug: MagicMock) -> None:
-        notify_swiftbar("padpilot.30s.py")
-        mock_run.assert_not_called()
+    @patch("subprocess.Popen")
+    def test_notify_swiftbar_url_format_immediate(self, mock_popen: MagicMock) -> None:
+        notify_swiftbar("padpilot.30s.py", delay=0.0)
+        mock_popen.assert_called_once()
+        cmd = mock_popen.call_args[0][0]
+        self.assertEqual(cmd, ["open", "-g", "swiftbar://refreshplugin?plugin=padpilot.30s.py"])
 
-    @patch("core.autostart.is_swiftbar_recovery_bug_present", return_value=False)
-    @patch("subprocess.run")
-    def test_notify_swiftbar_called_when_safe(self, mock_run: MagicMock, mock_bug: MagicMock) -> None:
-        notify_swiftbar("padpilot.30s.py")
-        mock_run.assert_called_once()
-        args = mock_run.call_args[0][0]
-        self.assertIn("swiftbar://refreshplugin?plugin=padpilot.30s.py", args[2])
+    @patch("subprocess.Popen")
+    def test_notify_swiftbar_debounce_single_flight(self, mock_popen: MagicMock) -> None:
+        # Rapid multiple calls within 20ms should coalesce to 1 Popen call
+        notify_swiftbar("padpilot.30s.py", delay=0.05)
+        notify_swiftbar("padpilot.30s.py", delay=0.05)
+        notify_swiftbar("padpilot.30s.py", delay=0.05)
+        self.assertEqual(mock_popen.call_count, 0)
+        time.sleep(0.1)
+        self.assertEqual(mock_popen.call_count, 1)
+
+    @patch("subprocess.Popen")
+    def test_debounce_is_thread_safe_under_concurrent_notifications(self, mock_popen: MagicMock) -> None:
+        import concurrent.futures
+        # Call 10 times concurrently across threads
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(notify_swiftbar, "padpilot.30s.py", 0.05) for _ in range(10)]
+            for f in futures:
+                f.result()
+        time.sleep(0.1)
+        self.assertEqual(mock_popen.call_count, 1)
 
 
 

@@ -81,6 +81,53 @@ class SyncProtocolTests(unittest.TestCase):
             self.assertEqual(engine.status_revision, 2)
             self.assertEqual(mock_write_status.call_count, 2)
 
+    def test_unchanged_status_does_not_notify_swiftbar(self):
+        detector = MagicMock()
+        bd_cli = MagicMock()
+        engine = StateEngine(self.config, detector, bd_cli)
+        dummy_actual = ActualState(
+            physical_displays=[DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False)],
+            sidecar_connected=False,
+            sidecar_available=False,
+            main_display=DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False),
+        )
+        detector.observe.return_value = (dummy_actual, (("disp-1",), False))
+        with patch("core.state_engine.write_atomic_status"), \
+             patch("core.autostart.notify_swiftbar") as mock_notify:
+            # 1st evaluation -> exports and notifies
+            engine.evaluate(trigger="periodic")
+            self.assertEqual(mock_notify.call_count, 1)
+
+            # 2nd evaluation with identical state (30s watchdog) -> does NOT notify
+            engine.evaluate(trigger="periodic")
+            self.assertEqual(mock_notify.call_count, 1)
+
+    def test_mode_change_notifies_even_when_hardware_snapshot_unchanged(self):
+        detector = MagicMock()
+        bd_cli = MagicMock()
+        engine = StateEngine(self.config, detector, bd_cli)
+        dummy_actual = ActualState(
+            physical_displays=[DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False)],
+            sidecar_connected=False,
+            sidecar_available=False,
+            main_display=DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False),
+        )
+        detector.observe.return_value = (dummy_actual, (("disp-1",), False))
+        with patch("core.state_engine.write_atomic_status"), \
+             patch("core.autostart.notify_swiftbar") as mock_notify:
+            # 1st evaluation in automatic mode
+            engine.evaluate(trigger="periodic")
+            self.assertEqual(mock_notify.call_count, 1)
+
+            # Mode changes to manual_only, but hardware is 100% unchanged!
+            engine.config.mode = OperationMode.MANUAL_ONLY
+            engine.config.revision += 1
+            engine.runtime.mode = OperationMode.MANUAL_ONLY
+            engine.evaluate(trigger="mode_change")
+
+            # Must still notify swiftbar!
+            self.assertEqual(mock_notify.call_count, 2)
+
     # 2. Inconsistent revision snapshot does not mix stale reasons
     def test_inconsistent_revision_snapshot_does_not_mix_stale_reasons(self):
         from core.gui import SettingsWindow, read_view
