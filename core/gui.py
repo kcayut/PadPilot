@@ -347,23 +347,35 @@ class SettingsWindow:
                                        font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg=BG)
         self.subtitle_label.pack(anchor='w', pady=(1, 0))
 
-        # Canvas without visible scrollbar
-        self.canvas = tk.Canvas(self.content_area, bg=BG, highlightthickness=0, bd=0)
+        # Canvas without visible scrollbar, gentle 15px step increment
+        self.canvas = tk.Canvas(self.content_area, bg=BG, highlightthickness=0, bd=0, yscrollincrement=15)
         self.scroll_frame = tk.Frame(self.canvas, bg=BG)
 
-        self.scroll_frame.bind(
-            '<Configure>',
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox('all'))
-        )
+        def _update_scrollregion():
+            if not self.canvas.winfo_exists():
+                return
+            bbox = self.canvas.bbox('all')
+            if not bbox:
+                return
+            content_height = bbox[3] - bbox[1]
+            canvas_height = self.canvas.winfo_height()
+            if content_height <= canvas_height + 5:
+                self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), max(canvas_height, 1)))
+                self.canvas.yview_moveto(0.0)
+            else:
+                self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), bbox[3]))
+
+        self.scroll_frame.bind('<Configure>', lambda e: _update_scrollregion())
         self.canvas_window = self.canvas.create_window((0, 0), window=self.scroll_frame, anchor='nw')
 
         def _on_canvas_resize(event):
             self.canvas.itemconfig(self.canvas_window, width=event.width)
+            _update_scrollregion()
 
         self.canvas.bind('<Configure>', _on_canvas_resize)
         self.canvas.pack(fill='both', expand=True)
 
-        # Global Mousewheel binding: smoothly scrolls whenever mouse is in content_area
+        # Gentle Mousewheel binding: only scrolls when content actually exceeds canvas height
         def _on_mousewheel(event):
             if not self.canvas.winfo_exists():
                 return
@@ -373,10 +385,36 @@ class SettingsWindow:
                 cy = self.content_area.winfo_rooty()
                 cw = self.content_area.winfo_width()
                 ch = self.content_area.winfo_height()
-                if cx <= x <= cx + cw and cy <= y <= cy + ch:
-                    delta = event.delta
-                    if delta:
-                        self.canvas.yview_scroll(int(-1 * delta), 'units')
+                if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
+                    return
+
+                bbox = self.canvas.bbox('all')
+                if not bbox:
+                    return
+                content_height = bbox[3] - bbox[1]
+                canvas_height = self.canvas.winfo_height()
+
+                # If content fits completely inside the window, NEVER scroll!
+                if content_height <= canvas_height + 5:
+                    self.canvas.yview_moveto(0.0)
+                    return
+
+                delta = event.delta
+                if not delta:
+                    return
+
+                # Normalise to a gentle 1-step (15px) or 2-step (30px) movement
+                step = -2 if delta > 0 else 2 if abs(delta) >= 120 else (-1 if delta > 0 else 1)
+
+                # Boundary protection
+                y_range = self.canvas.yview()
+                if step < 0 and y_range[0] <= 0.001:
+                    self.canvas.yview_moveto(0.0)
+                    return
+                if step > 0 and y_range[1] >= 0.999:
+                    return
+
+                self.canvas.yview_scroll(step, 'units')
             except Exception:
                 pass
 
