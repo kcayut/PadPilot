@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render real Tk widgets at the minimum width without controlling hardware."""
 import sys
+import copy
 import tkinter as tk
 from pathlib import Path
 from unittest.mock import patch
@@ -51,6 +52,35 @@ def main():
                     assert w.winfo_rootx() + w.winfo_width() <= exp_btn.winfo_rootx()
                 assert not w.instate(['disabled'])
                 assert w.cget('command')
+            # Heartbeats must preserve actual widgets, focus, drafts and scrolling.
+            app.toggle_profile_expand(cfg.ipad.sidecar_uuid)
+            root.update()
+            entry = next(w for w in descendants(root) if w.winfo_class() == 'Entry')
+            entry.delete(0, 'end')
+            entry.insert(0, '未儲存的名稱')
+            entry.icursor(3)
+            entry.focus_force()
+            root.update()
+            children = app.scroll_frame.winfo_children()
+            old_y = app.canvas.yview()
+            for revision in range(1, 4):
+                heartbeat = copy.deepcopy(view)
+                heartbeat.update(status_revision=revision, hardware_snapshot_age=revision)
+                heartbeat['actual']['timestamp'] = revision
+                heartbeat['status'] = {'timestamp': revision, 'status_revision': revision,
+                                       'actual': heartbeat['actual']}
+                app.display(heartbeat)
+                root.update()
+                assert app.scroll_frame.winfo_children() == children
+                assert entry.get() == '未儲存的名稱' and entry.index('insert') == 3
+                assert root.focus_get() == entry
+                assert app.canvas.yview() == old_y
+                assert app._last_status_revision == revision
+            stale = copy.deepcopy(heartbeat)
+            stale['fresh'] = False
+            app.display(stale)
+            assert not entry.winfo_exists(), 'Freshness changes must still update the UI'
+            app.display(heartbeat)
             app.select_tab('diagnostics')
             root.update()
             assert not any(w.winfo_class() in ('Entry', 'TEntry') for w in descendants(app.scroll_frame))
@@ -59,13 +89,30 @@ def main():
             refreshes = [w for w in descendants(app.scroll_frame)
                          if w.winfo_class() == 'TButton' and w.cget('text') == '重新整理']
             assert len(refreshes) == 3
+            retained = {section: app.diagnostic_hosts[section].winfo_children()
+                        for section in ('system_checks', 'authenticated_checks', 'logs')}
+            log_text = app.log_text
+            log_text.yview_moveto(0.25)
+            root.update()
+            log_top = log_text.index('@0,0')
+            changed = copy.deepcopy(heartbeat)
+            changed['status']['runtime'] = {'last_error': '驗證錯誤更新'}
+            app.display(changed)
+            root.update()
+            assert app.log_text is log_text and log_text.index('@0,0') == log_top
+            assert all(app.diagnostic_hosts[s].winfo_children() == widgets
+                       for s, widgets in retained.items())
+            assert any(w.winfo_class() == 'Label' and w.cget('text') == '驗證錯誤更新'
+                       for w in descendants(app.diagnostic_hosts['decision']))
+            decision = app.diagnostic_hosts['decision'].winfo_children()
             app.toggle_logs()
             root.update()
             assert not any(w.winfo_class() == 'Text' for w in descendants(app.scroll_frame))
             app.toggle_logs()
             root.update()
             assert app.log_text.winfo_exists()
-            print('PASS: 840px controls in one row; diagnostics has no search entry; logs collapse and expand.')
+            assert app.diagnostic_hosts['decision'].winfo_children() == decision
+            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently.')
     finally:
         root.destroy()
 

@@ -672,6 +672,38 @@ class SettingsWindow:
             self.canvas.yview_moveto(min(old_y, 1.0))
         else:
             self.canvas.yview_moveto(0)
+        self._rendered_content = self._content_signature()
+
+    def _content_signature(self):
+        """Compare displayed data, not the daemon's heartbeat metadata."""
+        view = self.view
+        actual = {k: v for k, v in view.get('actual', {}).items() if k != 'timestamp'}
+        status = view.get('status') or {}
+        content = [self.current_tab, self.readonly, view['config'].to_dict(),
+                   actual, view.get('fresh'), view.get('consistency_state'),
+                   view.get('identifiers')]
+        if self.current_tab == 'diagnostics':
+            content.extend([status.get('desired'), status.get('runtime'),
+                            status.get('status_details'), view.get('system_checks'),
+                            view.get('authenticated_checks')])
+        return json.dumps(content, sort_keys=True, ensure_ascii=False)
+
+    def _render_diagnostic_section(self, section):
+        log = getattr(self, 'log_text', None)
+        log_top = log.index('@0,0') if log is not None and log.winfo_exists() else None
+        for widget in self.diagnostic_hosts[section].winfo_children():
+            widget.destroy()
+        self.buttons = [button for button in self.buttons if button.winfo_exists()]
+        if section == 'decision':
+            self.render_decision_card()
+        elif section == 'logs':
+            self.render_logs_card()
+        else:
+            self.render_checks_card(section)
+        self._update_scrollregion()
+        if section != 'logs' and log_top is not None:
+            log.update_idletasks()
+            log.yview(log_top)
 
     def render_paired_tab(self):
         cfg = self.view['config']
@@ -1527,7 +1559,7 @@ class SettingsWindow:
 
     def toggle_logs(self):
         self.logs_expanded = not self.logs_expanded
-        self.render_current_tab(preserve_scroll=True)
+        self._render_diagnostic_section('logs')
 
     def refresh_logs(self):
         if not hasattr(self, 'log_text') or not self.log_text.winfo_exists():
@@ -1594,6 +1626,7 @@ class SettingsWindow:
             subprocess.run(['open', str(log_path)])
 
     def display(self, view: dict, preserve_scroll: bool = True):
+        previous_view = getattr(self, 'view', {})
         # Preserve identifiers if view was loaded without full scan
         if not view.get('scanned') and not view.get('identifiers') and hasattr(self, 'view') and self.view.get('identifiers'):
             view['identifiers'] = self.view['identifiers']
@@ -1636,7 +1669,18 @@ class SettingsWindow:
             count = len(self.profiles)
             self.notice.configure(text=f"更新於 {ts} · {count} 台已配對")
 
-        self.render_current_tab(preserve_scroll=preserve_scroll)
+        content = self._content_signature()
+        if content != getattr(self, '_rendered_content', None) or view.get('scanned'):
+            if (self.current_tab == 'diagnostics' and
+                    getattr(self, 'diagnostic_hosts', {}).get('decision') and
+                    self.diagnostic_hosts['decision'].winfo_exists()):
+                self._render_diagnostic_section('decision')
+                for section in ('system_checks', 'authenticated_checks'):
+                    if view.get(section) != previous_view.get(section):
+                        self._render_diagnostic_section(section)
+            else:
+                self.render_current_tab(preserve_scroll=preserve_scroll)
+            self._rendered_content = content
         self._last_sync_sig = get_sync_signatures()
         self._last_config_revision = cfg.revision
         self._last_status_revision = view.get('status_revision', 0)
@@ -1728,14 +1772,8 @@ class SettingsWindow:
             else:
                 self.view[section] = result
             if self.current_tab == 'diagnostics':
-                for widget in self.diagnostic_hosts[section].winfo_children():
-                    widget.destroy()
-                self.buttons = [button for button in self.buttons if button.winfo_exists()]
-                if section == 'decision':
-                    self.render_decision_card()
-                else:
-                    self.render_checks_card(section)
-                self._update_scrollregion()
+                self._render_diagnostic_section(section)
+                self._rendered_content = self._content_signature()
             self.notice.configure(text='此卡片已更新於 ' + time.strftime('%H:%M:%S'))
         self.task(work, complete)
 

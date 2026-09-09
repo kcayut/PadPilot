@@ -218,6 +218,7 @@ class ControlsTests(unittest.TestCase):
         for section in ('decision', 'system_checks', 'authenticated_checks'):
             with self.subTest(section=section):
                 app = SettingsWindow.__new__(SettingsWindow)
+                app.readonly = False
                 app.current_tab = 'diagnostics'
                 app.view = {'config': Config(), 'system_checks': [('general', 'old')],
                             'authenticated_checks': [('auth', 'old')]}
