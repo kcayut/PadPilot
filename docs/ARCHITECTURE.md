@@ -70,6 +70,6 @@ PadPilot 是一套專為無頭 Mac mini + iPad 打造的確定性顯示器狀態
 
 `usb_event_wakeup` 預設 true，`auto_detect_ipad` 預設 true，均經既有設定交易儲存與即時套用。兩個開關位於預設收合的「進階選項」，點擊後展開；已儲存的停用值仍會保留。設定交易與狀態轉換共用評估鎖，避免切換途中換掉目標設定。
 
-啟用自動偵測時，偵測器將唯一候選放入 `ActualState.resolved_ipad`；連線、中斷、重新連線與主螢幕切換共用該目標。USB 序號與 Sidecar UUID 納入拓撲簽章，換裝置後既有覆寫失效。推定不寫入 Config 或配對清單；不完整查詢及歧義不允許發起 iPad 連線。已存 USB／Sidecar 對應優先；無對應時以唯一候選推定，無法證明兩種識別屬於同一裝置。GUI／選單列呈現本次目標，配對卡片只管理已存設定。
+啟用自動偵測時，偵測器優先沿用具有 Sidecar UUID 的指定配對，不要求 USB 在場，也不因候選暫時消失而更換身份；未指定有效配對時才以 USB 唯一候選推定。選取結果放入 `ActualState.resolved_ipad`；連線、中斷、重新連線與主螢幕切換共用該目標。USB 序號與 Sidecar UUID 納入拓撲簽章，換裝置後既有覆寫失效。推定不寫入 Config 或配對清單；不完整查詢及歧義不允許發起 iPad 連線。已存 USB／Sidecar 對應優先；無對應時以唯一候選推定，無法證明兩種識別屬於同一裝置。GUI／選單列呈現本次目標，配對卡片只管理已存設定。
 
 原生通知 API 核對來源：[Apple IOServiceAddMatchingNotification](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification) 與本機 macOS SDK `IOKitLib.h`。即時的是通知與喚醒，Sidecar 完成連線仍受探索、既有操作、重試與防抖影響。

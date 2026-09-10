@@ -516,9 +516,9 @@
     "en": "Auto-detect iPad (no PadPilot pairing)",
     "ja": "iPad を自動検出（PadPilot ペアリング不要）"
   },
-  "限唯一 USB iPad 與唯一 Sidecar 候選；優先使用已存配對。多台環境請關閉並指定配對。": {
-    "en": "Requires one USB iPad and one Sidecar candidate; saved pairings take priority. With multiple devices, disable this and choose a pairing.",
-    "ja": "USB の iPad と Sidecar 候補が各 1 台の場合のみ。保存済みペアリングを優先します。複数台の場合はオフにして対象を指定してください。"
+  "優先沿用指定配對，支援無線 Sidecar；未指定有效配對時，才以唯一 USB iPad 與 Sidecar 候選推定。": {
+    "en": "Uses the designated pairing, including wireless Sidecar. Without a valid pairing, infers from one USB iPad and one Sidecar candidate.",
+    "ja": "指定済みのペアリングを優先し、ワイヤレス Sidecar に対応します。有効な指定がない場合のみ、USB iPad と Sidecar の候補が各1台のときに推定します。"
   },
   "：已啟用": {
     "en": ": Enabled",

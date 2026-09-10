@@ -202,9 +202,9 @@ class DisplayDetector:
         return False
 
     def resolve_ipad(self, usb_devices, sidecar_list):
-        """Resolve an ephemeral target; never save an inferred USB/Sidecar pairing."""
+        """Prefer the explicit Sidecar identity; infer only without a usable pairing."""
         self.auto_detect_error = ""
-        if not self.config.auto_detect_ipad:
+        if not self.config.auto_detect_ipad or self.config.ipad.sidecar_uuid:
             return self.config.ipad
         errors = (getattr(self, "usb_error", ""), getattr(self.bd_cli, "sidecar_error", ""))
         if any(isinstance(error, str) and error for error in errors):

@@ -81,6 +81,45 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(actual.resolved_ipad, saved)
         self.assertTrue(actual.sidecar_available)
 
+    def test_explicit_pairing_survives_usb_unplug_and_wireless_discovery_loss(self):
+        saved = IpadConfig('My label', UUID, 'usb1')
+        self.cfg.ipad = saved
+        before = self.cfg.to_dict()
+        self.bd.get_sidecar_connected.return_value = True
+        screen = DisplayInfo(5, DEVICE['name'], uuid='display-uuid', is_sidecar=True, is_main=True)
+        self.detector.get_online_displays.return_value = [screen]
+        for usbs, candidates in (([USB], [DEVICE]), ([], [DEVICE]),
+                                 ([dict(USB, serial='other')], [DEVICE, dict(DEVICE, uuid='other')]),
+                                 ([], [])):
+            with self.subTest(usbs=usbs, candidates=candidates):
+                self.detector.parse_usb_devices.return_value = usbs
+                self.bd.get_sidecar_list.return_value = candidates
+                actual, _ = self.detector.observe()
+                self.assertEqual(actual.resolved_ipad, saved)
+                self.assertNotIn('auto_detect', actual.discovery_errors)
+                self.assertTrue(actual.sidecar_connected)
+                self.bd.get_sidecar_connected.assert_called_with(UUID)
+                engine = StateEngine(self.cfg, self.detector, self.bd)
+                desired = engine.policy(actual, self.cfg, engine.runtime)
+                self.assertEqual(desired.target_display_role, DisplayRole.IPAD_MAIN)
+                self.assertFalse(desired.needs_sidecar_disconnect)
+                self.assertFalse(desired.needs_sidecar_connect)
+        self.assertEqual(self.cfg.to_dict(), before)
+        self.bd.get_sidecar_connected.return_value = False
+        self.bd.get_sidecar_list.return_value = [DEVICE]
+        self.detector.get_online_displays.return_value = []
+        actual, _ = self.detector.observe()
+        self.assertFalse(actual.ipad_usb_present)
+        self.assertTrue(actual.sidecar_available)
+        engine = StateEngine(self.cfg, self.detector, self.bd)
+        self.assertTrue(engine.policy(actual, self.cfg, engine.runtime).needs_sidecar_connect)
+
+    def test_usb_only_pairing_still_uses_discovery(self):
+        self.cfg.ipad = IpadConfig('USB only', '', 'usb1')
+        actual, _ = self.detector.observe()
+        self.assertEqual(actual.resolved_ipad.sidecar_uuid, UUID)
+        self.assertEqual(self.cfg.ipad.sidecar_uuid, '')
+
     def test_selected_uuid_flows_through_connect_and_main_display(self):
         actual, signature = self.detector.observe()
         screen = DisplayInfo(5, DEVICE['name'], uuid='display-uuid', is_sidecar=True)

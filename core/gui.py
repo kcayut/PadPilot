@@ -1233,7 +1233,7 @@ class SettingsWindow:
             ('usb_event_wakeup', tr('USB 插拔即時喚醒'),
              tr('收到原生 USB 事件即重新評估；保留防抖與 30 秒 Watchdog，非保證瞬間連線。')),
             ('auto_detect_ipad', tr('自動偵測 iPad（免 PadPilot 配對）'),
-             tr('限唯一 USB iPad 與唯一 Sidecar 候選；優先使用已存配對。多台環境請關閉並指定配對。')),
+             tr('優先沿用指定配對，支援無線 Sidecar；未指定有效配對時，才以唯一 USB iPad 與 Sidecar 候選推定。')),
         ):
             enabled = getattr(cfg, field)
             row = tk.Frame(adv_body, bg=CARD_BG)
