@@ -16,6 +16,7 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from core import __version__
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, get_config_file_path, get_status_file_path, read_status
 from core.detector import DisplayDetector
@@ -59,9 +60,8 @@ MODE_DESCS = {
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
 
-DOCS_BASE_URL = 'https://github.com/kcayut/PadPilot'
-DOCS_USAGE_URL = f'{DOCS_BASE_URL}#使用手冊'
-DOCS_TROUBLESHOOTING_URL = f'{DOCS_BASE_URL}/blob/main/docs/TROUBLESHOOTING.md'
+DOCS_USAGE_URL = (ROOT / 'README.md').as_uri()
+DOCS_TROUBLESHOOTING_URL = (ROOT / 'docs/TROUBLESHOOTING.md').as_uri()
 
 
 def get_troubleshooting_url(label: str) -> str:
@@ -395,6 +395,9 @@ class SettingsWindow:
                  fg=TEXT_PRIMARY, bg=SIDEBAR_BG).pack(anchor='w')
         tk.Label(header_box, text=tr('智慧顯示器管理系統'), font=('Helvetica Neue', 9),
                  fg=TEXT_SECONDARY, bg=SIDEBAR_BG).pack(anchor='w', pady=(1, 0))
+        self.version_label = tk.Label(header_box, text=f'v{__version__}', font=('Helvetica Neue', 9),
+                                      fg=TEXT_SECONDARY, bg=SIDEBAR_BG)
+        self.version_label.pack(anchor='w', pady=(2, 0))
 
         # Divider
         tk.Frame(self.sidebar, bg=SIDEBAR_BORDER, height=1).pack(fill='x', padx=10, pady=(0, 6))
@@ -471,7 +474,6 @@ class SettingsWindow:
         for text, url in [
             (tr('📖 使用說明'), DOCS_USAGE_URL),
             (tr('🩺 疑難排解'), DOCS_TROUBLESHOOTING_URL),
-            (tr('↗ GitHub 專案'), DOCS_BASE_URL),
         ]:
             lnk = tk.Label(links_box, text=text, font=('Helvetica Neue', 9),
                            fg=TEXT_SECONDARY, bg=SIDEBAR_BG, cursor='hand2', anchor='w')

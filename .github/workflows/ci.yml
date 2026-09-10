@@ -1,0 +1,61 @@
+name: PadPilot CI
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  software:
+    name: macOS / Python ${{ matrix.python }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build native app (no install or startup)
+        run: python scripts/build_app.py
+      - name: Software checks (not a release approval)
+        run: |
+          if ! python scripts/check_release.py --software-only; then
+            cat build/release-*.log
+            exit 1
+          fi
+      - name: Show check report
+        if: always()
+        run: python -m json.tool build/release-check.json
+
+  privacy:
+    name: Release privacy gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Scan current files and full history
+        run: python scripts/check_release.py --scan-only
+      - name: Show redacted finding locations
+        if: always()
+        run: python -m json.tool build/privacy-scan.json

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.config import Config
+from core import __version__
 from core.gui import SettingsWindow, confirm
 from core.i18n import LANGUAGES, set_language, tr
 from scripts.check_gui_layout import descendants
@@ -27,6 +28,8 @@ def main():
                 app.display(current)
                 root.update()
                 assert root.title() == tr('PadPilot — 螢幕與配對管理')
+                assert app.version_label.cget('text') == f'v{__version__}'
+                assert app.version_label.winfo_ismapped()
                 for tab in ('paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics'):
                     app.advanced_expanded = False
                     app.select_tab(tab)

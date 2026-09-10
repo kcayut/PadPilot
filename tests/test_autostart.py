@@ -25,6 +25,11 @@ class TestPadPilotAutostart(unittest.TestCase):
             ("core.autostart.load_config", {"side_effect": Config}),
             ("core.autostart.save_config", {}),
             ("core.autostart.is_daemon_running", {"return_value": False}),
+            ("core.autostart.stop_daemon", {}),
+            ("core.autostart.job_loaded", {"return_value": False}),
+            ("core.autostart.wait_for_daemon", {}),
+            ("core.autostart.private_directory", {}),
+            ("core.autostart.private_file", {}),
         ):
             mocked = patch(target, **kwargs)
             mocked.start()

@@ -71,16 +71,17 @@ See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device c
 First verify that Sidecar works manually through macOS Screen Mirroring, then set up PadPilot.
 
 ```bash
-git clone https://github.com/kcayut/PadPilot.git
-cd PadPilot
-python3 --version
-python3 -c "import tkinter"
+# After obtaining the source, run from the PadPilot project directory:
+./scripts/install.sh --check
 ./scripts/install.sh
+./bin/padpilot-cli status
 ```
 
-If importing `tkinter` fails, install matching Tk support for your Python environment before using the GUI.
+The [kcayut/PadPilot repository](https://github.com/kcayut/PadPilot) is currently private and requires access; no formal Release is available yet. `--check` only inspects dependencies: no installation, user-state writes, service startup, or display changes. Missing Tk is a warning: daemon, CLI, and native menu remain usable, while settings-window actions are disabled. Install matching Tk support for the same Python to use the GUI.
 
-The installer checks Python/Tk, the Swift compiler, and BetterDisplay. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login.
+The installer validates macOS, Python version, the Swift compiler, BetterDisplay app, and a CLI response. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). Missing required dependencies or failed CLI checks stop installation. It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login. Installation succeeds only after a daemon handshake; failed startup attempts to restore the prior LaunchAgent configuration and explicitly reports any rollback failure.
+
+A CLI response does not verify the Pro license, Sidecar pairing, permissions, or an actual working display. Complete pairing and physical validation below.
 
 ```bash
 open -a BetterDisplay
@@ -108,6 +109,8 @@ Alternatively, open the settings window to discover devices, save pairings, and 
 PadPilot pairing records device identities; it does not replace Apple Account or “Trust This Computer” requirements. Multiple pairings can be saved, but only one iPad is managed as the active target at a time.
 
 ### 3. Check fallback and status
+
+`status` separately reports whether the daemon responded to a handshake. Without a response, saved snapshots are not live state. `status --json` includes `daemon_responding` and the version; absent snapshots leave display state unknown.
 
 For headless use, confirm that a virtual screen named `PadPilotVirtual` exists in BetterDisplay, or select an existing virtual screen in PadPilot's settings. If your version does not support automatic creation, create it once in BetterDisplay.
 
@@ -176,7 +179,7 @@ Run these from the project directory. If installation created `~/bin/padpilot-cl
 ./bin/padpilot-cli --help
 ```
 
-After updating the source, close any open settings window, run `stop` followed by `start`, and reopen the window to load the new version.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `./bin/padpilot-cli status`. This also rebuilds the native app. The GUI sidebar, CLI `--version`, and app share one version source. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 ## Limitations and troubleshooting
 
@@ -186,6 +189,8 @@ After updating the source, close any open settings window, run `stop` followed b
 - **Other display controllers can conflict**: If another tool repeatedly changes the main display or Sidecar state, switch to `manual_only` and inspect the transition reasons and logs.
 
 Configuration and runtime state normally live in `~/Library/Application Support/PadPilot/`; logs are in `~/Library/Logs/PadPilot/`. When reporting a problem, include versions, connection type, reproduction steps, and relevant logs. Redact device serials, UUIDs, accounts, and personal paths first.
+
+Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix](docs/development/2026-09-11-release-readiness.md) for tested environments and hardware scenarios still marked `unknown`.
 
 ## Uninstall
 

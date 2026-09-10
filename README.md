@@ -71,16 +71,17 @@ PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器
 先確認可以在 macOS「螢幕鏡像輸出」中手動使用 Sidecar，再設定 PadPilot。
 
 ```bash
-git clone https://github.com/kcayut/PadPilot.git
-cd PadPilot
-python3 --version
-python3 -c "import tkinter"
+# 取得原始碼後，在 PadPilot 專案資料夾執行：
+./scripts/install.sh --check
 ./scripts/install.sh
+./bin/padpilot-cli status
 ```
 
-若 `tkinter` 匯入失敗，請為使用中的 Python 安裝相符的 Tk 支援後，再使用 GUI。
+GitHub 倉庫為 [kcayut/PadPilot](https://github.com/kcayut/PadPilot)，目前是私人倉庫，僅受邀帳號可存取，尚無正式 Release。`--check` 只檢查依賴，不安裝、不寫入使用者設定、不啟動服務或切換螢幕。Tk 缺失是警告：daemon、CLI 與原生選單仍可使用，設定視窗入口會停用；請補上同一個 Python 的 Tk 支援。
 
-安裝腳本會檢查 Python／Tk、Swift 編譯器與 BetterDisplay；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動。
+安裝腳本會驗證 macOS、Python 版本、Swift 編譯器、BetterDisplay app 及 CLI 回應；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。缺少必要依賴或 CLI 檢查失敗會停止。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動；服務握手成功後才回報安裝完成，啟動失敗會嘗試回復原 LaunchAgent 設定，回復失敗也會明確報錯。
+
+CLI 可回應不代表 Pro 授權、Sidecar 配對、權限或實際顯示已驗證；仍需完成下方配對與實機確認。
 
 ```bash
 open -a BetterDisplay
@@ -117,6 +118,8 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 ```
 
 `open-log` 會開啟狀態與診斷視窗；`open-log --raw` 可開啟原始日誌。遠端救援需自行事先設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你啟用遠端存取，SSH 本身也不依賴虛擬螢幕。
+
+`status` 會另外顯示是否收到服務握手；無回應時顯示的是已儲存快照，不能當成即時狀態。`status --json` 提供 `daemon_responding` 與版本資訊，沒有快照時螢幕狀態仍為未知。
 
 ## USB 喚醒與自動偵測
 
@@ -176,7 +179,7 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 ./bin/padpilot-cli --help
 ```
 
-更新原始碼後，請關閉已開啟的設定視窗，依序執行 `stop`、`start`，再重新開啟視窗以載入新版。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`./bin/padpilot-cli status`，同時重建原生 App。GUI 左上角、CLI `--version` 與 App 使用同一版本來源。若需降回相容舊版，回復原始碼後重新安裝；安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 ## 限制與疑難排解
 
@@ -186,6 +189,8 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 - **第三方控制可能互相影響**：若另有工具持續更改主螢幕或 Sidecar，請先切至 `manual_only`，再檢查切換原因與日誌。
 
 設定與執行狀態預設位於 `~/Library/Application Support/PadPilot/`，日誌位於 `~/Library/Logs/PadPilot/`。回報問題時請附上版本、連線方式、重現步驟與相關日誌，並先遮蔽裝置序號、UUID、帳號及個人路徑。
+
+私人目錄使用 `0700`，設定、狀態、socket 與日誌使用 `0600`；不接受其他使用者擁有或符號連結的狀態路徑。新的 IPC 日誌不記錄配對 payload，但歷史日誌不會自動清除。已測環境與仍為 `unknown` 的硬體情境見[發布驗收表](docs/development/2026-09-11-release-readiness.md)。
 
 ## 解除安裝
 

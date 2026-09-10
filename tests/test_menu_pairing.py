@@ -46,8 +46,7 @@ class MenuPairingTests(unittest.TestCase):
     def test_hidden_menu_does_not_load_state(self):
         function = MENU['read_menu']
         load = MagicMock()
-        with patch('pathlib.Path.exists', return_value=True), \
-             patch.dict(function.__globals__, {'load_status': load}):
+        with patch.dict(function.__globals__, {'load_status': load, 'state_file_exists': lambda _: True}):
             self.assertTrue(function()['hidden'])
         load.assert_not_called()
 
@@ -76,9 +75,11 @@ class MenuPairingTests(unittest.TestCase):
                                 load_status=lambda: {}, render=draw):
                     read_menu()
                 self.assertIs(draw.call_args.kwargs['service_running'], expected)
-            with patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0, '777\n', '')) as run:
+            results = [subprocess.CompletedProcess([], 0, output, '') for output in
+                       ('777\n', '/usr/bin/python3\n', f'/usr/bin/python3 {ROOT}/bin/padpilotd\n')]
+            with patch('core.autostart.subprocess.run', side_effect=results) as run:
                 self.assertEqual(daemon_pids(), [777])
-                self.assertIn('padpilotd', run.call_args.args[0][-1])
+                self.assertIn('padpilotd', run.call_args_list[0].args[0][-1])
                 self.assertEqual(run.call_args.kwargs['timeout'], 2)
         finally:
             set_language('zh-Hant')
@@ -204,7 +205,7 @@ class MenuPairingTests(unittest.TestCase):
         events = []
         with patch.dict(function.__globals__, {
             'cmd_stop': lambda _: events.append('stop'),
-            'MENU_HIDDEN': MagicMock(touch=lambda: events.append('hide')),
+            'atomic_write': lambda *_: events.append('hide'),
         }), contextlib.redirect_stdout(io.StringIO()):
             function(argparse.Namespace())
         self.assertEqual(events, ['stop', 'hide'])
@@ -217,7 +218,7 @@ class MenuPairingTests(unittest.TestCase):
 
     def test_stop_preserves_state_when_launchd_is_still_loaded(self):
         function = CLI['cmd_stop']
-        with patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0)), \
+        with patch.dict(function.__globals__, stop_daemon=MagicMock(side_effect=RuntimeError('still loaded'))), \
              patch('pathlib.Path.unlink') as unlink, patch('os.kill') as kill:
             with self.assertRaises(RuntimeError):
                 function(argparse.Namespace())
@@ -226,19 +227,26 @@ class MenuPairingTests(unittest.TestCase):
 
     def test_stop_verifies_processes_before_deleting_runtime_files(self):
         function = CLI['cmd_stop']
-        pids = MagicMock(side_effect=[[777], [], []])
-        with patch.dict(function.__globals__, {'daemon_pids': pids}), \
-             patch('subprocess.run', return_value=subprocess.CompletedProcess([], 1)), \
-             patch('pathlib.Path.unlink') as unlink, patch('os.kill') as kill, \
+        stopped = MagicMock()
+        unlink = MagicMock()
+        with patch.dict(function.__globals__, {'stop_daemon': stopped, 'remove_state_file': unlink}), \
              contextlib.redirect_stdout(io.StringIO()):
             function(argparse.Namespace(exiting=True))
-        kill.assert_called_once()
+        stopped.assert_called_once_with()
         self.assertTrue(unlink.called)
+
+    def test_missing_tk_only_disables_gui_actions(self):
+        rows = MENU['render']({}, {}, False, gui_available=False, service_running=False)['items']
+        gui = [row for row in rows if row['args'][:1] == ['gui']]
+        self.assertTrue(gui)
+        self.assertTrue(all(not row['enabled'] for row in gui))
+        self.assertTrue(next(row for row in rows if row['args'] == ['start'])['enabled'])
 
     def test_start_opens_native_menu_unless_called_by_the_app(self):
         function = CLI['cmd_start']
         launch = MagicMock()
-        with patch.dict(function.__globals__, {'daemon_pids': lambda: [777], 'open_menu_app': launch}), \
+        with patch.dict(function.__globals__, {'daemon_pids': lambda: [777], 'open_menu_app': launch,
+                                               'wait_for_daemon': MagicMock()}), \
              patch('pathlib.Path.unlink'), contextlib.redirect_stdout(io.StringIO()):
             function(argparse.Namespace(no_menu=False))
             launch.assert_called_once_with()

@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 from build_app import ROOT, build
-from core.autostart import generate_plist_content, get_launch_agent_plist_path
+from core.autostart import get_launch_agent_plist_path, validate_plist
 from core.config import APP_SUPPORT_DIR, load_config
 
 
@@ -79,10 +79,7 @@ def manage(uninstall=False, purge=False):
     if (app.exists() or app.is_symlink()) and (app.is_symlink() or not owned_app(app)):
         raise RuntimeError(f'Refusing to replace/remove an app from another checkout: {app}')
     plist = get_launch_agent_plist_path()
-    if plist.exists():
-        arguments = plistlib.loads(plist.read_bytes()).get('ProgramArguments', [])
-        if str(ROOT / 'bin/padpilotd') not in arguments:
-            raise RuntimeError(f'LaunchAgent belongs to another checkout: {plist}')
+    validate_plist(plist)
     if not uninstall:
         build(ROOT / 'build/PadPilot.app')
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
@@ -112,9 +109,7 @@ def manage(uninstall=False, purge=False):
         staging.rename(app)
     cfg = load_config()
     if cfg.autostart_on_login:
-        plist.parent.mkdir(parents=True, exist_ok=True)
-        (Path.home() / 'Library/Logs/PadPilot').mkdir(parents=True, exist_ok=True)
-        plist.write_text(generate_plist_content(), encoding='utf-8')
+        subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'autostart', 'enable'], check=True)
     elif plist.exists():
         trash(plist)
     if shortcut.parent.is_dir() and not (shortcut.exists() or shortcut.is_symlink()):

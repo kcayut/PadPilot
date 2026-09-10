@@ -219,7 +219,7 @@ class EventSettingsTests(unittest.TestCase):
                 self.assertEqual(trigger, 'usb_event')
                 daemon.stop()
         daemon.engine.evaluate.side_effect = evaluate
-        with patch.dict(daemon.start.__func__.__globals__, APP_SUPPORT_DIR=MagicMock(), Path=MagicMock()), \
+        with patch.dict(daemon.start.__func__.__globals__, remove_state_file=MagicMock()), \
              patch('threading.Thread'):
             with patch.dict(daemon.start.__func__.__globals__, open_menu_app=MagicMock()):
                 daemon.start()

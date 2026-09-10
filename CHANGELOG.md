@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Settings GUI now displays the shared application version; documentation buttons open bundled local guides while the public repository is pending.
+- Added read-only installer preflight, optional Tk GUI support, shared launchd startup with a verified daemon handshake, and failure rollback.
+- Hardened private state/log/socket permissions, rejected foreign and linked state paths, removed IPC payload logging, and limited stop/uninstall to verified owned targets.
+- Added local release gates, redacted tree/history privacy findings, installer/security regression tests, and an explicit physical acceptance checklist.
+- Added GitHub Actions for macOS/Python 3.10 and 3.14 software checks plus an independent full-history privacy gate. Repository access is private; public publishing remains deferred.
 - Replaced the SwiftBar plugin with a native Swift/AppKit menu app, retaining the Python state engine, CLI, Tk settings, and shared translations.
 - Added `menu-json`, native menu contract tests, and a dependency-free local app build.
 - Installer now builds PadPilot.app and preserves existing preferences; owned legacy plugin links and uninstalled app integrations go to Trash. SwiftBar is no longer required.

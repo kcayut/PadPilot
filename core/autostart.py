@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import copy
+import json
 import os
 import plistlib
 import re
+import signal
+import shutil
 import socket
 import subprocess
 import sys
 import time
+import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.logger import get_logger
+from core.storage import atomic_write, private_directory, private_file
 
 logger = get_logger("Autostart")
 
@@ -42,41 +48,127 @@ def generate_plist_content(
     return plistlib.dumps({
         "Label": "com.padpilot.daemon",
         "ProgramArguments": [py, str(daemon_bin)],
-        "RunAtLoad": True, "KeepAlive": True,
+        "RunAtLoad": True, "KeepAlive": True, "Umask": 0o077,
         "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
         "StandardOutPath": str(stdout_log), "StandardErrorPath": str(stderr_log),
     }).decode("utf-8")
 
 
 def daemon_pids() -> list[int]:
-    # Match this checkout's full script path, never unrelated Python processes.
-    pattern = r"(^| )" + re.escape(str(PROJECT_ROOT / "bin" / "padpilotd")) + r"( |$)"
+    # pgrep only selects candidates; verify the executable and script position.
+    script = str(PROJECT_ROOT / "bin" / "padpilotd")
+    pattern = r"(^| )" + re.escape(script) + r"( |$)"
     result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=2)
     if result.returncode not in (0, 1):
-        raise RuntimeError("Could not verify daemon process, menu not hidden: " + result.stderr)
-    return [int(pid) for pid in result.stdout.split()]
+        raise RuntimeError("Could not verify daemon processes")
+    verified = []
+    for pid in map(int, result.stdout.split()):
+        executable = subprocess.run(["ps", "-p", str(pid), "-o", "comm="],
+                                    capture_output=True, text=True, timeout=2)
+        command = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "args="],
+                                 capture_output=True, text=True, timeout=2)
+        if executable.returncode or command.returncode:
+            continue  # Process exited during inspection.
+        exe = executable.stdout.strip()
+        if not re.fullmatch(r"(?:python(?:[0-9.]+)?|pypy[0-9]*)", Path(exe).name.lower()):
+            continue
+        args = command.stdout.strip()
+        prefix, separator, suffix = args.partition(script)
+        interpreter = re.sub(r"(?:\s+-(?:u|B|I|E))*\s+$", "", prefix)
+        interpreter_path = shutil.which(interpreter) or interpreter
+        if (separator and (not suffix or suffix.startswith(' '))
+                and Path(interpreter_path).resolve() == Path(exe).resolve()):
+            verified.append(pid)
+    return verified
 
 
 def is_daemon_running() -> bool:
-    """Check if the background daemon is actively responding on its Unix socket."""
-    if not SOCKET_PATH.exists():
-        return False
-    s = None
+    """Require a structured handshake from this checkout, not a stale status file."""
     try:
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.settimeout(1.0)
-        s.connect(str(SOCKET_PATH))
-        s.sendall(b"status\n")
-        resp = s.recv(256).decode("utf-8")
-        return "OK" in resp
-    except Exception:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(1.0)
+            client.connect(str(SOCKET_PATH))
+            client.sendall(b'{"command":"status"}\n')
+            with client.makefile('rb') as reader:
+                response = json.loads(reader.read(4097).decode("utf-8"))
+        return (response.get("ok") is True and response.get("project_root") == str(PROJECT_ROOT)
+                and type(response.get("pid")) is int and response["pid"] > 0)
+    except (OSError, ValueError, AttributeError):
         return False
-    finally:
-        if s is not None:
-            try:
-                s.close()
-            except Exception:
-                pass
+
+
+def wait_for_daemon(timeout: float = 30) -> None:
+    deadline = time.monotonic() + timeout
+    while not is_daemon_running():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Daemon handshake failed; check PadPilot logs. Startup was not verified.")
+        time.sleep(0.2)
+
+
+def validate_plist(path: Path) -> None:
+    if not (path.exists() or path.is_symlink()):
+        return
+    private_file(path, harden=False)
+    value = plistlib.loads(path.read_bytes())
+    args = value.get("ProgramArguments")
+    if (value.get("Label") != "com.padpilot.daemon" or not isinstance(args, list) or len(args) != 2
+            or args[1] != str(PROJECT_ROOT / "bin/padpilotd")
+            or not isinstance(args[0], str)
+            or not re.fullmatch(r"(?:python(?:[0-9.]+)?|pypy[0-9]*)", Path(args[0]).name.lower())):
+        raise RuntimeError(f"LaunchAgent belongs to another program or checkout: {path}")
+
+
+def job_loaded(path: Path) -> bool:
+    result = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.padpilot.daemon"],
+                            capture_output=True, text=True, timeout=5)
+    if result.returncode == 113:
+        return False
+    if result.returncode != 0:
+        raise RuntimeError("Cannot inspect launchd job; refusing to stop an unverified service")
+    validate_plist(path)
+    value = plistlib.loads(path.read_bytes()) if path.exists() else {}
+    source = re.search(r"(?m)^\s*path = (.+)$", result.stdout)
+    arguments = re.search(r"(?ms)^\s*arguments = \{\n(.*?)^\s*\}", result.stdout)
+    loaded_args = [line.strip().strip('"') for line in arguments[1].splitlines() if line.strip()] if arguments else []
+    if (not source or source[1].strip().strip('"') != str(path)
+            or loaded_args != value.get("ProgramArguments")):
+        raise RuntimeError("Loaded LaunchAgent is not this checkout; refusing to modify it")
+    return True
+
+
+def stop_daemon(plist_path: Optional[Path] = None) -> None:
+    path = plist_path or get_launch_agent_plist_path()
+    validate_plist(path)
+    if job_loaded(path):
+        subprocess.run(["launchctl", "unload", str(path)], capture_output=True, check=True, timeout=10)
+        if job_loaded(path):
+            raise RuntimeError("LaunchAgent remains loaded; runtime state was preserved")
+    for pid in daemon_pids():
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    deadline = time.monotonic() + 5
+    while daemon_pids():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Daemon has not stopped; runtime state was preserved")
+        time.sleep(0.1)
+
+
+def start_standalone() -> None:
+    process = subprocess.Popen([sys.executable, str(PROJECT_ROOT / "bin/padpilotd")],
+                               start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        wait_for_daemon()
+    except Exception:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        raise
+    threading.Thread(target=process.wait, daemon=True).start()
 
 
 def is_autostart_enabled(plist_path: Optional[Path] = None) -> bool:
@@ -91,78 +183,86 @@ def enable_autostart(
     project_root: Optional[Path] = None,
     log_dir: Optional[Path] = None,
 ) -> Tuple[bool, str]:
-    """Enable daemon autostart on user login by writing and loading the LaunchAgent plist."""
-    target_plist = plist_path or get_launch_agent_plist_path()
+    """One installation path for CLI, GUI and installer; roll back on failed startup."""
+    target = plist_path or get_launch_agent_plist_path()
+    previous = None
+    before = None
+    was_loaded = False
+    was_running = False
+    stopped = False
+    changed = False
     try:
-        target_plist.parent.mkdir(parents=True, exist_ok=True)
-        content = generate_plist_content(
-            python_bin=python_bin,
-            project_root=project_root,
-            log_dir=log_dir,
-        )
-        with open(target_plist, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        # Update config
-        cfg = load_config()
-        cfg.autostart_on_login = True
-        save_config(cfg)
-
-        # Stop any standalone process before loading launchd job
-        if is_daemon_running():
-            subprocess.run(["pkill", "-f", "bin/padpilotd"], capture_output=True, check=False)
-            time.sleep(0.5)
-
-        # Load with launchctl
-        subprocess.run(["launchctl", "unload", str(target_plist)], capture_output=True, check=False)
-        res = subprocess.run(["launchctl", "load", str(target_plist)], capture_output=True, text=True, check=False)
-        if res.returncode != 0 and "service already loaded" not in res.stderr.lower():
-            raise RuntimeError(f"Login settings written, but daemon failed to start: {res.stderr.strip()}")
-
-        msg = "✓ PadPilot daemon will automatically run at login."
-        logger.info(msg)
-        return True, msg
-    except Exception as e:
-        err_msg = f"Failed to enable autostart: {e}"
-        logger.error(err_msg)
-        return False, err_msg
-
-
-def disable_autostart(
-    plist_path: Optional[Path] = None,
-) -> Tuple[bool, str]:
-    """Disable daemon autostart on user login by unloading and removing the LaunchAgent plist."""
-    target_plist = plist_path or get_launch_agent_plist_path()
-    try:
+        if project_root is not None and project_root.resolve() != PROJECT_ROOT:
+            raise RuntimeError("Cannot install a LaunchAgent for another checkout")
+        validate_plist(target)
+        was_loaded = job_loaded(target)
         was_running = is_daemon_running()
+        previous = target.read_bytes() if target.exists() else None
+        before = copy.deepcopy(load_config())
+        logs = log_dir or Path.home() / "Library/Logs/PadPilot"
+        private_directory(logs)
+        for name in ("launchd.stdout.log", "launchd.stderr.log"):
+            private_file(logs / name, create=True)
+        stopped = True
+        stop_daemon(target)
+        atomic_write(target, generate_plist_content(python_bin, project_root, log_dir).encode(),
+                     private_parent=False)
+        changed = True
+        cfg = copy.deepcopy(before)
+        if not cfg.autostart_on_login:
+            cfg.autostart_on_login = True
+            cfg.revision += 1
+            cfg.updated_at = time.time()
+            save_config(cfg)
+        subprocess.run(["launchctl", "load", str(target)], capture_output=True, check=True, timeout=10)
+        wait_for_daemon()
+        return True, "✓ PadPilot login startup enabled; daemon handshake verified."
+    except Exception as error:
+        rollback = ""
+        if stopped:
+            try:
+                if changed:
+                    stop_daemon(target)
+                    if previous is None:
+                        target.unlink(missing_ok=True)
+                    else:
+                        atomic_write(target, previous, private_parent=False)
+                    if before is not None:
+                        save_config(before)
+                if was_loaded:
+                    if not job_loaded(target):
+                        subprocess.run(["launchctl", "load", str(target)], capture_output=True, check=True, timeout=10)
+                    wait_for_daemon()
+                elif was_running and not is_daemon_running():
+                    start_standalone()
+                rollback = " Previous login configuration restored."
+            except Exception as restore_error:
+                rollback = f" Rollback incomplete: {restore_error}"
+        message = f"Failed to enable autostart: {error}.{rollback}"
+        logger.error(message)
+        return False, message
 
-        if target_plist.is_file():
-            subprocess.run(["launchctl", "unload", str(target_plist)], capture_output=True, check=False)
-            target_plist.unlink()
 
-        # Update config
+def disable_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
+    target = plist_path or get_launch_agent_plist_path()
+    try:
+        validate_plist(target)
+        was_running = is_daemon_running()
+        stop_daemon(target)
+        target.unlink(missing_ok=True)
         cfg = load_config()
-        cfg.autostart_on_login = False
-        save_config(cfg)
-
-        # If daemon was running, preserve the current session by launching a standalone process
+        if cfg.autostart_on_login:
+            cfg.autostart_on_login = False
+            cfg.revision += 1
+            cfg.updated_at = time.time()
+            save_config(cfg)
         if was_running:
-            time.sleep(0.5)
-            daemon_bin = PROJECT_ROOT / "bin" / "padpilotd"
-            subprocess.Popen(
-                [sys.executable, str(daemon_bin)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            logger.info("Preserved current session by restarting daemon as standalone process")
-
-        msg = "✓ PadPilot daemon autostart at login has been disabled."
-        logger.info(msg)
-        return True, msg
-    except Exception as e:
-        err_msg = f"Failed to disable autostart: {e}"
-        logger.error(err_msg)
-        return False, err_msg
+            start_standalone()
+        return True, "✓ PadPilot login startup disabled; current session preserved."
+    except Exception as error:
+        message = f"Failed to disable autostart: {error}"
+        logger.error(message)
+        return False, message
 
 
 def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:

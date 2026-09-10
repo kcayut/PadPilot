@@ -101,13 +101,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
                     "Python or PadPilot source folder is missing. Rebuild/reinstall PadPilot from its current location."])
             }
-            try FileManager.default.createDirectory(at: support.appendingPathComponent("runtime"), withIntermediateDirectories: true)
-            lockFD = Darwin.open(support.appendingPathComponent("runtime/menu-app.lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+            for directory in [support, support.appendingPathComponent("runtime")] {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                    attributes: [.posixPermissions: 0o700])
+                let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
+                guard attributes[.type] as? FileAttributeType == .typeDirectory,
+                      (attributes[.ownerAccountID] as? NSNumber)?.uint32Value == getuid() else {
+                    throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime directory"])
+                }
+                try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            }
+            lockFD = Darwin.open(support.appendingPathComponent("runtime/menu-app.lock").path, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
             guard lockFD >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            var info = stat()
+            guard fstat(lockFD, &info) == 0, info.st_uid == getuid(), info.st_nlink == 1,
+                  (info.st_mode & S_IFMT) == S_IFREG else {
+                throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime lock"])
+            }
+            guard fchmod(lockFD, 0o600) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
             guard flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { NSApp.terminate(nil); return }
             // Explicitly opening the app resumes the service once. Stopping it from
             // the menu leaves it stopped; polling never starts or scans hardware.
-            runCLI(["start", "--no-menu"], timeout: 15) { result in
+            runCLI(["start", "--no-menu"], timeout: 75) { result in
                 if case .failure(let error) = result { self.showError(error.localizedDescription) }
                 self.refresh(force: true)
                 let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }

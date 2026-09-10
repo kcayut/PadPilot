@@ -4,14 +4,15 @@
 from __future__ import annotations
 
 import os
+import errno
 import json
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import threading
 import time
-from urllib.parse import urlencode
 from pathlib import Path
 
 # Add project root to sys.path
@@ -29,10 +30,43 @@ from core.models import DisplayRole, OperationMode
 from core.state_engine import StateEngine
 from core.settings import ConflictError, apply_change
 from core.usb_events import USBEventMonitor
+from core.storage import private_directory, remove_state_file
 
 logger = get_logger("Daemon")
 
 SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+IPC_COMMANDS = frozenset(('set_mode', 'set_autostart', 'save_pairing', 'delete_pairing',
+    'set_virtual_display', 'set_betterdisplaycli_path', 'set_usb_event_wakeup', 'set_auto_detect_ipad',
+    'set_language', 'status', 'use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad',
+    'reconnect_sidecar', 'refresh', 'reset', 'stop'))
+
+
+def create_ipc_socket(path):
+    private_directory(path.parent)
+    if path.exists() or path.is_symlink():
+        info = path.lstat()
+        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+            raise RuntimeError('Refusing to replace an unsafe IPC endpoint')
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(1)
+            try:
+                probe.connect(str(path))
+            except OSError as error:
+                if error.errno != errno.ECONNREFUSED:
+                    raise
+            else:
+                raise RuntimeError('Another PadPilot daemon is already listening')
+        path.unlink()
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        server.bind(str(path))
+        path.chmod(0o600)
+        server.listen(5)
+        server.settimeout(1.0)
+        return server
+    except Exception:
+        server.close()
+        raise
 
 
 class PadPilotDaemon:
@@ -112,7 +146,6 @@ class PadPilotDaemon:
 
     def handle_client_cmd(self, cmd: str) -> str:
         cmd = cmd.strip()
-        logger.info(f"Received IPC command: {cmd}")
         is_json = cmd.startswith("{") and cmd.endswith("}")
         req_id = None
         expected_rev = None
@@ -121,7 +154,10 @@ class PadPilotDaemon:
             try:
                 req = json.loads(cmd)
             except Exception as e:
+                logger.info('Received IPC command: invalid')
                 return json.dumps({"ok": False, "error": "INVALID_JSON", "message": str(e)}, ensure_ascii=False)
+            if not isinstance(req, dict):
+                return json.dumps({'ok': False, 'error': 'INVALID_REQUEST'})
             command = req.get("command", "")
             params = req.get("params", {})
             req_id = req.get("id")
@@ -140,6 +176,11 @@ class PadPilotDaemon:
                     params = {}
             else:
                 params = {}
+
+        known = isinstance(command, str) and command in IPC_COMMANDS
+        logger.info('Received IPC command: %s', command if known else 'unknown')
+        if not known:
+            return json.dumps({'id': req_id, 'ok': False, 'error': 'UNKNOWN_COMMAND'}) if is_json else 'ERROR: Unknown command'
 
         # Handle config mutation actions
         if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):
@@ -166,6 +207,7 @@ class PadPilotDaemon:
                 "id": req_id, "ok": True,
                 "config_revision": self.config.revision,
                 "status_revision": self.engine.status_revision,
+                "pid": os.getpid(), "project_root": str(PROJECT_ROOT),
                 "message": "OK"
             }
             return json.dumps(resp, ensure_ascii=False) if is_json else "OK"
@@ -209,14 +251,14 @@ class PadPilotDaemon:
 
     def run_ipc_server(self) -> None:
         """Lightweight Unix Domain Socket server for instant IPC response."""
-        APP_SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
-        if SOCKET_PATH.exists():
-            SOCKET_PATH.unlink()
-
-        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        server.bind(str(SOCKET_PATH))
-        server.listen(5)
-        server.settimeout(1.0)
+        try:
+            server = create_ipc_socket(SOCKET_PATH)
+        except (OSError, RuntimeError) as error:
+            logger.error('IPC startup failed: %s', type(error).__name__)
+            self.running = False
+            self.wakeup.set()
+            return
+        endpoint = SOCKET_PATH.stat()
 
         logger.info(f"IPC Server listening at {SOCKET_PATH}")
 
@@ -238,10 +280,10 @@ class PadPilotDaemon:
                 continue
             except Exception as e:
                 if self.running:
-                    logger.warning(f"IPC server error: {e}")
+                    logger.warning('IPC server error: %s', type(e).__name__)
 
         server.close()
-        if SOCKET_PATH.exists():
+        if SOCKET_PATH.exists() and SOCKET_PATH.lstat().st_ino == endpoint.st_ino:
             SOCKET_PATH.unlink()
 
     def ensure_betterdisplay_running(self) -> None:
@@ -260,8 +302,8 @@ class PadPilotDaemon:
 
     def start(self) -> None:
         logger.info("PadPilot Daemon starting up...")
-        (APP_SUPPORT_DIR / "menu-hidden").unlink(missing_ok=True)
-        Path("/tmp/PadPilot/menu-hidden").unlink(missing_ok=True)
+        remove_state_file(APP_SUPPORT_DIR / "menu-hidden")
+        remove_state_file(Path("/tmp/PadPilot/menu-hidden"))
 
         # Ensure BetterDisplay is running
         self.ensure_betterdisplay_running()

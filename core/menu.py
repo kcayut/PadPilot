@@ -12,6 +12,7 @@ from pathlib import Path
 from core.i18n import LANGUAGES, set_language, tr
 from core.autostart import daemon_pids
 from core.models import pairing_key
+from core.storage import read_private_json, state_file_exists, UnsafePathError
 
 APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
@@ -24,9 +25,9 @@ def load_json(*paths: Path) -> dict:
     for path in paths:
         if path.exists():
             try:
-                value = json.loads(path.read_text(encoding="utf-8"))
+                value = read_private_json(path)
                 return value if isinstance(value, dict) else {}
-            except (OSError, ValueError):
+            except (OSError, ValueError, UnsafePathError):
                 return {}
     return {}
 
@@ -49,7 +50,7 @@ def same_device(a: dict, b: dict) -> bool:
 
 
 def render(status: dict, config: dict, autostart: bool, now: float | None = None,
-           *, service_running: bool | None = True) -> dict:
+           *, service_running: bool | None = True, gui_available: bool = True) -> dict:
     items = []
 
     def item(title, depth=0, args=(), *, enabled=True, checked=False):
@@ -209,6 +210,11 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
         item(lang_name, 1, ('set-language', lang_code), checked=active_lang == lang_code)
     item(tr('設定與配對'), args=('gui',))
     item(tr('狀態與診斷'), args=('gui', 'diagnostics'))
+    if not gui_available:
+        item(tr('Tkinter 不可用：設定視窗已停用'), enabled=False)
+        for row in items:
+            if row['args'][:1] == ['gui']:
+                row['enabled'] = False
     separator()
     item(tr('重新整理螢幕狀態'), args=('action', 'refresh'))
     separator()
@@ -218,14 +224,24 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
 
 
 def read_menu() -> dict:
-    if (APP_SUPPORT / 'menu-hidden').exists() or Path('/tmp/PadPilot/menu-hidden').exists():
-        return {'schema_version': 1, 'hidden': True, 'icon': 'paused', 'items': []}
+    for marker in (APP_SUPPORT / 'menu-hidden', Path('/tmp/PadPilot/menu-hidden')):
+        try:
+            if state_file_exists(marker):
+                return {'schema_version': 1, 'hidden': True, 'icon': 'paused', 'items': []}
+        except (OSError, UnsafePathError):
+            continue  # Untrusted fallback markers cannot hide the native app.
     config = load_json(APP_SUPPORT / 'config.json', Path('/tmp/PadPilot/config.json'))
     try:
         service_running = bool(daemon_pids())
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         service_running = None
-    return render(load_status(), config, PLIST_PATH.is_file(), service_running=service_running)
+    try:
+        import tkinter
+        gui_available = True
+    except (ImportError, OSError):
+        gui_available = False
+    return render(load_status(), config, PLIST_PATH.is_file(), service_running=service_running,
+                  gui_available=gui_available)
 
 
 def main():

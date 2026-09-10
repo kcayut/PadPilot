@@ -7,16 +7,21 @@
 ## 🛠️ 開發環境準備 (Development Setup)
 
 ### 系統需求
+
 - **作業系統**：macOS 14 (Sonoma) 或更高版本（支援 Apple Silicon M 系列）。
-- **Python**：Python 3.10+（系統自帶或 Homebrew Python 均可）。
+- **Python**：Python 3.10+；GUI 測試另需同一環境的 Tk。不要假設 macOS 預裝的 Python 符合版本。
 - **依賴工具**：
   - [BetterDisplay](https://github.com/waydabber/BetterDisplay)（建議已安裝並啟用 CLI 工具）
   - Apple Command Line Tools（`xcode-select --install`；編譯 Swift/AppKit 選單）
 
 ### 複製專案與檢查
+
+GitHub 倉庫目前為私人。具有存取權限的帳號可先複製，再執行唯讀預檢；已取得原始碼者直接執行最後一步：
+
 ```bash
 git clone https://github.com/kcayut/PadPilot.git
 cd PadPilot
+./scripts/install.sh --check
 ```
 
 ---
@@ -47,10 +52,18 @@ open build/PadPilot.app
 單元測試包含實際編譯 AppKit 選單與三種語言資料契約，不會控制顯示器。開啟 App 會啟動既有 Python 服務；完整設定視窗仍使用 Tk。
 
 ### 4. 機敏資訊與路徑掃描
+
 切勿將個人的 Home 目錄、區域網路 IP、真實 iPad 序號或金鑰提交至 Git：
+
 ```bash
-git grep -nE '/Users/|kcayut@|192\.168\.|10\.[0-9]+\.[0-9]+\.[0-9]+'
+python3 scripts/check_release.py --scan-only
 ```
+
+會掃描目前非忽略文字檔與所有本機分支的歷史差異；`build/privacy-scan.json` 僅列類型與位置，不列出匹配值。這是有限模式掃描，不是「完全沒有機密」的保證，仍需人工複核。不要直接公開原始掃描日誌或改寫共享歷史。
+
+有桌面工作階段時，可執行 `python3 scripts/check_release.py --gui` 一次跑完單元、Shell、plist、版本、GUI 與隱私關卡；歷史仍有待審匹配時會以非零結束，報告可區分軟體測試成功與公開尚未就緒。最低 Python／macOS 與真實無頭情境需另行驗證，不能由目前機器推定。
+
+GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整歷史隱私檢查分開顯示。`--software-only` 只決定軟體測試結果，仍保留隱私待審資訊，不是發布許可；獨立的 `Release privacy gate` 不會忽略歷史匹配。GUI 真實版面與物理硬體仍是本機手動發布關卡。CI 不安裝 BetterDisplay、不啟動 PadPilot，不建立 tag／Release。
 
 ---
 
@@ -63,6 +76,8 @@ git grep -nE '/Users/|kcayut@|192\.168\.|10\.[0-9]+\.[0-9]+\.[0-9]+'
 ---
 
 ## 🚀 Pull Request 流程
+
+目前私人倉庫需要存取權限；Pull Request 不代表正式發布。公開前仍需完成隱私與實機驗收。
 
 1. Fork 專案至您的個人帳號。
 2. 從 `main` 分支建立特性分支（例如 `feature/awesome-idea` 或 `fix/sidecar-timeout`）。

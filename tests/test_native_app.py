@@ -68,6 +68,27 @@ class NativeAppTests(unittest.TestCase):
             runtime.write_text(json.dumps({'project_root': '/another/checkout'}))
             self.assertFalse(manage_app.owned_app(app))
 
+    def test_uninstall_preserves_foreign_shortcut_and_user_data(self):
+        for own_link in (True, False):
+            with tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                shortcut = home / 'bin/padpilot-cli'
+                shortcut.parent.mkdir()
+                shortcut.symlink_to(ROOT / 'bin/padpilot-cli' if own_link else home / 'another-cli')
+                user_data = home / 'Library/Application Support/PadPilot'
+                user_data.mkdir(parents=True)
+                (user_data / 'config.json').write_text('keep')
+                with patch('pathlib.Path.home', return_value=home), \
+                     patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'missing.plist'), \
+                     patch.object(manage_app, 'stop_menu_apps'), \
+                     patch.object(manage_app.subprocess, 'run') as run:
+                    manage_app.manage(uninstall=True)
+                self.assertEqual(shortcut.is_symlink(), not own_link)
+                self.assertEqual((user_data / 'config.json').read_text(), 'keep')
+                self.assertEqual(run.call_count, 1)
+                self.assertEqual(run.call_args.args[0][-1], 'exit')
+                self.assertEqual(bool(list((home / '.Trash').glob('*/padpilot-cli'))), own_link)
+
 
 if __name__ == '__main__':
     unittest.main()

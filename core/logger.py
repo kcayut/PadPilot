@@ -6,11 +6,18 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
+from core.storage import private_directory, private_file
 
 LOG_DIR = Path.home() / "Library" / "Logs" / "PadPilot"
 LOG_FILE = LOG_DIR / "padpilot.log"
 
 _configured = False
+
+
+class PrivateRotatingFileHandler(RotatingFileHandler):
+    def _open(self):
+        private_file(Path(self.baseFilename), create=True)
+        return super()._open()
 
 
 def get_log_file_path() -> Path:
@@ -31,9 +38,11 @@ def setup_logging(level: int = logging.INFO) -> None:
     )
 
     try:
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        private_directory(LOG_DIR)
+        for path in (LOG_FILE, *(LOG_DIR / f'padpilot.log.{n}' for n in range(1, 4))):
+            private_file(path, create=path == LOG_FILE)
         # Rotating file handler (5MB, 3 backups)
-        file_handler = RotatingFileHandler(
+        file_handler = PrivateRotatingFileHandler(
             LOG_FILE,
             maxBytes=5 * 1024 * 1024,
             backupCount=3,

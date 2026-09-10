@@ -1647,5 +1647,9 @@
   "服務狀態：無法確認": {
     "en": "Service status: Unknown",
     "ja": "サービス状態：確認できません"
+  },
+  "Tkinter 不可用：設定視窗已停用": {
+    "en": "Tkinter unavailable: settings window disabled",
+    "ja": "Tkinter が利用できないため設定画面は無効です"
   }
 }

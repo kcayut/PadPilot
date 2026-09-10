@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.config import Config
+from core import __version__
 from core.gui import SettingsWindow
 
 
@@ -29,6 +30,10 @@ def main():
             root.geometry('840x500')
             app.display(view)
             root.update()
+            version_label = app.version_label
+            assert version_label.cget('text') == f'v{__version__}'
+            assert version_label.winfo_ismapped()
+            assert version_label.winfo_rootx() + version_label.winfo_reqwidth() <= app.sidebar.winfo_rootx() + app.sidebar.winfo_width()
             names = ['作為副螢幕', '設為主螢幕', '中斷連線', '重新連線']
             controls = [w for w in descendants(root) if w.winfo_class() == 'TButton' and w.cget('text') in names]
             exp_btns = [w for w in descendants(root) if w.winfo_class() == 'TButton' and '設定' in w.cget('text')]
@@ -71,6 +76,7 @@ def main():
                                        'actual': heartbeat['actual']}
                 app.display(heartbeat)
                 root.update()
+                assert app.version_label is version_label
                 assert app.scroll_frame.winfo_children() == children
                 assert entry.get() == '未儲存的名稱' and entry.index('insert') == 3
                 assert root.focus_get() == entry

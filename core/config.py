@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 from core.logger import get_logger
+from core.storage import atomic_write, private_directory, read_private_json
 from core.models import (
     DEFAULT_VIRTUAL_DISPLAY_NAME,
     IpadConfig,
@@ -33,13 +34,13 @@ FALLBACK_DIR = Path("/tmp/PadPilot")
 FALLBACK_CONFIG_FILE = FALLBACK_DIR / "config.json"
 
 try:
-    APP_SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+    private_directory(APP_SUPPORT_DIR)
 except (PermissionError, OSError):
     APP_SUPPORT_DIR = Path("/tmp/PadPilot")
     CONFIG_FILE = APP_SUPPORT_DIR / "config.json"
     RUNTIME_DIR = APP_SUPPORT_DIR / "runtime"
     STATUS_FILE = RUNTIME_DIR / "status.json"
-    APP_SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+    private_directory(APP_SUPPORT_DIR)
 
 
 @dataclass
@@ -229,63 +230,32 @@ def load_config() -> Config:
         return cfg
 
     try:
-        with open(target_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = read_private_json(target_file)
         return Config.from_dict(data)
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         logger.error(f"Failed to read {target_file}, loading default: {e}")
         return Config()
 
 
 def save_config(cfg: Config) -> None:
     """Atomically save config to ~/Library/Application Support/PadPilot/config.json."""
-    target_dir = APP_SUPPORT_DIR
-    target_file = CONFIG_FILE
+    content = json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False).encode("utf-8")
     try:
-        target_dir.mkdir(parents=True, exist_ok=True)
-    except (PermissionError, OSError):
-        target_dir = Path("/tmp/PadPilot")
-        target_file = target_dir / "config.json"
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-    tmp_file = target_dir / f"config.json.{os.getpid()}_{time.time()}.tmp"
-    with open(tmp_file, "w", encoding="utf-8") as f:
-        json.dump(cfg.to_dict(), f, indent=2, ensure_ascii=False)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_file, target_file)
+        atomic_write(CONFIG_FILE, content)
+        target_file = CONFIG_FILE
+    except OSError:
+        target_file = FALLBACK_CONFIG_FILE
+        atomic_write(target_file, content)
     logger.info(f"Saved configuration successfully to {target_file}")
 
 
 def write_atomic_status(snapshot: StatusSnapshot) -> None:
-    """Atomically write runtime status snapshot.
-    
-    Prevents race condition where the menu app reads a partially written file.
-    Uses unique temp file name to prevent collision between concurrent writes.
-    """
-    r_dir = RUNTIME_DIR
-    s_file = STATUS_FILE
+    """Atomically replace status with private permissions, including fallback."""
+    content = json.dumps(snapshot.to_dict(), indent=2, ensure_ascii=False).encode("utf-8")
     try:
-        r_dir.mkdir(parents=True, exist_ok=True)
-    except (PermissionError, OSError):
-        r_dir = Path("/tmp/PadPilot/runtime")
-        s_file = r_dir / "status.json"
-        r_dir.mkdir(parents=True, exist_ok=True)
-
-    tmp_file = r_dir / f"status.json.{os.getpid()}_{threading.get_ident()}_{time.time()}.tmp"
-    try:
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(snapshot.to_dict(), f, indent=2, ensure_ascii=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_file, s_file)
-    except Exception as e:
-        if tmp_file and tmp_file.exists():
-            try:
-                tmp_file.unlink()
-            except OSError:
-                pass
-        logger.warning(f"Failed to write atomic status: {e}")
+        atomic_write(STATUS_FILE, content)
+    except OSError:
+        atomic_write(FALLBACK_DIR / "runtime/status.json", content)
 
 
 def read_status() -> Optional[dict[str, Any]]:
@@ -299,9 +269,8 @@ def read_status() -> Optional[dict[str, Any]]:
     if not target_file:
         return None
     try:
-        with open(target_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
+        return read_private_json(target_file)
+    except (OSError, ValueError) as e:
         logger.warning(f"Could not read {target_file}: {e}")
         return None
 

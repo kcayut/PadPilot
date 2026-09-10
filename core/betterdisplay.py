@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -10,9 +11,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
-from core.logger import get_logger
-
-logger = get_logger("BetterDisplay")
+# Resolving CLI paths is also used by the read-only installer check.
+logger = logging.getLogger("PadPilot.BetterDisplay")
 
 
 @dataclass
@@ -49,9 +49,10 @@ class BetterDisplayCLI:
             return which_path
 
         # Check inside BetterDisplay.app bundle
-        app_bundle_bin = "/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay"
-        if os.path.isfile(app_bundle_bin) and os.access(app_bundle_bin, os.X_OK):
-            return app_bundle_bin
+        for app_bundle_bin in ("/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay",
+                               os.path.expanduser("~/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay")):
+            if os.path.isfile(app_bundle_bin) and os.access(app_bundle_bin, os.X_OK):
+                return app_bundle_bin
 
         # Common Homebrew paths
         for p in ["/opt/homebrew/bin/betterdisplaycli", "/usr/local/bin/betterdisplaycli"]:
