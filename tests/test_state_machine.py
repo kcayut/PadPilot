@@ -25,6 +25,9 @@ class TestPadPilotStateMachine(unittest.TestCase):
         export = patch.object(StateEngine, "_export_status")
         export.start()
         self.addCleanup(export.stop)
+        notification = patch("core.state_engine.notify_error")
+        notification.start()
+        self.addCleanup(notification.stop)
         self.config = Config(
             auto_detect_ipad=False,
             mode=OperationMode.AUTOMATIC,
@@ -104,7 +107,8 @@ class TestPadPilotStateMachine(unittest.TestCase):
         Result: Topology generation changes, override expires, auto switches to iPad Main.
         """
         self.engine.runtime.topology_generation = 5
-        self.engine.set_user_override(DisplayRole.IPAD_SECONDARY, async_transition=False)
+        with patch.object(self.engine, "_run_transition"):
+            self.engine.set_user_override(DisplayRole.IPAD_SECONDARY, async_transition=False)
 
         # Monitor is unplugged -> generation increments to 6
         self.engine.runtime.topology_generation = 6
@@ -152,6 +156,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
             sidecar_connected=False,
         )
         self.engine.actual = actual
+        self.mock_detector.observe.return_value = (actual, ((), True))
         self.engine.desired = DesiredState(
             target_display_role=DisplayRole.IPAD_MAIN,
             reason="Headless activation",

@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
+from dataclasses import replace
 from typing import Any, Optional, Tuple
 
 from core.betterdisplay import BetterDisplayCLI
@@ -33,6 +34,8 @@ from core.models import (
 from core.notifier import notify_error
 
 logger = get_logger("StateEngine")
+# A notification-registration failure does not invalidate a successful watchdog scan.
+STATE_QUERY_ERRORS = {"usb", "displays", "identifiers", "sidecar", "sidecar_connection"}
 
 
 class StateEngine:
@@ -45,6 +48,7 @@ class StateEngine:
 
         self.runtime = RuntimeState(mode=config.mode)
         self.actual: Optional[ActualState] = None
+        self._last_valid_actual: Optional[ActualState] = None
         self.desired: Optional[DesiredState] = None
 
         self._transition_lock = threading.Lock()
@@ -52,6 +56,7 @@ class StateEngine:
         self._eval_lock = threading.RLock()
         self.status_revision = 0
         self._last_exported_meaningful_content = None
+        self._last_snapshot: Optional[StatusSnapshot] = None
 
     def target_ipad(self, actual):
         if self.config.auto_detect_ipad:
@@ -106,6 +111,10 @@ class StateEngine:
     def reconnect_sidecar(self) -> bool:
         with self._eval_lock:
             actual = self._observe()
+            if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+                self.runtime.last_error = "Could not verify Sidecar connection state; reconnect not started."
+                self._export_status(satisfied=False)
+                return False
             target = self.target_ipad(actual)
             specifier = target.sidecar_uuid or target.name
             if self.config.auto_detect_ipad and not specifier:
@@ -115,8 +124,9 @@ class StateEngine:
                 role = DisplayRole.IPAD_MAIN
                 if actual.physical_displays and self.runtime.mode != OperationMode.PREFER_IPAD:
                     role = DisplayRole.IPAD_SECONDARY
-            if actual.sidecar_connected and not self.bd_cli.disconnect_sidecar(specifier):
-                self.runtime.last_error = "Could not verify Sidecar disconnect; reconnect not started."
+            if actual.sidecar_connected and not self._disconnect_sidecar(actual):
+                self.runtime.transition_state = (TransitionState.COOLDOWN if self.runtime.cooldown_until > time.time()
+                                                 else TransitionState.IDLE)
                 self._export_status(satisfied=False)
                 return False
             # Observe the intentional disconnect before registering the new override.
@@ -181,11 +191,7 @@ class StateEngine:
             # Satisfied if Sidecar is connected, display is online, and main is Sidecar/iPad
             if not (actual.sidecar_connected and actual.sidecar_display_online):
                 return False
-            if actual.main_display and (actual.main_display.is_sidecar or (
-                self.target_ipad(actual).name and self.target_ipad(actual).name.lower() in actual.main_display.name.lower()
-            )):
-                return True
-            return False
+            return bool(actual.main_display and actual.main_display.is_sidecar)
 
         if target == DisplayRole.IPAD_SECONDARY:
             # Satisfied if Sidecar is connected and online, but NOT main
@@ -208,9 +214,14 @@ class StateEngine:
         return False
 
     def policy(self, actual: ActualState, config: Config, runtime: RuntimeState) -> DesiredState:
+        if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+            return DesiredState(DisplayRole.NO_CHANGE, "Hardware query incomplete; keeping current display and user override.")
         desired = self._policy(actual, config, runtime)
         # Every path requesting a connection obeys the same cooldown.
-        if desired.needs_sidecar_connect and runtime.cooldown_until > time.time():
+        pending_sidecar = desired.needs_sidecar_connect or (
+            desired.target_display_role in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY)
+            and not actual.sidecar_display_online)
+        if pending_sidecar and runtime.cooldown_until > time.time():
             target = DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL
             return DesiredState(
                 target_display_role=target,
@@ -334,9 +345,13 @@ class StateEngine:
     def _observe(self) -> ActualState:
         """Refresh topology and override validity on every observation path."""
         # 1. Observe
-        had_physical = bool(self.actual and len(self.actual.physical_displays) > 0)
-        had_sidecar = bool(self.actual and self.actual.sidecar_connected)
+        previous = self._last_valid_actual or self.actual
+        had_physical = bool(previous and previous.physical_displays)
+        had_sidecar = bool(previous and previous.sidecar_connected)
         actual, signature = self.detector.observe(current_generation=self.runtime.topology_generation)
+        if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+            self.actual = actual
+            return actual  # Unknown observations are not physical unplug/disconnect events.
 
         # If Sidecar was active and now disconnected while physical displays are present,
         # expire any user override targeting iPad so it does not auto-reconnect continuously.
@@ -366,6 +381,7 @@ class StateEngine:
         self.check_debounce(had_physical, now_has_physical)
 
         self.actual = actual
+        self._last_valid_actual = actual
         return actual
 
     def evaluate(self, trigger: str = "periodic", async_transition: bool = True) -> None:
@@ -421,6 +437,56 @@ class StateEngine:
         thread = threading.Thread(target=self._run_transition, daemon=True)
         thread.start()
 
+    def _set_main_display(self, actual: ActualState, target_name: str) -> bool:
+        if target_name == "ipad":
+            target = self.target_ipad(actual)
+            live_names = [d.get("name") for d in actual.sidecar_devices
+                          if d.get("uuid", "").casefold() == target.sidecar_uuid.casefold()]
+            name = live_names[0] if len(live_names) == 1 and live_names[0] else target.name
+            matches = [d for d in actual.online_displays if d.is_sidecar and d.name == name]
+            spec = matches[0].uuid or matches[0].name if len(matches) == 1 else name
+            return bool(spec) and self.bd_cli.set_main_display(spec)
+        if target_name == "virtual":
+            if not (actual.virtual_display_connected or
+                    self.bd_cli.connect_virtual_display(self.config.virtual_display_name)):
+                return False
+            time.sleep(1.0)
+            return self.bd_cli.set_main_display(self.config.virtual_display_name)
+        if target_name == "physical" and actual.physical_displays:
+            display = actual.physical_displays[0]
+            return self.bd_cli.set_main_display(display.uuid or display.name)
+        return False
+
+    def _disconnect_sidecar(self, actual: ActualState) -> bool:
+        """Both disconnect and reconnect must establish a usable fallback first."""
+        target = self.target_ipad(actual)
+        specifier = target.sidecar_uuid or target.name
+        role = DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL
+        fallback = DesiredState(role, "Verify fallback before disconnecting Sidecar.")
+        error = "Could not verify fallback display; iPad was not disconnected."
+        if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+            self.runtime.last_error = error
+            return False
+        if not self.is_satisfied(actual, fallback):
+            self.runtime.transition_state = TransitionState.SETTING_MAIN
+            self._export_status(satisfied=False, evaluation_state="applying")
+            if not self._set_main_display(actual, role.value.lower()):
+                self.runtime.last_error = error
+                return False
+            actual = self._observe()
+        current_target = self.target_ipad(actual)
+        if (STATE_QUERY_ERRORS.intersection(actual.discovery_errors)
+                or not self.is_satisfied(actual, fallback)
+                or not specifier
+                or (current_target.sidecar_uuid or current_target.name).casefold() != specifier.casefold()):
+            self.runtime.last_error = error
+            return False
+        if self.bd_cli.disconnect_sidecar(specifier):
+            self.runtime.last_error = None
+            return True
+        self.runtime.last_error = "Could not disconnect the configured iPad."
+        return False
+
     def _run_transition(self) -> None:
         """Single-flight transition execution thread."""
         with self._eval_lock, self._transition_lock:
@@ -441,29 +507,53 @@ class StateEngine:
 
                 # Transition actions:
                 success = True
-                if desired.needs_sidecar_connect:
+                pending_sidecar = desired.needs_sidecar_connect or (
+                    target_role in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY)
+                    and not actual.sidecar_display_online)
+                if pending_sidecar:
                     if (not actual.physical_displays and actual.virtual_display_exists
                             and not actual.virtual_display_connected):
                         if not self.bd_cli.connect_virtual_display(self.config.virtual_display_name):
                             logger.warning("Could not connect virtual fallback before Sidecar")
                     connected = False
+                    cancelled = False
+                    target = self.target_ipad(actual)
+                    specifier = target.sidecar_uuid or target.name or "iPad"
                     while not connected and self.runtime.retry_count < self.config.max_retries:
                         self.runtime.transition_state = TransitionState.CONNECTING_SIDECAR
                         self._export_status(satisfied=False, evaluation_state="applying")
 
                         # Connect Sidecar
-                        target = self.target_ipad(actual)
-                        specifier = target.sidecar_uuid or target.name or "iPad"
-                        connected = self.bd_cli.connect_sidecar(specifier)
+                        # A connected session may still be waiting for its display.
+                        accepted = actual.sidecar_connected or self.bd_cli.connect_sidecar(specifier)
+                        self.runtime.transition_state = TransitionState.WAITING_FOR_DISPLAY
+                        self._export_status(satisfied=False, evaluation_state="applying")
+                        # Use the existing retry interval to verify readiness before another attempt.
+                        deadline = time.monotonic() + max(0.0, self.config.retry_interval)
+                        while True:
+                            actual = self._observe()
+                            if not STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+                                current_target = self.target_ipad(actual)
+                                desired = self.policy(actual, self.config, self.runtime)
+                                self.desired = desired
+                                cancelled = (
+                                    (current_target.sidecar_uuid or current_target.name or "iPad").casefold()
+                                    != specifier.casefold()
+                                    or desired.target_display_role not in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY))
+                                connected = actual.sidecar_connected and actual.sidecar_display_online
+                            remaining = deadline - time.monotonic()
+                            if connected or cancelled or not accepted or remaining <= 0:
+                                break
+                            time.sleep(min(1.0, remaining))
+
+                        if cancelled:
+                            success = False
+                            break
 
                         if connected:
                             self.runtime.retry_count = 0
                             self.runtime.cooldown_until = 0.0
                             self.runtime.last_error = None
-                            self.runtime.transition_state = TransitionState.WAITING_FOR_DISPLAY
-                            self._export_status(satisfied=False, evaluation_state="applying")
-                            # Wait for Sidecar display to register in macOS
-                            time.sleep(1.0)
                             break
                         else:
                             self.runtime.retry_count += 1
@@ -481,45 +571,25 @@ class StateEngine:
                                 self.runtime.retry_count = 0
                                 success = False
                                 break
-                            time.sleep(self.config.retry_interval)
+                            if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
+                                success = False
+                                break
+                            if not accepted:
+                                time.sleep(self.config.retry_interval)
 
-                if desired.needs_sidecar_connect and success:
-                    # Hardware may have changed while the connection command was waiting.
-                    actual = self._observe()
+                if pending_sidecar and success:
                     desired = self.policy(actual, self.config, self.runtime)
                     self.desired = desired
 
                 if desired.needs_sidecar_disconnect:
-                    target = self.target_ipad(actual)
-                    specifier = target.sidecar_uuid or target.name
-                    success = self.bd_cli.disconnect_sidecar(specifier)
-                    if not success:
-                        self.runtime.last_error = "Could not disconnect the configured iPad."
+                    success = self._disconnect_sidecar(actual)
 
-                if success and desired.needs_main_display_target:
+                if success and not desired.needs_sidecar_disconnect and desired.needs_main_display_target:
                     self.runtime.transition_state = TransitionState.SETTING_MAIN
                     self._export_status(satisfied=False, evaluation_state="applying")
 
                     target_name = desired.needs_main_display_target
-                    if target_name == "ipad":
-                        target = self.target_ipad(actual)
-                        live_names = [d.get("name") for d in actual.sidecar_devices
-                                      if d.get("uuid", "").casefold() == target.sidecar_uuid.casefold()]
-                        name = live_names[0] if len(live_names) == 1 and live_names[0] else target.name
-                        matches = [d for d in actual.online_displays if d.is_sidecar and d.name == name]
-                        spec = matches[0].uuid or matches[0].name if len(matches) == 1 else name
-                        success = bool(spec) and self.bd_cli.set_main_display(spec)
-                    elif target_name == "virtual":
-                        success = actual.virtual_display_connected or self.bd_cli.connect_virtual_display(self.config.virtual_display_name)
-                        if success:
-                            time.sleep(1.0)
-                            success = self.bd_cli.set_main_display(self.config.virtual_display_name)
-                    elif target_name == "physical":
-                        if actual.physical_displays:
-                            phys_spec = actual.physical_displays[0].uuid or actual.physical_displays[0].name
-                            success = self.bd_cli.set_main_display(phys_spec)
-                        else:
-                            success = False
+                    success = self._set_main_display(actual, target_name)
                     if not success:
                         self.runtime.last_error = f"Could not activate main display: {target_name}. Keeping fallback connected."
 
@@ -556,6 +626,18 @@ class StateEngine:
                 return IconStatus.VIRTUAL.value
 
         return IconStatus.VIRTUAL.value
+
+    def republish_language_status(self, previous_revision: int) -> None:
+        """Acknowledge presentation changes without observing or changing hardware."""
+        with self._eval_lock:
+            snapshot = self._last_snapshot
+            if snapshot is None or snapshot.config_revision != previous_revision:
+                return  # Never acknowledge an unrelated, unapplied configuration.
+            snapshot = replace(snapshot, config_revision=self.config.revision,
+                               status_revision=self.status_revision + 1)
+            write_atomic_status(snapshot)
+            self.status_revision = snapshot.status_revision
+            self._last_snapshot = snapshot
 
     def _export_status(self, satisfied: bool, evaluation_state: str = "idle") -> None:
         """Atomically persist status snapshot and ping SwiftBar only if meaningful content changed."""
@@ -621,6 +703,7 @@ class StateEngine:
         )
 
         write_atomic_status(snapshot)
+        self._last_snapshot = snapshot
         self._notify_swiftbar()
 
     def _notify_swiftbar(self) -> None:

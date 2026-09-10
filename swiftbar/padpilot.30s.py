@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import base64
 import json
 import re
 import shlex
@@ -79,6 +80,20 @@ def separator(depth: int = 0) -> None:
     print('--' * depth + '---')
 
 
+def menu_icon(icon: str, *, working: bool = False) -> None:
+    name = {'📱': 'ipad', '🖥️': 'physical', '◻️': 'virtual',
+            '⏸️': 'paused', '⚠️': 'warning'}.get(icon, 'warning')
+    if working and name != 'warning':
+        name = 'working'
+    try:
+        data = (PROJECT_ROOT / 'assets' / 'menu-icons' / f'{name}.png').read_bytes()
+    except OSError:
+        item(icon if icon in {'📱', '🖥️', '◻️', '⏸️', '⚠️'} else '⚠️')
+        return
+    encoded = base64.b64encode(data).decode('ascii')
+    print(f' | templateImage={encoded} tooltip=PadPilot dropdown=false')
+
+
 def same_device(a: dict, b: dict) -> bool:
     if a.get('sidecar_uuid') and b.get('sidecar_uuid'):
         return a['sidecar_uuid'].upper() == b['sidecar_uuid'].upper()
@@ -125,8 +140,14 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     controls = fresh and known_target and not (is_applying or is_out_of_sync) and (auto_detect or same_device(target, status.get('configured_ipad') or {}))
     main = actual.get('main_display') or {}
     icon = status.get('icon', '⏸️') if fresh else '⚠️'
-    item(f'{icon} PadPilot')
+    if errors or runtime.get('last_error') or is_out_of_sync:
+        icon = '⚠️'
+    elif service_running is False:
+        icon = '⏸️'
+    menu_icon(icon, working=service_running is not False and
+              (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'))
     separator()
+    item(f'{icon} PadPilot')
     item(tr('主螢幕：{0}', main.get('name') or tr('未偵測到')) + ('' if fresh else tr('（尚無最新狀態）')))
     if is_out_of_sync:
         state = tr('同步狀態重新讀取中…')

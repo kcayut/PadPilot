@@ -1991,7 +1991,22 @@ class SettingsWindow:
 
         def work():
             message = send_change(action, payload)
-            return message, read_view(scan=action != 'set_language')
+            view = read_view(scan=action != 'set_language')
+            if action == 'set_language':
+                before = self.view['config'].semantic_dict()
+                after = view['config'].semantic_dict()
+                before.pop('language', None)
+                after.pop('language', None)
+                if before == after:
+                    view['identifiers'] = self.view.get('identifiers', [])
+                    actual = self.view.get('actual', {})
+                    stamp = actual.get('timestamp', 0)
+                    if stamp >= view['actual'].get('timestamp', 0):
+                        age = time.time() - stamp
+                        view.update(actual=actual, hardware_snapshot=actual,
+                                    hardware_snapshot_age=max(0, age), fresh=0 <= age <= 120,
+                                    scanned=self.view.get('scanned', False))
+            return message, view
 
         def complete(result):
             message, view = result

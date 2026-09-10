@@ -91,7 +91,8 @@ class DisplayDetector:
                 logger.debug(f"Ignoring headless placeholder display with vendor 0: did={did}")
                 continue
 
-            is_sidecar = False
+            # Device identity comes from hardware metadata, never a user-editable name.
+            is_sidecar = vendor == 0x6161706C or model == 0x69506164
             is_virtual = False
 
             # Check from BetterDisplay
@@ -107,9 +108,8 @@ class DisplayDetector:
                     is_virtual = True
                 # Sidecar in BetterDisplay has vendor 1633775724 / model 1766875492 or empty registryLocation
                 if (
-                    bd_item.get("vendor") == "1633775724"
-                    or bd_item.get("model") == "1766875492"
-                    or "ipad" in name.lower()
+                    str(bd_item.get("vendor")) == "1633775724"
+                    or str(bd_item.get("model")) == "1766875492"
                 ):
                     is_sidecar = True
             else:
@@ -291,8 +291,7 @@ class DisplayDetector:
 
             # Check if this display is Sidecar
             d_name_lower = d.name.lower()
-            if d.is_sidecar or "sidecar" in d_name_lower or (target_name and target_name.lower() in d_name_lower) or "ipad" in d_name_lower:
-                d.is_sidecar = True
+            if d.is_sidecar:
                 # A different paired iPad must not satisfy the active target.
                 matches_target = (
                     not (target_sidecar_uuid or target_name)

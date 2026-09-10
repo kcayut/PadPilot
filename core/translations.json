@@ -1442,6 +1442,21 @@
     "zh-Hant": "Sidecar 連線冷卻中，保留備援螢幕。",
     "ja": "Sidecar 接続のクールダウン中です。予備ディスプレイを維持します。"
   },
+  "Hardware query incomplete; keeping current display and user override.": {
+    "en": "Hardware query incomplete; keeping current display and user override.",
+    "zh-Hant": "硬體查詢未完成，保留目前畫面與手動設定。",
+    "ja": "ハードウェア情報を確認できません。現在の画面と手動設定を維持します。"
+  },
+  "Could not verify fallback display; iPad was not disconnected.": {
+    "en": "Could not verify fallback display; iPad was not disconnected.",
+    "zh-Hant": "無法確認備援螢幕可用，已保留 iPad 連線。",
+    "ja": "予備ディスプレイを確認できないため、iPad の接続を維持しました。"
+  },
+  "Could not verify Sidecar connection state; reconnect not started.": {
+    "en": "Could not verify Sidecar connection state; reconnect not started.",
+    "zh-Hant": "無法確認 Sidecar 連線狀態，尚未開始重新連線。",
+    "ja": "Sidecar の接続状態を確認できないため、再接続を開始していません。"
+  },
   "User requested iPad disconnect. Automatic reconnection paused until reset, mode or topology change.": {
     "en": "User requested iPad disconnect. Automatic reconnection paused until reset, mode or topology change.",
     "zh-Hant": "已要求中斷 iPad；重設、模式或螢幕配置變更前暫停自動重連。",

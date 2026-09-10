@@ -31,6 +31,33 @@ def rendered(status, cfg):
 
 
 class MenuPairingTests(unittest.TestCase):
+    def test_compact_template_icons_and_missing_asset_fallback(self):
+        import base64
+        import struct
+        self.assertEqual([p.name for p in (ROOT / 'swiftbar').rglob('*') if p.is_file()
+                          and '__pycache__' not in p.parts and not p.name.startswith('.')], ['padpilot.30s.py'])
+        for icon, name in [('📱', 'ipad'), ('🖥️', 'physical'), ('◻️', 'virtual'),
+                           ('⏸️', 'paused'), ('⚠️', 'warning')]:
+            status = {'icon': icon, 'actual': {'timestamp': 1000, 'sidecar_devices': []}}
+            first = rendered(status, {}).splitlines()[0]
+            self.assertEqual(first.split('|')[0].strip(), '')
+            encoded = first.split('templateImage=')[1].split()[0]
+            data = base64.b64decode(encoded, validate=True)
+            self.assertEqual(data, (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes())
+            self.assertEqual(struct.unpack('>II', data[16:24]), (36, 36))
+            self.assertIn('tooltip=PadPilot', first)
+            self.assertIn('\n' + icon + ' PadPilot |', rendered(status, {}))
+        warning = base64.b64encode((ROOT / 'assets/menu-icons/warning.png').read_bytes()).decode()
+        working = base64.b64encode((ROOT / 'assets/menu-icons/working.png').read_bytes()).decode()
+        self.assertIn(warning, rendered({}, {}).splitlines()[0])
+        status = {'icon': '📱', 'actual': {'timestamp': 1000, 'sidecar_devices': []},
+                  'runtime': {'transition_state': 'CONNECTING'}}
+        self.assertIn(working, rendered(status, {}).splitlines()[0])
+        status['runtime']['last_error'] = 'failed'
+        self.assertIn(warning, rendered(status, {}).splitlines()[0])
+        with patch('pathlib.Path.read_bytes', side_effect=OSError('missing')):
+            self.assertTrue(rendered({}, {}).splitlines()[0].startswith('⚠️ |'))
+
     def test_hidden_menu_outputs_nothing_without_loading_state(self):
         function = MENU['main']
         load = MagicMock()

@@ -69,6 +69,7 @@ class PadPilotDaemon:
             new_config = copy.deepcopy(self.config)
             needs_transition = apply_change(new_config, action, payload, getattr(self, 'bd_cli', None))
             if not new_config.content_equals(self.config):
+                previous_revision = self.config.revision
                 new_config.revision = self.config.revision + 1
                 new_config.updated_at = time.time()
                 save_config(new_config)
@@ -77,6 +78,8 @@ class PadPilotDaemon:
                     self.detector.config = new_config
                 if hasattr(self, "engine") and self.engine is not None:
                     self.engine.config = new_config
+                    if action == 'set_language':
+                        self.engine.republish_language_status(previous_revision)
                 notify_swiftbar(delay=0.1)
             return needs_transition, self.config
 

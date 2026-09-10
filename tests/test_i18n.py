@@ -24,6 +24,71 @@ class LanguageTests(unittest.TestCase):
     def tearDown(self):
         set_language('zh-Hant')
 
+    def test_language_keeps_hardware_snapshot_and_menu_controls(self):
+        from core.models import ActualState, DisplayInfo, IpadConfig
+        from core.state_engine import StateEngine
+        daemon_type = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon = daemon_type.__new__(daemon_type)
+        daemon.config = Config(auto_detect_ipad=False, ipad=IpadConfig(
+            name='iPad', sidecar_uuid='11111111-1111-4111-8111-111111111111'))
+        daemon.detector, daemon.bd_cli = MagicMock(), MagicMock()
+        daemon.engine = StateEngine(daemon.config, daemon.detector, daemon.bd_cli)
+        actual = ActualState(timestamp=time.time(), sidecar_available=True,
+                             physical_displays=[DisplayInfo(1, 'Monitor')],
+                             main_display=DisplayInfo(1, 'Monitor'))
+        daemon.detector.observe.return_value = (actual, (('Monitor',), False))
+        render = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))['render']
+        with patch('core.state_engine.write_atomic_status') as write, \
+             patch('core.autostart.notify_swiftbar'), \
+             patch.dict(daemon.apply_config_change.__globals__, save_config=MagicMock(), notify_swiftbar=MagicMock()):
+            daemon.engine.evaluate()
+            original = write.call_args.args[0].to_dict()
+            daemon.detector.reset_mock()
+            daemon.bd_cli.reset_mock()
+            for language in ('en', 'ja', 'zh-Hant'):
+                result = json.loads(daemon.handle_client_cmd(json.dumps(
+                    {'command': 'set_language', 'params': {'language': language}})))
+                self.assertTrue(result['ok'])
+                snapshot = write.call_args.args[0].to_dict()
+                self.assertEqual(snapshot['config_revision'], daemon.config.revision)
+                for key in ('actual', 'desired', 'runtime', 'timestamp', 'evaluation_state', 'icon'):
+                    self.assertEqual(snapshot[key], original[key])
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    render(snapshot, daemon.config.to_dict(), False)
+                controls = [line for line in out.getvalue().splitlines() if 'param1=action ' in line]
+                self.assertTrue(any('param2=use_ipad_main ' in line for line in controls))
+            self.assertEqual(daemon.detector.mock_calls, [])
+            self.assertEqual(daemon.bd_cli.mock_calls, [])
+            write.reset_mock()
+            daemon.engine.republish_language_status(999)
+            write.assert_not_called()
+
+    def test_gui_language_preserves_newer_scan_but_not_changed_target(self):
+        import copy
+        from core.gui import SettingsWindow
+        app = SettingsWindow.__new__(SettingsWindow)
+        app.readonly = app.busy = False
+        old = Config(language='zh-Hant')
+        recent = {'timestamp': time.time(), 'sidecar_devices': [{'name': 'iPad'}]}
+        app.view = {'config': old, 'actual': recent, 'identifiers': [{'name': 'Backup'}], 'scanned': True}
+        app.task = lambda work, complete: setattr(app, 'result', work()[1])
+        new = copy.deepcopy(old)
+        new.language, new.revision = 'en', old.revision + 1
+        incoming = {'config': new, 'actual': {'timestamp': recent['timestamp'] - 10},
+                    'identifiers': [], 'fresh': True, 'scanned': False}
+        with patch('core.gui.send_change', return_value='OK'), \
+             patch('core.gui.read_view', side_effect=lambda **kw: dict(incoming)) as read:
+            app.change('set_language', {'language': 'en'})
+            self.assertIs(app.result['actual'], recent)
+            self.assertEqual(app.result['identifiers'], app.view['identifiers'])
+            self.assertTrue(app.result['fresh'])
+            read.assert_called_once_with(scan=False)
+            # A concurrent device-setting change must not reuse an old observation.
+            new.auto_detect_ipad = not old.auto_detect_ipad
+            app.change('set_language', {'language': 'en'})
+            self.assertIs(app.result['actual'], incoming['actual'])
+
     def test_validation_roundtrip_and_daemon_no_display_effects(self):
         self.assertEqual(Config.from_dict({}).language, 'zh-Hant')
         self.assertEqual(Config.from_dict({'language': ['en']}).language, 'zh-Hant')
