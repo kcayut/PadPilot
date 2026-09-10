@@ -141,8 +141,18 @@ def main():
             root.update()
             controls = [w for w in descendants(app.scroll_frame)
                         if w.winfo_class() == 'TButton' and w.cget('text') in names]
+            assert len(controls) == 4 and all(not w.instate(['disabled']) for w in controls)
+            app.control_ipad = MagicMock()
+            for button, action in zip(controls, ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar')):
+                button.invoke()
+                app.control_ipad.assert_called_with(cfg.ipad.to_dict(), action)
+            cfg.ipad = type(cfg.ipad)()
+            app.display(dict(heartbeat, config=cfg))
+            root.update()
+            controls = [w for w in descendants(app.scroll_frame)
+                        if w.winfo_class() == 'TButton' and w.cget('text') in names]
             assert len(controls) == 4 and all(w.instate(['disabled']) for w in controls)
-            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently; USB/discovery toggles dispatch correctly; saved-profile controls disabled during discovery.')
+            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently; USB/discovery toggles dispatch correctly; designated pairing controls work with discovery enabled; other pairings stay disabled.')
     finally:
         root.destroy()
 

@@ -40,7 +40,7 @@ class DisplayDetector:
         """Fetch all online displays via CoreGraphics."""
         self.display_error = ""
         if not self._cg:
-            self.display_error = "CoreGraphics 無法使用"
+            self.display_error = "CoreGraphics unavailable"
             return []
 
         max_displays = 32
@@ -50,7 +50,7 @@ class DisplayDetector:
         try:
             err = self._cg.CGGetOnlineDisplayList(max_displays, display_ids, byref(count))
             if err != 0:
-                self.display_error = f"CoreGraphics 查詢失敗：{err}"
+                self.display_error = f"CoreGraphics query failed: {err}"
                 logger.warning(f"CGGetOnlineDisplayList returned error: {err}")
                 return []
         except Exception as e:
@@ -208,12 +208,12 @@ class DisplayDetector:
             return self.config.ipad
         errors = (getattr(self, "usb_error", ""), getattr(self.bd_cli, "sidecar_error", ""))
         if any(isinstance(error, str) and error for error in errors):
-            self.auto_detect_error = "裝置查詢不完整，暫停自動選取 iPad。"
+            self.auto_detect_error = "Device query incomplete; pausing automatic iPad selection."
             return IpadConfig()
         ipads = [u for u in usb_devices if u.get("vendor_id") == 1452 and
                  "ipad" in (u.get("product_name") or u.get("name") or "").casefold()]
         if len(ipads) != 1 or not ipads[0].get("serial"):
-            self.auto_detect_error = "自動偵測需接上唯一一台可辨識 USB 序號的 iPad。"
+            self.auto_detect_error = "Auto-detection requires a single connected iPad with identifiable USB serial."
             return IpadConfig()
         usb = ipads[0]
         known = [p for p in [self.config.ipad, *self.config.paired_ipads]
@@ -221,7 +221,7 @@ class DisplayDetector:
         uuids = {p.sidecar_uuid.casefold() for p in known}
         candidates = [d for d in sidecar_list if not uuids or d.get("uuid", "").casefold() in uuids]
         if len(uuids) > 1 or len(candidates) != 1 or not candidates[0].get("uuid") or not candidates[0].get("name"):
-            self.auto_detect_error = "Sidecar 候選尚未出現或不唯一；請稍候或指定配對。"
+            self.auto_detect_error = "Sidecar candidate not present or not unique; wait or pair explicitly."
             return IpadConfig()
         candidate = candidates[0]
         # ponytail: unique candidates are a heuristic, not proof of USB/Sidecar identity.

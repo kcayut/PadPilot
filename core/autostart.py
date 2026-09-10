@@ -73,7 +73,7 @@ def daemon_pids() -> list[int]:
     pattern = r"(^| )" + re.escape(str(PROJECT_ROOT / "bin" / "padpilotd")) + r"( |$)"
     result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=2)
     if result.returncode not in (0, 1):
-        raise RuntimeError("無法確認背景服務程序，未隱藏選單。" + result.stderr)
+        raise RuntimeError("Could not verify daemon process, menu not hidden: " + result.stderr)
     return [int(pid) for pid in result.stdout.split()]
 
 
@@ -137,7 +137,7 @@ def enable_autostart(
         subprocess.run(["launchctl", "unload", str(target_plist)], capture_output=True, check=False)
         res = subprocess.run(["launchctl", "load", str(target_plist)], capture_output=True, text=True, check=False)
         if res.returncode != 0 and "service already loaded" not in res.stderr.lower():
-            raise RuntimeError(f"登入設定已寫入，但背景服務啟動失敗：{res.stderr.strip()}")
+            raise RuntimeError(f"Login settings written, but daemon failed to start: {res.stderr.strip()}")
 
         # Trigger SwiftBar refresh
         notify_swiftbar(cfg.swiftbar_plugin_id)

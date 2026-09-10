@@ -95,7 +95,7 @@ class USBEventMonitor:
                 # The timeout only bounds shutdown; USB callbacks arrive immediately.
                 cf.CFRunLoopRunInMode(mode, 0.5, True)
         except Exception as exc:
-            self.error = f'USB 事件監聽失敗，改用 Watchdog：{exc}'
+            self.error = f'USB event notification failed, falling back to Watchdog: {exc}'
             logger.warning(self.error)
             self.wake()
         finally:

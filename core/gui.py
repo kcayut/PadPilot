@@ -331,11 +331,26 @@ class SettingsWindow:
 
         # Accent Button (10pt bold)
         style.configure('Accent.TButton', background=BLUE, foreground='#ffffff',
-                        borderwidth=0, focuscolor='', padding=(10, 4),
+                        borderwidth=1, bordercolor=BLUE, lightcolor=BLUE, darkcolor=BLUE,
+                        focuscolor='', padding=(8, 4),
                         font=('Helvetica Neue', 10, 'bold'))
         style.map('Accent.TButton',
                   background=[('pressed', '#004899'), ('active', BLUE_HOVER), ('disabled', '#e5e5ea')],
-                  foreground=[('disabled', '#a1a1a6')])
+                  foreground=[('disabled', '#a1a1a6')],
+                  bordercolor=[('disabled', '#e5e5ea'), ('active', BLUE_HOVER), ('pressed', '#004899')],
+                  lightcolor=[('disabled', '#e5e5ea'), ('active', BLUE_HOVER), ('pressed', '#004899')],
+                  darkcolor=[('disabled', '#e5e5ea'), ('active', BLUE_HOVER), ('pressed', '#004899')])
+
+        # Active Button (10pt bold indicator matching Accent colors and size)
+        style.configure('Active.TButton', background=BLUE, foreground='#ffffff',
+                        borderwidth=1, bordercolor=BLUE, lightcolor=BLUE, darkcolor=BLUE,
+                        focuscolor='', padding=(8, 4), font=('Helvetica Neue', 10, 'bold'))
+        style.map('Active.TButton',
+                  background=[('disabled', BLUE), ('active', BLUE), ('pressed', BLUE)],
+                  foreground=[('disabled', '#ffffff'), ('active', '#ffffff'), ('pressed', '#ffffff')],
+                  bordercolor=[('disabled', BLUE), ('active', BLUE), ('pressed', BLUE)],
+                  lightcolor=[('disabled', BLUE), ('active', BLUE), ('pressed', BLUE)],
+                  darkcolor=[('disabled', BLUE), ('active', BLUE), ('pressed', BLUE)])
 
         # Secondary Button (10pt regular)
         style.configure('Secondary.TButton', background='#ffffff', foreground=TEXT_PRIMARY,
@@ -782,7 +797,7 @@ class SettingsWindow:
     def render_paired_tab(self):
         cfg = self.view['config']
 
-        if cfg.auto_detect_ipad:
+        if cfg.auto_detect_ipad and not cfg.ipad.sidecar_uuid:
             tk.Label(self.scroll_frame,
                      text=tr('自動偵測已啟用；目前目標及控制請見選單列「iPad 控制」。已存配對保留不變。'),
                      wraplength=570, justify='left', fg=TEXT_SECONDARY, bg=BG).pack(anchor='w', padx=18, pady=6)
@@ -850,7 +865,7 @@ class SettingsWindow:
             name_lbl.bind('<Button-1>', lambda e, k=kid: self.toggle_profile_expand(k))
 
             if is_target:
-                self.make_badge(top_line, tr('★ 已存主力 iPad') if cfg.auto_detect_ipad else tr('★ 主要管理 iPad (自動接管)'), BLUE, '#ffffff').pack(side='left', padx=(6, 2))
+                self.make_badge(top_line, tr('★ 主要管理 iPad (自動接管)'), BLUE, '#ffffff').pack(side='left', padx=(6, 2))
 
             if status == '已連線':
                 self.make_badge(top_line, tr('● 已連線'), GREEN_BG, GREEN_FG).pack(side='left', padx=2)
@@ -880,7 +895,7 @@ class SettingsWindow:
                 button = ttk.Button(btn_box, text=title, style='Secondary.TButton',
                                     command=lambda a=action, pr=p: self.control_ipad(pr, a))
                 button.grid(row=0, column=col, sticky='ew', padx=(0, 4 if col < 3 else 0))
-                if is_target and p.get('sidecar_uuid') and not self.readonly and not cfg.auto_detect_ipad:
+                if is_target and p.get('sidecar_uuid') and not self.readonly:
                     self.buttons.append(button)
                 else:
                     button.state(['disabled'])
@@ -981,7 +996,7 @@ class SettingsWindow:
                 tk.Label(r3, text=tr('主力管理：'), font=('Helvetica Neue', 10),
                          fg=TEXT_SECONDARY, bg=CARD_BG, width=12, anchor='w').pack(side='left')
                 if is_target:
-                    self.make_badge(r3, tr('✓ 已存主力 iPad；關閉自動偵測後生效') if cfg.auto_detect_ipad else tr('✓ 目前已是主要管理 iPad（無實體外接螢幕時自動連線接管）'), BLUE_TINT, BLUE).pack(side='left')
+                    self.make_badge(r3, tr('✓ 目前已是主要管理 iPad（無實體外接螢幕時自動連線接管）'), BLUE_TINT, BLUE).pack(side='left')
                 else:
                     tgt_btn = ttk.Button(
                         r3, text=tr('設為主要管理 iPad'),
@@ -1162,12 +1177,19 @@ class SettingsWindow:
                      bg='#f9fafc' if is_active else CARD_BG).pack(side='left')
 
             if is_active:
-                self.make_badge(row, tr('✓ 目前生效中'), BLUE, '#ffffff').pack(side='right')
+                active_btn = ttk.Button(
+                    row, text=tr('✓ 目前生效中'),
+                    style='Active.TButton',
+                    width=14,
+                    state='disabled'
+                )
+                active_btn.pack(side='right')
             elif not self.readonly:
                 btn = ttk.Button(
                     row, text=tr('切換為此模式'),
                     command=lambda k=mode_key: self.set_mode(k),
-                    style='Secondary.TButton'
+                    style='Secondary.TButton',
+                    width=14
                 )
                 btn.pack(side='right')
                 self.buttons.append(btn)
@@ -1241,8 +1263,12 @@ class SettingsWindow:
             tk.Label(row, text=title + (tr('：已啟用') if enabled else tr('：已停用')),
                      font=('Helvetica Neue', 10, 'bold'), fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
             if not self.readonly:
-                button = ttk.Button(row, text=tr('停用') if enabled else tr('啟用'),
-                    command=lambda f=field, e=enabled: self.change('set_' + f, {'enabled': not e}))
+                button = ttk.Button(
+                    row, text=tr('停用') if enabled else tr('啟用'),
+                    command=lambda f=field, e=enabled: self.change('set_' + f, {'enabled': not e}),
+                    style='Secondary.TButton' if enabled else 'Accent.TButton',
+                    width=14
+                )
                 button.pack(side='right')
                 self.buttons.append(button)
             tk.Label(adv_body, text=detail, wraplength=570, justify='left',
@@ -1945,11 +1971,11 @@ class SettingsWindow:
     def control_ipad(self, profile, action):
         if self.readonly or self.busy:
             return
-        if self.view['config'].auto_detect_ipad or profile != self.view['config'].ipad.to_dict():
+        if not profile.get('sidecar_uuid') or profile != self.view['config'].ipad.to_dict():
             return
         def work():
             current = read_view()
-            if current['config'].auto_detect_ipad or current['config'].ipad.to_dict() != profile:
+            if current['config'].ipad.to_dict() != profile:
                 raise RuntimeError(tr('控制目標已變更，請重新整理後再操作。'))
             message = self.run_action(action)
             return message, read_view(scan=True)

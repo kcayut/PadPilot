@@ -117,11 +117,11 @@ class BetterDisplayCLI:
         """List available Sidecar targets. Returns list of {name, uuid}."""
         self.sidecar_error = ""
         if not self.is_available():
-            self.sidecar_error = "BetterDisplay CLI 無法使用"
+            self.sidecar_error = "BetterDisplay CLI unavailable"
             return []
         code, stdout, stderr = self.run_cmd(["get", "-sidecarList"], timeout=5.0)
         if code != 0:
-            self.sidecar_error = stderr or "Sidecar 查詢失敗"
+            self.sidecar_error = stderr or "Sidecar query failed"
             logger.warning(f"get -sidecarList failed: {stderr}")
             return []
 
@@ -135,7 +135,7 @@ class BetterDisplayCLI:
             uuid_match = re.search(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", line)
             uuid = uuid_match.group(1) if uuid_match else ""
             if not uuid:
-                self.sidecar_error = "Sidecar 回應缺少有效 UUID"
+                self.sidecar_error = "Sidecar response missing valid UUID"
                 continue
 
             # Extract name before UUID or parenthesis
@@ -166,12 +166,12 @@ class BetterDisplayCLI:
         """Query the session UUID, which is distinct from the macOS display UUID."""
         self.connection_error = ""
         if not specifier:
-            self.connection_error = "尚未設定 Sidecar 控制目標"
+            self.connection_error = "Sidecar control target not configured"
             return None
         code, out, err = self.run_cmd(["get", "-sidecarConnected", f"-specifier={specifier}"], timeout=5.0)
         if code == 0 and out.lower() in ("on", "off"):
             return out.lower() == "on"
-        self.connection_error = err or out or "Sidecar 連線狀態未知"
+        self.connection_error = err or out or "Sidecar connection state unknown"
         return None
 
     def disconnect_sidecar(self, specifier: str) -> bool:
@@ -240,11 +240,11 @@ class BetterDisplayCLI:
         """Fetch display identifiers from BetterDisplay CLI."""
         self.identifiers_error = ""
         if not self.is_available():
-            self.identifiers_error = "BetterDisplay CLI 無法使用"
+            self.identifiers_error = "BetterDisplay CLI unavailable"
             return []
         code, out, err = self.run_cmd(["get", "-identifiers"], timeout=5.0)
         if code != 0:
-            self.identifiers_error = err or "螢幕識別資料查詢失敗"
+            self.identifiers_error = err or "Display identifiers query failed"
             return []
         if not out:
             return []
@@ -254,7 +254,7 @@ class BetterDisplayCLI:
                 raise ValueError("invalid identifiers")
             return items
         except Exception:
-            self.identifiers_error = "螢幕識別資料格式無法辨識"
+            self.identifiers_error = "Display identifiers format unparseable"
             return []
 
     def check_virtual_display(self, name: str) -> Tuple[bool, bool]:

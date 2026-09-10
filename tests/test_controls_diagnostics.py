@@ -165,10 +165,16 @@ class ControlsTests(unittest.TestCase):
         app.view = {'config': cfg}
         app.run_action = MagicMock(return_value='OK: requested')
         app.task = lambda work, complete: work()
-        with patch('core.gui.read_view', return_value=app.view):
-            for action in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar'):
-                app.control_ipad(cfg.ipad.to_dict(), action)
-                app.run_action.assert_called_with(action)
+        for auto_detect in (False, True):
+            cfg.auto_detect_ipad = auto_detect
+            with patch('core.gui.read_view', return_value=app.view):
+                for action in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar'):
+                    app.run_action.reset_mock()
+                    app.control_ipad(cfg.ipad.to_dict(), action)
+                    app.run_action.assert_called_once_with(action)
+            app.run_action.reset_mock()
+            app.control_ipad(dict(cfg.ipad.to_dict(), sidecar_uuid='OTHER'), 'disconnect_ipad')
+            app.run_action.assert_not_called()
         with patch('core.gui.read_view', return_value={'config': Config()}):
             with self.assertRaisesRegex(RuntimeError, '控制目標已變更'):
                 app.control_ipad(cfg.ipad.to_dict(), 'disconnect_ipad')

@@ -1497,6 +1497,81 @@
     "zh-Hant": "未偵測到實體螢幕或指定 iPad，使用 BetterDisplay 虛擬備援。",
     "ja": "物理ディスプレイも指定 iPad も未検出のため、BetterDisplay の仮想の予備を使用します。"
   },
+  "Auto-detection has no unique target; keeping current display.": {
+    "en": "Auto-detection has no unique target; keeping current display.",
+    "zh-Hant": "自動偵測尚無唯一目標；保留目前顯示。",
+    "ja": "自動検出の対象が一意でないため、現在の表示を維持します。"
+  },
+  "Auto-detection has no unique target; using fallback display.": {
+    "en": "Auto-detection has no unique target; using fallback display.",
+    "zh-Hant": "自動偵測尚無唯一目標；使用備援螢幕。",
+    "ja": "自動検出の対象が一意でないため、予備ディスプレイを使用します。"
+  },
+  "Device query incomplete; pausing automatic iPad selection.": {
+    "en": "Device query incomplete; pausing automatic iPad selection.",
+    "zh-Hant": "裝置查詢不完整，暫停自動選取 iPad。",
+    "ja": "デバイスの照会が不完全なため、iPad の自動選択を停止しています。"
+  },
+  "Auto-detection requires a single connected iPad with identifiable USB serial.": {
+    "en": "Auto-detection requires a single connected iPad with identifiable USB serial.",
+    "zh-Hant": "自動偵測需接上唯一一台可辨識 USB 序號的 iPad。",
+    "ja": "自動検出には、USB シリアル番号を識別できる iPad が 1 台のみ接続されている必要があります。"
+  },
+  "Sidecar candidate not present or not unique; wait or pair explicitly.": {
+    "en": "Sidecar candidate not present or not unique; wait or pair explicitly.",
+    "zh-Hant": "Sidecar 候選尚未出現或不唯一；請稍候或指定配對。",
+    "ja": "Sidecar 候補が見つからないか一意ではありません。待機するか明示的にペアリングしてください。"
+  },
+  "CoreGraphics unavailable": {
+    "en": "CoreGraphics unavailable",
+    "zh-Hant": "CoreGraphics 無法使用",
+    "ja": "CoreGraphics を利用できません"
+  },
+  "CoreGraphics query failed: {0}": {
+    "en": "CoreGraphics query failed: {0}",
+    "zh-Hant": "CoreGraphics 查詢失敗：{0}",
+    "ja": "CoreGraphics 照会失敗：{0}"
+  },
+  "BetterDisplay CLI unavailable": {
+    "en": "BetterDisplay CLI unavailable",
+    "zh-Hant": "BetterDisplay CLI 無法使用",
+    "ja": "BetterDisplay CLI を利用できません"
+  },
+  "Sidecar query failed": {
+    "en": "Sidecar query failed",
+    "zh-Hant": "Sidecar 查詢失敗",
+    "ja": "Sidecar 照会失敗"
+  },
+  "Sidecar response missing valid UUID": {
+    "en": "Sidecar response missing valid UUID",
+    "zh-Hant": "Sidecar 回應缺少有效 UUID",
+    "ja": "Sidecar の応答に有効な UUID がありません"
+  },
+  "Sidecar control target not configured": {
+    "en": "Sidecar control target not configured",
+    "zh-Hant": "尚未設定 Sidecar 控制目標",
+    "ja": "Sidecar 制御対象が未設定です"
+  },
+  "Sidecar connection state unknown": {
+    "en": "Sidecar connection state unknown",
+    "zh-Hant": "Sidecar 連線狀態未知",
+    "ja": "Sidecar 接続状態が不明です"
+  },
+  "Display identifiers query failed": {
+    "en": "Display identifiers query failed",
+    "zh-Hant": "螢幕識別資料查詢失敗",
+    "ja": "ディスプレイ識別情報の照会失敗"
+  },
+  "Display identifiers format unparseable": {
+    "en": "Display identifiers format unparseable",
+    "zh-Hant": "螢幕識別資料格式無法辨識",
+    "ja": "ディスプレイ識別情報の形式を認識できません"
+  },
+  "USB event notification failed, falling back to Watchdog: {0}": {
+    "en": "USB event notification failed, falling back to Watchdog: {0}",
+    "zh-Hant": "USB 事件監聽失敗，改用 Watchdog：{0}",
+    "ja": "USB イベント監視に失敗したため、Watchdog に切り替えます：{0}"
+  },
   "✓ Satisfied": {
     "en": "✓ Satisfied",
     "zh-Hant": "✓ 已滿足",

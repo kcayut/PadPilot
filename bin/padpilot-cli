@@ -526,5 +526,5 @@ if __name__ == "__main__":
     except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
         print(f"錯誤：{error}", file=sys.stderr)
         from core.notifier import notify_error
-        notify_error(str(error), subtitle="PadPilot 操作失敗")
+        notify_error(str(error), subtitle="PadPilot Operation Failed")
         sys.exit(1)

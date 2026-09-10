@@ -116,7 +116,7 @@ class StateEngine:
                 if actual.physical_displays and self.runtime.mode != OperationMode.PREFER_IPAD:
                     role = DisplayRole.IPAD_SECONDARY
             if actual.sidecar_connected and not self.bd_cli.disconnect_sidecar(specifier):
-                self.runtime.last_error = "無法確認 Sidecar 已中斷；未開始重新連線。"
+                self.runtime.last_error = "Could not verify Sidecar disconnect; reconnect not started."
                 self._export_status(satisfied=False)
                 return False
             # Observe the intentional disconnect before registering the new override.
@@ -227,10 +227,10 @@ class StateEngine:
 
         if config.auto_detect_ipad and not (actual.resolved_ipad and actual.resolved_ipad.sidecar_uuid):
             if runtime.mode == OperationMode.MANUAL_ONLY or runtime.debounce_until > now:
-                return DesiredState(DisplayRole.NO_CHANGE, "自動偵測尚無唯一目標；保留目前顯示。")
+                return DesiredState(DisplayRole.NO_CHANGE, "Auto-detection has no unique target; keeping current display.")
             return DesiredState(
                 DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL,
-                actual.discovery_errors.get("auto_detect", "自動偵測尚無唯一目標；使用備援螢幕。"),
+                actual.discovery_errors.get("auto_detect", "Auto-detection has no unique target; using fallback display."),
             )
 
         # 1. Check User Override
