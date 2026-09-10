@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import subprocess
 import threading
 import time
 from uuid import UUID
@@ -28,6 +30,8 @@ APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "PadPilot"
 CONFIG_FILE = APP_SUPPORT_DIR / "config.json"
 RUNTIME_DIR = APP_SUPPORT_DIR / "runtime"
 STATUS_FILE = RUNTIME_DIR / "status.json"
+FALLBACK_DIR = Path("/tmp/PadPilot")
+FALLBACK_CONFIG_FILE = FALLBACK_DIR / "config.json"
 
 try:
     APP_SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -174,16 +178,57 @@ class Config:
         return active
 
 
+def detect_system_language() -> str:
+    """Detect preferred macOS language; defaults to 'en' unless Traditional Chinese or Japanese.
+
+    Rules:
+    - zh-Hant, zh-TW, zh-HK, zh-MO -> 'zh-Hant'
+    - ja-* -> 'ja'
+    - All other languages, including zh-Hans, zh-CN, zh-SG, en-*, or fallback -> 'en'
+    """
+    try:
+        res = subprocess.run(
+            ["defaults", "read", "-g", "AppleLanguages"],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout:
+            matches = re.findall(r'"([^"]+)"', res.stdout)
+            if matches:
+                primary = matches[0].lower()
+                if primary.startswith(("zh-hant", "zh-tw", "zh-hk", "zh-mo")):
+                    return "zh-Hant"
+                if primary.startswith("ja"):
+                    return "ja"
+                return "en"
+    except Exception:
+        pass
+
+    # Fallback to environment variables
+    lang_env = (os.environ.get("LANG") or os.environ.get("LC_ALL") or "").lower()
+    if lang_env.startswith(("zh_tw", "zh_hk", "zh_mo", "zh-hant")):
+        return "zh-Hant"
+    if lang_env.startswith("ja"):
+        return "ja"
+
+    return "en"
+
+
 def load_config() -> Config:
     """Load config from ~/Library/Application Support/PadPilot/config.json with /tmp fallback."""
-    target_file = None
-    if CONFIG_FILE.exists():
-        target_file = CONFIG_FILE
-    elif Path("/tmp/PadPilot/config.json").exists():
-        target_file = Path("/tmp/PadPilot/config.json")
+    primary_file = CONFIG_FILE
+    fallback_file = FALLBACK_CONFIG_FILE
 
-    if not target_file:
-        cfg = Config()
+    target_file = None
+    if primary_file.exists():
+        target_file = primary_file
+    elif fallback_file.exists():
+        target_file = fallback_file
+
+    if target_file is None:
+        cfg = Config(language=detect_system_language())
         save_config(cfg)
         return cfg
 

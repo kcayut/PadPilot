@@ -1,7 +1,7 @@
 # 📱 PadPilot
 
 <p align="center">
-  <b>繁體中文</b> | <a href="#-english-readme">English (coming soon)</a>
+  <b>繁體中文</b> | <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
@@ -210,6 +210,11 @@ padpilot-cli open-log
 本專案基於 [MIT License](LICENSE) 授權開源。
 Copyright (c) 2026 kcayut.
 
-### 介面語言
+### 介面語言 (Interface Language)
 
-在「設定與配對 → 運作與偏好 → 語言」選擇 **中文（繁體）／English／日本語**。選擇會儲存，GUI 與選單列同步切換；舊設定預設保留繁體中文。裝置名稱、識別碼與原始日誌保留原文。更新程式後，請重新開啟設定視窗；已在執行的舊版背景服務需重新啟動一次，才能接收新的語言設定命令。
+PadPilot 支援 **English / 繁體中文 / 日本語**。首次建立設定時會依 macOS 系統語言自動選定（非中文/日文系統預設為 English）。您可隨時由以下方式切換：
+- **Menu Bar**：點選選單中的「🌐 Language」直接切換。
+- **GUI 介面**：在管理視窗右上角「🌐」下拉選單切換。
+- **CLI 指令**：執行 `./bin/padpilot-cli set-language <en|zh-Hant|ja>`。
+
+切換後設定立即儲存，GUI、選單列與背景服務同步套用。裝置名稱、硬體識別碼與原始日誌保留原文。

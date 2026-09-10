@@ -201,6 +201,10 @@ def cmd_change_settings(args: argparse.Namespace) -> None:
     submit_settings(args.operation, payload, expected_revision=expected_rev)
 
 
+def cmd_set_language(args: argparse.Namespace) -> None:
+    submit_settings("set_language", {"language": args.language})
+
+
 def cmd_gui(args: argparse.Namespace) -> None:
     from core.gui import run_gui
     run_gui(args.page, getattr(args, 'delete', None), getattr(args, 'select', None))
@@ -456,6 +460,11 @@ def main() -> None:
     p_mode = subparsers.add_parser("set-mode", help="Change operational mode")
     p_mode.add_argument("mode", choices=["automatic", "manual_only", "prefer_ipad"])
     p_mode.set_defaults(func=cmd_set_mode)
+
+    # set-language
+    p_lang = subparsers.add_parser("set-language", help="Set interface display language")
+    p_lang.add_argument("language", choices=["en", "zh-Hant", "ja"], help="Language code (en, zh-Hant, ja)")
+    p_lang.set_defaults(func=cmd_set_language)
 
     # action
     p_act = subparsers.add_parser("action", help="Trigger an immediate action")

@@ -38,3 +38,24 @@ class TestCli(unittest.TestCase):
         )
         self.assertIn("PadPilot Display Manager CLI", res.stdout)
         self.assertIn("--version", res.stdout)
+        self.assertIn("set-language", res.stdout)
+
+    def test_cli_set_language_help_and_validation(self):
+        res = subprocess.run(
+            [sys.executable, str(CLI_PATH), "set-language", "--help"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertIn("en", res.stdout)
+        self.assertIn("zh-Hant", res.stdout)
+        self.assertIn("ja", res.stdout)
+
+        # Invalid choice rejected by argparse
+        res_invalid = subprocess.run(
+            [sys.executable, str(CLI_PATH), "set-language", "fr"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(res_invalid.returncode, 0)
+        self.assertIn("invalid choice", res_invalid.stderr)

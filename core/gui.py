@@ -20,7 +20,7 @@ from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, get_config_file_path, get_status_file_path, read_status
 from core.detector import DisplayDetector
 from core.logger import get_log_file_path
-from core.i18n import LANGUAGES, set_language, tr, tr_message
+from core.i18n import LANGUAGES, LANGUAGE_CODES, set_language, tr, tr_message
 from core.models import pairing_key
 from core.settings import is_virtual_device
 
@@ -485,13 +485,34 @@ class SettingsWindow:
         self.header_frame = tk.Frame(self.content_area, bg=BG, padx=18, pady=10)
         self.header_frame.pack(fill='x')
 
-        self.title_label = tk.Label(self.header_frame, text=tr('已配對 iPad'),
+        header_left = tk.Frame(self.header_frame, bg=BG)
+        header_left.pack(side='left', fill='both', expand=True)
+
+        self.title_label = tk.Label(header_left, text=tr('已配對 iPad'),
                                     font=('Helvetica Neue', 14, 'bold'), fg=TEXT_PRIMARY, bg=BG)
         self.title_label.pack(anchor='w')
 
-        self.subtitle_label = tk.Label(self.header_frame, text=tr('管理已配對至 PadPilot 的 iPad 設備清單'),
+        self.subtitle_label = tk.Label(header_left, text=tr('管理已配對至 PadPilot 的 iPad 設備清單'),
                                        font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg=BG)
         self.subtitle_label.pack(anchor='w', pady=(1, 0))
+
+        header_right = tk.Frame(self.header_frame, bg=BG)
+        header_right.pack(side='right', anchor='ne', pady=(2, 0))
+
+        tk.Label(header_right, text='🌐', font=('Helvetica Neue', 11), bg=BG, fg=TEXT_PRIMARY).pack(side='left', padx=(0, 4))
+        self.header_language_picker = ttk.Combobox(
+            header_right, values=list(LANGUAGES.values()), state='readonly', width=10, style='TCombobox'
+        )
+        current_lang = getattr(self, '_display_language', None) or getattr(self.view.get('config', None), 'language', 'en')
+        if current_lang in LANGUAGES:
+            self.header_language_picker.current(list(LANGUAGES.keys()).index(current_lang))
+        self.header_language_picker.pack(side='left')
+        self.header_language_picker.bind('<<ComboboxSelected>>', lambda event: self.change(
+            'set_language', {'language': LANGUAGE_CODES.get(self.header_language_picker.get(), 'en')}
+        ))
+        if self.readonly:
+            self.header_language_picker.state(['disabled'])
+        self.buttons.append(self.header_language_picker)
 
         # Canvas without visible scrollbar, gentle 15px step increment
         self.canvas = tk.Canvas(self.content_area, bg=BG, highlightthickness=0, bd=0, yscrollincrement=15)
@@ -691,7 +712,7 @@ class SettingsWindow:
 
     def render_current_tab(self, preserve_scroll: bool = False):
         # Reset dynamic buttons while preserving persistent ones
-        self.buttons = [self.refresh_btn]
+        self.buttons = [b for b in (getattr(self, 'refresh_btn', None), getattr(self, 'header_language_picker', None)) if b is not None]
 
         old_y = 0.0
         if preserve_scroll and hasattr(self, 'canvas') and self.canvas.winfo_exists():
@@ -1108,19 +1129,6 @@ class SettingsWindow:
     def render_settings_tab(self):
         cfg = self.view['config']
 
-        language_card = Card(self.scroll_frame)
-        language_card.pack(fill='x', padx=18, pady=(0, 6))
-        tk.Label(language_card.body, text=tr('語言'), bg=CARD_BG, fg=TEXT_PRIMARY).pack(side='left')
-        language_picker = ttk.Combobox(language_card.body, values=list(LANGUAGES.values()),
-                                      state='readonly', width=18)
-        language_picker.current(list(LANGUAGES).index(cfg.language))
-        language_picker.pack(side='right')
-        language_picker.bind('<<ComboboxSelected>>', lambda event: self.change(
-            'set_language', {'language': list(LANGUAGES)[language_picker.current()]}))
-        if self.readonly:
-            language_picker.state(['disabled'])
-        self.buttons.append(language_picker)
-
         # Group 1: 運作模式 (可互動切換)
         g1 = Card(self.scroll_frame, padx=12, pady=8)
         g1.pack(fill='x', padx=18, pady=(0, 6))
@@ -1172,52 +1180,6 @@ class SettingsWindow:
             if not self.readonly and not is_active:
                 m_frame.bind('<Button-1>', lambda e, k=mode_key: self.set_mode(k))
 
-        discovery = Card(self.scroll_frame, padx=12, pady=8)
-        discovery.pack(fill='x', padx=18, pady=(0, 6))
-        discovery_body = tk.Frame(discovery.body, bg=CARD_BG)
-
-        def toggle_advanced():
-            self.advanced_expanded = not self.advanced_expanded
-            if self.advanced_expanded:
-                discovery_body.pack(fill='x', pady=(8, 0))
-            else:
-                discovery_body.pack_forget()
-            advanced_button.configure(text=('▾ ' if self.advanced_expanded else '▸ ') + tr('進階選項'))
-
-        advanced_button = ttk.Button(discovery.body,
-            text=('▾ ' if self.advanced_expanded else '▸ ') + tr('進階選項'),
-            command=toggle_advanced, style='Secondary.TButton')
-        advanced_button.pack(fill='x')
-        if self.advanced_expanded:
-            discovery_body.pack(fill='x', pady=(8, 0))
-        tk.Label(discovery_body, text=tr('USB 與 iPad 自動偵測'), font=('Helvetica Neue', 11, 'bold'),
-                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
-        for field, title, detail in (
-            ('usb_event_wakeup', tr('USB 插拔即時喚醒'),
-             tr('收到原生 USB 事件即重新評估；保留防抖與 30 秒 Watchdog，非保證瞬間連線。')),
-            ('auto_detect_ipad', tr('自動偵測 iPad（免 PadPilot 配對）'),
-             tr('限唯一 USB iPad 與唯一 Sidecar 候選；優先使用已存配對。多台環境請關閉並指定配對。')),
-        ):
-            enabled = getattr(cfg, field)
-            row = tk.Frame(discovery_body, bg=CARD_BG)
-            row.pack(fill='x', pady=(6, 0))
-            tk.Label(row, text=title + (tr('：已啟用') if enabled else tr('：已停用')),
-                     font=('Helvetica Neue', 10, 'bold'), fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
-            if not self.readonly:
-                button = ttk.Button(row, text=tr('停用') if enabled else tr('啟用'),
-                    command=lambda f=field, e=enabled: self.change('set_' + f, {'enabled': not e}))
-                button.pack(side='right')
-                self.buttons.append(button)
-            tk.Label(discovery_body, text=detail, wraplength=570, justify='left',
-                     fg=TEXT_SECONDARY, bg=CARD_BG, font=('Helvetica Neue', 10)).pack(anchor='w')
-        if cfg.auto_detect_ipad:
-            target = self.view.get('actual', {}).get('resolved_ipad') or {}
-            text = (tr('本次偵測目標：') + target.get('name', '') if self.view.get('fresh') and target.get('name')
-                    else tr('本次偵測目標：尚無唯一目標或狀態待更新'))
-            tk.Label(discovery_body, text=text, fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(6, 0))
-        tk.Label(discovery_body, text=tr('免配對不會略過 Apple Sidecar 的帳號、信任與相容性要求；唯一候選仍是推定。'),
-                 wraplength=570, justify='left', fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(4, 0))
-
         # Group 2: 開機與背景服務 (帶有互動 Toggle)
         g2 = Card(self.scroll_frame, padx=12, pady=8)
         g2.pack(fill='x', padx=18, pady=(0, 6))
@@ -1242,10 +1204,62 @@ class SettingsWindow:
             toggle_btn.pack(side='right')
             self.buttons.append(toggle_btn)
 
-        # Group 3: 防護機制與保護參數
-        g3 = Card(self.scroll_frame, padx=12, pady=8)
-        g3.pack(fill='x', padx=18, pady=(0, 6))
-        tk.Label(g3.body, text=tr('🛡️ 防護機制與保護參數'), font=('Helvetica Neue', 11, 'bold'),
+        # 進階選項 Card (收合：USB/iPad 偵測、防護機制與保護參數、系統路徑與整合)
+        adv_card = Card(self.scroll_frame, padx=12, pady=8)
+        adv_card.pack(fill='x', padx=18, pady=(0, 6))
+        adv_body = tk.Frame(adv_card.body, bg=CARD_BG)
+
+        def toggle_advanced():
+            self.advanced_expanded = not self.advanced_expanded
+            if self.advanced_expanded:
+                adv_body.pack(fill='x', pady=(8, 0))
+            else:
+                adv_body.pack_forget()
+            advanced_button.configure(text=('▾ ' if self.advanced_expanded else '▸ ') + tr('進階選項'))
+            self.root.update_idletasks()
+            self._update_scrollregion()
+
+        advanced_button = ttk.Button(adv_card.body,
+            text=('▾ ' if self.advanced_expanded else '▸ ') + tr('進階選項'),
+            command=toggle_advanced, style='Secondary.TButton')
+        advanced_button.pack(fill='x')
+        if self.advanced_expanded:
+            adv_body.pack(fill='x', pady=(8, 0))
+
+        # Section 1: USB 與 iPad 自動偵測
+        tk.Label(adv_body, text=tr('USB 與 iPad 自動偵測'), font=('Helvetica Neue', 11, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
+        for field, title, detail in (
+            ('usb_event_wakeup', tr('USB 插拔即時喚醒'),
+             tr('收到原生 USB 事件即重新評估；保留防抖與 30 秒 Watchdog，非保證瞬間連線。')),
+            ('auto_detect_ipad', tr('自動偵測 iPad（免 PadPilot 配對）'),
+             tr('限唯一 USB iPad 與唯一 Sidecar 候選；優先使用已存配對。多台環境請關閉並指定配對。')),
+        ):
+            enabled = getattr(cfg, field)
+            row = tk.Frame(adv_body, bg=CARD_BG)
+            row.pack(fill='x', pady=(6, 0))
+            tk.Label(row, text=title + (tr('：已啟用') if enabled else tr('：已停用')),
+                     font=('Helvetica Neue', 10, 'bold'), fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+            if not self.readonly:
+                button = ttk.Button(row, text=tr('停用') if enabled else tr('啟用'),
+                    command=lambda f=field, e=enabled: self.change('set_' + f, {'enabled': not e}))
+                button.pack(side='right')
+                self.buttons.append(button)
+            tk.Label(adv_body, text=detail, wraplength=570, justify='left',
+                     fg=TEXT_SECONDARY, bg=CARD_BG, font=('Helvetica Neue', 10)).pack(anchor='w')
+        if cfg.auto_detect_ipad:
+            target = self.view.get('actual', {}).get('resolved_ipad') or {}
+            text = (tr('本次偵測目標：') + target.get('name', '') if self.view.get('fresh') and target.get('name')
+                    else tr('本次偵測目標：尚無唯一目標或狀態待更新'))
+            tk.Label(adv_body, text=text, fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(6, 0))
+        tk.Label(adv_body, text=tr('免配對不會略過 Apple Sidecar 的帳號、信任與相容性要求；唯一候選仍是推定。'),
+                 wraplength=570, justify='left', fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(4, 0))
+
+        # Divider
+        tk.Frame(adv_body, bg='#e5e5ea', height=1).pack(fill='x', pady=(10, 8))
+
+        # Section 2: 防護機制與保護參數
+        tk.Label(adv_body, text=tr('🛡️ 防護機制與保護參數'), font=('Helvetica Neue', 11, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(0, 4))
 
         params = [
@@ -1256,7 +1270,7 @@ class SettingsWindow:
             (tr('排除佔位名稱 (Ignore List)'), '、'.join(cfg.ignore_list) or tr('無'), tr('忽略特定佔位螢幕名稱（如 Generic Display）'))
         ]
         for name, val, desc in params:
-            p_row = tk.Frame(g3.body, bg=CARD_BG)
+            p_row = tk.Frame(adv_body, bg=CARD_BG)
             p_row.pack(fill='x', pady=2)
 
             p_left = tk.Frame(p_row, bg=CARD_BG)
@@ -1269,40 +1283,23 @@ class SettingsWindow:
 
             self.make_badge(p_row, val, BLUE_TINT, BLUE).pack(side='right')
 
-        # Group 4: 系統路徑與整合
-        g4 = Card(self.scroll_frame, padx=12, pady=8)
-        g4.pack(fill='x', padx=18, pady=(0, 6))
-        tk.Label(g4.body, text=tr('📁 系統路徑與整合'), font=('Helvetica Neue', 11, 'bold'),
+        # Divider
+        tk.Frame(adv_body, bg='#e5e5ea', height=1).pack(fill='x', pady=(10, 8))
+
+        # Section 3: 系統路徑與整合
+        tk.Label(adv_body, text=tr('📁 系統路徑與整合'), font=('Helvetica Neue', 11, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w', pady=(0, 6))
 
         # BetterDisplay CLI 區塊
-        bd_row = tk.Frame(g4.body, bg=CARD_BG)
-        bd_row.pack(fill='x', pady=2)
+        bd_row = tk.Frame(adv_body, bg=CARD_BG)
+        bd_row.pack(fill='x', pady=(2, 0))
 
         resolved_cli = BetterDisplayCLI.resolve_cli_path(cfg.betterdisplaycli_path)
         is_custom = bool(cfg.betterdisplaycli_path)
 
-        bd_left = tk.Frame(bd_row, bg=CARD_BG)
-        bd_left.pack(fill='x', expand=True)
-
-        tk.Label(bd_left, text='BetterDisplay CLI：', font=('Helvetica Neue', 10, 'bold'),
-                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
-
-        cli_display_text = resolved_cli if resolved_cli else tr('未找到可用的 BetterDisplay CLI')
-        tk.Label(bd_left, text=cli_display_text, wraplength=380, justify='left', font=('Menlo', 9),
-                 fg=TEXT_PRIMARY if resolved_cli else RED, bg=CARD_BG).pack(side='left', padx=(2, 6))
-
-        if resolved_cli:
-            status_text = tr('手動指定') if is_custom else tr('自動偵測')
-            status_bg = ORANGE_BG if is_custom else BLUE_TINT
-            status_fg = ORANGE_FG if is_custom else BLUE
-            self.make_badge(bd_left, status_text, status_bg, status_fg).pack(side='left')
-        else:
-            self.make_badge(bd_left, tr('未找到'), RED_BG, RED).pack(side='left')
-
         if not self.readonly:
             bd_btn_frame = tk.Frame(bd_row, bg=CARD_BG)
-            bd_btn_frame.pack(anchor='e', pady=(4, 0))
+            bd_btn_frame.pack(side='right', padx=(6, 0))
 
             manual_btn = ttk.Button(
                 bd_btn_frame,
@@ -1323,8 +1320,26 @@ class SettingsWindow:
             reset_btn.pack(side='left')
             self.buttons.append(reset_btn)
 
-        # 設定檔位置
-        cfg_row = tk.Frame(g4.body, bg=CARD_BG)
+        bd_left = tk.Frame(bd_row, bg=CARD_BG)
+        bd_left.pack(side='left', fill='x', expand=True)
+
+        tk.Label(bd_left, text='BetterDisplay CLI：', font=('Helvetica Neue', 10, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+
+        cli_display_text = resolved_cli if resolved_cli else tr('未找到可用的 BetterDisplay CLI')
+        tk.Label(bd_left, text=cli_display_text, wraplength=260, justify='left', font=('Menlo', 9),
+                 fg=TEXT_PRIMARY if resolved_cli else RED, bg=CARD_BG).pack(side='left', padx=(2, 6))
+
+        if resolved_cli:
+            status_text = tr('手動指定') if is_custom else tr('自動偵測')
+            status_bg = ORANGE_BG if is_custom else BLUE_TINT
+            status_fg = ORANGE_FG if is_custom else BLUE
+            self.make_badge(bd_left, status_text, status_bg, status_fg).pack(side='left')
+        else:
+            self.make_badge(bd_left, tr('未找到'), RED_BG, RED).pack(side='left')
+
+        # 設定檔位置（相鄰行）
+        cfg_row = tk.Frame(adv_body, bg=CARD_BG)
         cfg_row.pack(fill='x', pady=(4, 0))
         tk.Label(cfg_row, text=tr('設定檔位置：'), font=('Helvetica Neue', 10, 'bold'),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
@@ -1773,6 +1788,8 @@ class SettingsWindow:
             self._scroll_dimensions = None
             self.build_sidebar()
             self.build_main_content()
+        elif hasattr(self, 'header_language_picker') and self.header_language_picker.winfo_exists():
+            self.header_language_picker.set(LANGUAGES.get(cfg.language, 'English'))
         actual = view.get('actual', {})
 
         # Update sidebar summary labels

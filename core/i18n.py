@@ -4,7 +4,8 @@ import re
 from string import Formatter
 from pathlib import Path
 
-LANGUAGES = {'zh-Hant': '中文（繁體）', 'en': 'English', 'ja': '日本語'}
+LANGUAGES = {'en': 'English', 'zh-Hant': '繁體中文', 'ja': '日本語'}
+LANGUAGE_CODES = {name: code for code, name in LANGUAGES.items()}
 TRANSLATIONS = json.loads(Path(__file__).with_name('translations.json').read_text(encoding='utf-8'))
 _language = 'zh-Hant'
 

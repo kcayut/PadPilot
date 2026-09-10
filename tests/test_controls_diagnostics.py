@@ -130,18 +130,19 @@ class ControlsTests(unittest.TestCase):
             menu['render']({}, {}, False, service_running=True)
         lines = output.getvalue().splitlines()
         titles = [line.split(' |')[0] for line in lines if not line.startswith('-')]
-        expected = ['螢幕與裝置', 'iPad 控制', '運作模式', '背景服務', '設定與配對',
+        expected = ['螢幕與裝置', 'iPad 控制', '運作模式', '背景服務', '🌐 Language', '設定與配對',
                     '狀態與診斷', '重新整理螢幕狀態', '結束']
-        self.assertEqual(titles[-8:], expected)
+        self.assertEqual(titles[-9:], expected)
         # Verify separators in the bottom menu section
         clean_lines = [l.split(' |')[0] for l in lines]
         daemon_stop_idx = clean_lines.index('--停止背景服務（保留選單）')
+        lang_idx = clean_lines.index('🌐 Language')
         settings_idx = clean_lines.index('設定與配對')
         diag_idx = clean_lines.index('狀態與診斷')
         refresh_idx = clean_lines.index('重新整理螢幕狀態')
         exit_idx = clean_lines.index('結束')
 
-        self.assertEqual(clean_lines[daemon_stop_idx + 1:settings_idx], ['---'])
+        self.assertEqual(clean_lines[daemon_stop_idx + 1:lang_idx], ['---'])
         self.assertEqual(clean_lines[diag_idx + 1:refresh_idx], ['---'])
         self.assertEqual(clean_lines[refresh_idx + 1:exit_idx], ['---'])
 

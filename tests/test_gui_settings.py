@@ -191,6 +191,72 @@ class GuiSettingsTests(unittest.TestCase):
             mock_info.assert_called_once()
             app.change.assert_not_called()
 
+    def test_operations_tab_advanced_options_contain_protection_and_paths(self):
+        import tkinter as tk
+        root = tk.Tk()
+        try:
+            cfg = self.config()
+            with patch.object(SettingsWindow, 'search'), patch.object(SettingsWindow, '_check_external_sync'):
+                app = SettingsWindow(root)
+                root.geometry('840x500')
+                app.display({'config': cfg, 'actual': {}, 'fresh': True, 'identifiers': [], 'status': {}})
+                app.select_tab('settings')
+                root.update()
+
+                def descendants(widget):
+                    for child in widget.winfo_children():
+                        yield child
+                        yield from descendants(child)
+
+                prot_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '防護機制與保護參數' in w.cget('text')]
+                path_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '系統路徑與整合' in w.cget('text')]
+                bd_btns = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'TButton' and w.cget('text') == '手動設定']
+                adv_btns = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'TButton' and '進階選項' in w.cget('text')]
+
+                self.assertEqual(len(prot_lbls), 1)
+                self.assertEqual(len(path_lbls), 1)
+                self.assertEqual(len(bd_btns), 1)
+                self.assertEqual(len(adv_btns), 1)
+
+                # Initially collapsed
+                self.assertFalse(prot_lbls[0].winfo_ismapped())
+                self.assertFalse(path_lbls[0].winfo_ismapped())
+                self.assertFalse(bd_btns[0].winfo_ismapped())
+
+                # Expand
+                adv_btns[0].invoke()
+                root.update()
+                self.assertTrue(prot_lbls[0].winfo_ismapped())
+                self.assertTrue(path_lbls[0].winfo_ismapped())
+                self.assertTrue(bd_btns[0].winfo_ismapped())
+
+                # Verify BetterDisplay CLI buttons are on the right in the same row
+                bd_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and 'BetterDisplay CLI：' in w.cget('text')]
+                cfg_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '設定檔位置：' in w.cget('text')]
+                self.assertEqual(len(bd_lbls), 1)
+                self.assertEqual(len(cfg_lbls), 1)
+
+                manual_btn = bd_btns[0]
+                bd_lbl = bd_lbls[0]
+                cfg_lbl = cfg_lbls[0]
+
+                # 1. Buttons are to the right of BetterDisplay CLI label
+                self.assertGreater(manual_btn.winfo_rootx(), bd_lbl.winfo_rootx())
+                # 2. Buttons are in the same row (vertically aligned)
+                self.assertLessEqual(abs(manual_btn.winfo_rooty() - bd_lbl.winfo_rooty()), 6)
+                # 3. Config path is on the adjacent row immediately following
+                btn_bottom = manual_btn.winfo_rooty() + manual_btn.winfo_height()
+                self.assertLessEqual(cfg_lbl.winfo_rooty() - btn_bottom, 12)
+
+                # Collapse
+                adv_btns[0].invoke()
+                root.update()
+                self.assertFalse(prot_lbls[0].winfo_ismapped())
+                self.assertFalse(path_lbls[0].winfo_ismapped())
+                self.assertFalse(bd_btns[0].winfo_ismapped())
+        finally:
+            root.destroy()
+
 
 if __name__ == '__main__':
     unittest.main()

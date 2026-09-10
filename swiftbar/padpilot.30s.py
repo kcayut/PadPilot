@@ -226,6 +226,10 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     else:
         item(tr('服務狀態：無法確認'), 1)
     separator()
+    item('🌐 Language')
+    active_lang = config.get('language') or 'zh-Hant'
+    for lang_code, lang_name in LANGUAGES.items():
+        item(lang_name, 1, ('set-language', lang_code), checked=active_lang == lang_code)
     item(tr('設定與配對'), args=('gui',))
     item(tr('狀態與診斷'), args=('gui', 'diagnostics'))
     separator()

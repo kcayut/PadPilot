@@ -47,9 +47,9 @@ def main():
                             if right > root.winfo_rootx() + root.winfo_width() + 2:
                                 raise AssertionError((language, tab, w.cget('text'), 'overflows window'))
                     if tab == 'settings':
-                        picker = next(w for w in descendants(app.scroll_frame) if w.winfo_class() == 'TCombobox' and tuple(w.cget('values')) == tuple(LANGUAGES.values()))
+                        picker = app.header_language_picker
                         assert picker.get() == LANGUAGES[language]
-                        picker.current(1)
+                        picker.current(list(LANGUAGES.keys()).index('en'))
                         picker.event_generate('<<ComboboxSelected>>')
                         root.update()
                         assert app.change.call_args.args == ('set_language', {'language': 'en'})
