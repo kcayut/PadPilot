@@ -21,7 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import copy
 from contextlib import nullcontext
 from core.betterdisplay import BetterDisplayCLI
-from core.autostart import notify_swiftbar
+from core.autostart import open_menu_app
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
@@ -80,7 +80,6 @@ class PadPilotDaemon:
                     self.engine.config = new_config
                     if action == 'set_language':
                         self.engine.republish_language_status(previous_revision)
-                notify_swiftbar(delay=0.1)
             return needs_transition, self.config
 
     def _run_config_side_effects(self, action: str) -> None:
@@ -270,6 +269,8 @@ class PadPilotDaemon:
         # Capability probe and virtual display check
         ok, msg = self.bd_cli.ensure_virtual_display(self.config.virtual_display_name)
         logger.info(f"Virtual display check: {msg}")
+
+        open_menu_app()
 
         # Start IPC server thread
         ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)

@@ -1,40 +1,23 @@
-#!/usr/bin/env python3
-"""<xbar.title>PadPilot Menu Bar Controller</xbar.title>
-<xbar.version>v1.1</xbar.version>
-<xbar.author>PadPilot</xbar.author>
-<xbar.desc>Display manager with device lists and pairing wizard</xbar.desc>
-<xbar.dependencies>python3,BetterDisplay</xbar.dependencies>
-<swiftbar.hideAbout>true</swiftbar.hideAbout>
-<swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
-<swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>
-<swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>
-<swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
-<swiftbar.refreshOnOpen>true</swiftbar.refreshOnOpen>
+"""Read-only, translated menu model for the native macOS app.
+
+Only reads saved snapshots and process state; never scans or changes displays.
 """
 from __future__ import annotations
 
-import base64
 import json
-import re
-import shlex
-import time
-import sys
 import subprocess
+import time
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 from core.i18n import LANGUAGES, set_language, tr
 from core.autostart import daemon_pids
 from core.models import pairing_key
 
-CLI_PATH = PROJECT_ROOT / "bin" / "padpilot-cli"
 APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
 STATUS_FILE_FALLBACK = Path("/tmp/PadPilot/runtime/status.json")
 PLIST_PATH = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
 MODES = {"automatic": "自動", "manual_only": "僅手動", "prefer_ipad": "偏好 iPad"}
-UUID_PATTERN = re.compile(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 
 
 def load_json(*paths: Path) -> dict:
@@ -53,45 +36,8 @@ def load_status() -> dict:
 
 
 def clean(value: object) -> str:
-    # External names are labels, never SwiftBar syntax or executable arguments.
-    text = ' '.join(str(value).split()).replace('|', '｜')
-    text = ''.join(c for c in text if ord(c) >= 32 and ord(c) != 127)
-    return text.lstrip('-') or tr('未知')
-
-
-def item(title: str, depth: int = 0, args: tuple = (), *, terminal: bool = False,
-         enabled: bool = True, checked: bool = False) -> None:
-    params = ['ansi=false', 'emojize=false', 'symbolize=false']
-    if enabled:
-        params.append('color=#1c1c1e,#f2f2f7')
-    if checked:
-        params.append('checked=true')
-    if args and enabled:
-        params += [f'bash={shlex.quote(str(CLI_PATH))}']
-        params += [f'param{i}={shlex.quote(str(value))}' for i, value in enumerate(args, 1)]
-        params += [f'terminal={str(terminal).lower()}']
-        params.append('refresh=true')
-    elif args:
-        params.append('color=#888888')
-    print('--' * depth + clean(title) + ' | ' + ' '.join(params))
-
-
-def separator(depth: int = 0) -> None:
-    print('--' * depth + '---')
-
-
-def menu_icon(icon: str, *, working: bool = False) -> None:
-    name = {'📱': 'ipad', '🖥️': 'physical', '◻️': 'virtual',
-            '⏸️': 'paused', '⚠️': 'warning'}.get(icon, 'warning')
-    if working and name != 'warning':
-        name = 'working'
-    try:
-        data = (PROJECT_ROOT / 'assets' / 'menu-icons' / f'{name}.png').read_bytes()
-    except OSError:
-        item(icon if icon in {'📱', '🖥️', '◻️', '⏸️', '⚠️'} else '⚠️')
-        return
-    encoded = base64.b64encode(data).decode('ascii')
-    print(f' | templateImage={encoded} tooltip=PadPilot dropdown=false')
+    # Device names remain labels; JSON arguments are never interpreted by a shell.
+    return ' '.join(str(value).split()) or tr('未知')
 
 
 def same_device(a: dict, b: dict) -> bool:
@@ -102,17 +48,26 @@ def same_device(a: dict, b: dict) -> bool:
     return bool(a.get('name')) and a == b
 
 
-def device_details(device: dict, depth: int = 2) -> None:
-    if device.get('width') and device.get('height'):
-        item(tr('解析度：{0} × {1}', device['width'], device['height']), depth)
-    for key, label in (('uuid', tr('螢幕 UUID')), ('sidecar_uuid', 'Sidecar UUID'),
-                       ('usb_serial', tr('USB 序號'))):
-        if device.get(key):
-            item(f"{label}：{device[key]}", depth)
-
-
 def render(status: dict, config: dict, autostart: bool, now: float | None = None,
-           *, service_running: bool | None = None) -> None:
+           *, service_running: bool | None = True) -> dict:
+    items = []
+
+    def item(title, depth=0, args=(), *, enabled=True, checked=False):
+        items.append({'title': clean(title), 'depth': depth, 'args': list(args),
+                      'enabled': enabled, 'checked': checked, 'separator': False})
+
+    def separator(depth=0):
+        items.append({'title': '', 'depth': depth, 'args': [], 'enabled': False,
+                      'checked': False, 'separator': True})
+
+    def device_details(device, depth=2):
+        if device.get('width') and device.get('height'):
+            item(tr('解析度：{0} × {1}', device['width'], device['height']), depth)
+        for key, label in (('uuid', tr('螢幕 UUID')), ('sidecar_uuid', 'Sidecar UUID'),
+                           ('usb_serial', tr('USB 序號'))):
+            if device.get(key):
+                item(f"{label}：{device[key]}", depth)
+
     set_language(config.get('language'))
     now = time.time() if now is None else now
     actual = status.get('actual') or {}
@@ -137,15 +92,16 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
 
     mode = config.get('mode') or status.get('mode', 'automatic')
     known_target = bool(target.get('sidecar_uuid') or target.get('usb_serial'))
-    controls = fresh and known_target and not (is_applying or is_out_of_sync) and (auto_detect or same_device(target, status.get('configured_ipad') or {}))
+    controls = service_running is True and fresh and known_target and not (is_applying or is_out_of_sync) and (auto_detect or same_device(target, status.get('configured_ipad') or {}))
     main = actual.get('main_display') or {}
     icon = status.get('icon', '⏸️') if fresh else '⚠️'
-    if errors or runtime.get('last_error') or is_out_of_sync:
+    if errors or runtime.get('last_error') or is_out_of_sync or service_running is None:
         icon = '⚠️'
     elif service_running is False:
         icon = '⏸️'
-    menu_icon(icon, working=service_running is not False and
-              (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'))
+    icon_name = {'📱': 'ipad', '🖥️': 'physical', '◻️': 'virtual', '⏸️': 'paused', '⚠️': 'warning'}.get(icon, 'warning')
+    if service_running is not False and icon_name != 'warning' and (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'):
+        icon_name = 'working'
     separator()
     item(f'{icon} PadPilot')
     item(tr('主螢幕：{0}', main.get('name') or tr('未偵測到')) + ('' if fresh else tr('（尚無最新狀態）')))
@@ -257,19 +213,23 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item(tr('重新整理螢幕狀態'), args=('action', 'refresh'))
     separator()
     item(tr('Exit'), args=('exit',))
+    return {'schema_version': 1, 'hidden': False, 'icon': icon_name, 'items': items}
 
 
 
-def main() -> None:
-    # SwiftBar hides a standard plugin when it exits successfully with no output.
+def read_menu() -> dict:
     if (APP_SUPPORT / 'menu-hidden').exists() or Path('/tmp/PadPilot/menu-hidden').exists():
-        return
+        return {'schema_version': 1, 'hidden': True, 'icon': 'paused', 'items': []}
     config = load_json(APP_SUPPORT / 'config.json', Path('/tmp/PadPilot/config.json'))
     try:
         service_running = bool(daemon_pids())
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         service_running = None
-    render(load_status(), config, PLIST_PATH.is_file(), service_running=service_running)
+    return render(load_status(), config, PLIST_PATH.is_file(), service_running=service_running)
+
+
+def main():
+    print(json.dumps(read_menu(), ensure_ascii=False))
 
 
 if __name__ == '__main__':

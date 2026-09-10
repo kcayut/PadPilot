@@ -640,7 +640,7 @@ class StateEngine:
             self._last_snapshot = snapshot
 
     def _export_status(self, satisfied: bool, evaluation_state: str = "idle") -> None:
-        """Atomically persist status snapshot and ping SwiftBar only if meaningful content changed."""
+        """Atomically persist status snapshot only if meaningful content changed."""
         if not self.actual or not self.desired:
             return
 
@@ -704,9 +704,3 @@ class StateEngine:
 
         write_atomic_status(snapshot)
         self._last_snapshot = snapshot
-        self._notify_swiftbar()
-
-    def _notify_swiftbar(self) -> None:
-        """Trigger instant SwiftBar UI refresh via URL scheme."""
-        from core.autostart import notify_swiftbar
-        notify_swiftbar(self.config.swiftbar_plugin_id, delay=0.1)

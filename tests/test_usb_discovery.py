@@ -20,7 +20,7 @@ from core.usb_events import USBEventMonitor
 ROOT = Path(__file__).resolve().parents[1]
 DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
 CLI = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
-MENU = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))
+MENU = runpy.run_path(str(ROOT / 'core/menu.py'))
 UUID = '11111111-1111-4111-8111-111111111111'
 USB = {'vendor_id': 1452, 'product_name': 'iPad', 'serial': 'usb1'}
 DEVICE = {'name': 'Live iPad', 'uuid': UUID}
@@ -148,14 +148,13 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_menu_uses_ephemeral_target_without_inventing_a_saved_pairing(self):
         actual, _ = self.detector.observe()
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            MENU['render']({'actual': actual.to_dict(), 'config_revision': 1}, self.cfg.to_dict(), True)
-        menu = output.getvalue()
-        self.assertIn('自動偵測目標：Live iPad', menu)
-        self.assertIn('自動偵測中；不會儲存推定配對', menu)
-        line = next(line for line in menu.splitlines() if '設為主螢幕 |' in line)
-        self.assertIn('param2=use_ipad_main', line)
+        model = MENU['render']({'actual': actual.to_dict(), 'config_revision': 1}, self.cfg.to_dict(), True)
+        titles = [row['title'] for row in model['items']]
+        self.assertIn('自動偵測目標：Live iPad', titles)
+        self.assertIn('自動偵測中；不會儲存推定配對', titles)
+        row = next(row for row in model['items'] if row['title'] == '設為主螢幕')
+        self.assertEqual(row['args'], ['action', 'use_ipad_main'])
+        self.assertTrue(row['enabled'])
 
 
 class EventSettingsTests(unittest.TestCase):
@@ -191,7 +190,7 @@ class EventSettingsTests(unittest.TestCase):
         daemon.usb_monitor_enabled = False
         daemon.sync_usb_monitor()
         daemon.usb_monitor.start.assert_called_once()
-        with patch.dict(daemon.apply_config_change.__func__.__globals__, save_config=MagicMock(), notify_swiftbar=MagicMock()):
+        with patch.dict(daemon.apply_config_change.__func__.__globals__, save_config=MagicMock()):
             response = json.loads(daemon.handle_client_cmd(json.dumps({
                 'command': 'set_usb_event_wakeup', 'params': {'enabled': False}, 'expected_revision': 1})))
         self.assertTrue(response['ok'])
@@ -222,7 +221,8 @@ class EventSettingsTests(unittest.TestCase):
         daemon.engine.evaluate.side_effect = evaluate
         with patch.dict(daemon.start.__func__.__globals__, APP_SUPPORT_DIR=MagicMock(), Path=MagicMock()), \
              patch('threading.Thread'):
-            daemon.start()
+            with patch.dict(daemon.start.__func__.__globals__, open_menu_app=MagicMock()):
+                daemon.start()
         self.assertEqual(daemon.engine.evaluate.call_count, 2)
         daemon.usb_monitor.stop.assert_called_once()
 

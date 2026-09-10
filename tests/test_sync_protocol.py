@@ -28,7 +28,7 @@ import copy
 ROOT = Path(__file__).resolve().parents[1]
 DAEMON = runpy.run_path(str(ROOT / "bin/padpilotd"))
 CLI = runpy.run_path(str(ROOT / "bin/padpilot-cli"))
-SWIFTBAR = runpy.run_path(str(ROOT / "swiftbar/padpilot.30s.py"))
+MENU = runpy.run_path(str(ROOT / "core/menu.py"))
 
 
 class SyncProtocolTests(unittest.TestCase):
@@ -84,52 +84,22 @@ class SyncProtocolTests(unittest.TestCase):
             self.assertEqual(engine.status_revision, 2)
             self.assertEqual(mock_write_status.call_count, 2)
 
-    def test_unchanged_status_does_not_notify_swiftbar(self):
-        detector = MagicMock()
-        bd_cli = MagicMock()
-        engine = StateEngine(self.config, detector, bd_cli)
-        dummy_actual = ActualState(
-            physical_displays=[DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False)],
-            sidecar_connected=False,
-            sidecar_available=False,
-            main_display=DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False),
-        )
-        detector.observe.return_value = (dummy_actual, (("disp-1",), False))
-        with patch("core.state_engine.write_atomic_status"), \
-             patch("core.autostart.notify_swiftbar") as mock_notify:
-            # 1st evaluation -> exports and notifies
-            engine.evaluate(trigger="periodic")
-            self.assertEqual(mock_notify.call_count, 1)
-
-            # 2nd evaluation with identical state (30s watchdog) -> does NOT notify
-            engine.evaluate(trigger="periodic")
-            self.assertEqual(mock_notify.call_count, 1)
-
-    def test_mode_change_notifies_even_when_hardware_snapshot_unchanged(self):
-        detector = MagicMock()
-        bd_cli = MagicMock()
-        engine = StateEngine(self.config, detector, bd_cli)
-        dummy_actual = ActualState(
-            physical_displays=[DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False)],
-            sidecar_connected=False,
-            sidecar_available=False,
-            main_display=DisplayInfo(display_id="disp-1", name="Dell 4K", is_builtin=False, is_sidecar=False),
-        )
-        detector.observe.return_value = (dummy_actual, (("disp-1",), False))
-        with patch("core.state_engine.write_atomic_status"), \
-             patch("core.autostart.notify_swiftbar") as mock_notify:
-            # 1st evaluation in automatic mode
-            engine.evaluate(trigger="periodic")
-            self.assertEqual(mock_notify.call_count, 1)
-
-            # Mode changes to manual_only, but hardware is 100% unchanged!
+    def test_mode_change_exports_new_snapshot_without_launching_menu_processes(self):
+        detector, bd = MagicMock(), MagicMock()
+        engine = StateEngine(self.config, detector, bd)
+        actual = ActualState(physical_displays=[DisplayInfo(1, 'Monitor')],
+                             main_display=DisplayInfo(1, 'Monitor'))
+        detector.observe.return_value = (actual, (('Monitor',), False))
+        with patch('core.state_engine.write_atomic_status') as write, patch('subprocess.Popen') as launch:
+            engine.evaluate()
+            self.assertEqual(write.call_count, 1)
             engine.config.mode = OperationMode.MANUAL_ONLY
             engine.config.revision += 1
             engine.runtime.mode = OperationMode.MANUAL_ONLY
-            engine.evaluate(trigger="mode_change")
-
-            # Must still notify swiftbar!
-            self.assertEqual(mock_notify.call_count, 2)
+            engine.evaluate()
+            self.assertEqual(write.call_count, 2)
+            self.assertEqual(write.call_args.args[0].config_revision, engine.config.revision)
+            launch.assert_not_called()
 
     # 2. Inconsistent revision snapshot does not mix stale reasons
     def test_inconsistent_revision_snapshot_does_not_mix_stale_reasons(self):
@@ -328,83 +298,23 @@ class SyncProtocolTests(unittest.TestCase):
                 CLI["submit_settings"]("set_mode", {"mode": "manual_only"}, expected_revision=7)
             self.assertIn("CONFIG_CONFLICT", str(ctx.exception))
 
-    # 6. refreshallplugins triggers SwiftBar re-render with fresh config
-    @patch("subprocess.Popen")
-    def test_refreshallplugins_triggers_swiftbar_re_render_with_fresh_config(self, mock_popen):
-        from core.autostart import notify_swiftbar
-        notify_swiftbar("padpilot.30s.py", delay=0.0)
-        mock_popen.assert_called_once()
-        self.assertEqual(mock_popen.call_args[0][0], ["open", "-g", "swiftbar://refreshallplugins"])
-
-        # When SwiftBar re-runs the plugin script, it renders with the fresh config
-        fresh_config = Config(auto_detect_ipad=False, revision=2, mode=OperationMode.MANUAL_ONLY, ipad=IpadConfig(name="New iPad Name"))
-        status = {
-            "config_revision": 2,
-            "status_revision": 1,
-            "mode": "manual_only",
-            "timestamp": time.time(),
-            "actual": {"sidecar_devices": []},
-            "status_details": {"reason": "Manual only active", "desired_role": "None"},
-        }
-        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
-            SWIFTBAR["render"](status, fresh_config.to_dict(), autostart=True)
-            output = mock_stdout.getvalue()
-            self.assertIn("模式：僅手動｜運作中", output)
-            self.assertIn("目前目標：New iPad Name", output)
-            self.assertIn("checked=true", [line for line in output.splitlines() if "set-mode" in line and "manual_only" in line][0])
-
-    # 7. Inconsistent revision displays applying without stale runtime reasons
-    def test_swiftbar_inconsistent_revision_displays_applying_without_stale_reasons(self):
-        config = Config(revision=5, mode=OperationMode.MANUAL_ONLY)
-        status = {
-            "config_revision": 4,
-            "status_revision": 3,
-            "mode": "automatic",
-            "timestamp": time.time(),
-            "status_details": {
-                "desired_role": "iPadSecondary",
-                "actual_role_satisfied": "✓ Satisfied",
-                "reason": "Stale automatic reason from previous mode",
-            },
-        }
-        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
-            SWIFTBAR["render"](status, config.to_dict(), autostart=True)
-            output = mock_stdout.getvalue()
-
-            # Mode uses fresh config and shows applying state
-            self.assertIn("模式：僅手動｜套用設定中…", output)
-            # Menu item checked matches fresh config
-            checked_lines = [line for line in output.splitlines() if "checked=true" in line and "set-mode" in line]
-            self.assertEqual(len(checked_lines), 1)
-            self.assertIn("manual_only", checked_lines[0])
-
-            # Diagnostics suppresses stale reason and desired role
-            self.assertNotIn("Stale automatic reason from previous mode", output)
-            self.assertNotIn("iPadSecondary", output)
-            self.assertIn("套用設定中…", output)
-            self.assertIn("param2=diagnostics", output)
-            self.assertNotIn("--期望狀態", output)
-
-    # 8. Revision conflict (status ahead of config) displays out-of-sync reload state
-    def test_swiftbar_revision_conflict_displays_out_of_sync_reload(self):
-        config = Config(revision=8, mode=OperationMode.AUTOMATIC)
-        status = {
-            "config_revision": 9,
-            "status_revision": 10,
-            "mode": "manual_only",
-            "timestamp": time.time(),
-            "status_details": {
-                "desired_role": "None",
-                "reason": "Future status reason",
-            },
-        }
-        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
-            SWIFTBAR["render"](status, config.to_dict(), autostart=True)
-            output = mock_stdout.getvalue()
-
-            self.assertIn("模式：自動｜同步狀態重新讀取中…", output)
-            self.assertNotIn("Future status reason", output)
-            self.assertIn("同步狀態重新讀取中…", output)
+    def test_menu_reads_fresh_config_and_rejects_mixed_revisions(self):
+        config = Config(auto_detect_ipad=False, revision=2, mode=OperationMode.MANUAL_ONLY,
+                        ipad=IpadConfig(name='New iPad Name'))
+        status = {'config_revision': 2, 'timestamp': time.time(), 'actual': {'sidecar_devices': []},
+                  'status_details': {'reason': 'Do not expose stale reasoning'}}
+        for status_rev, expected in ((2, '運作中'), (1, '套用設定中…'), (3, '同步狀態重新讀取中…')):
+            status['config_revision'] = status_rev
+            rows = MENU['render'](status, config.to_dict(), True)['items']
+            titles = [r['title'] for r in rows]
+            self.assertIn('模式：僅手動｜' + expected, titles)
+            self.assertIn('目前目標：New iPad Name', titles)
+            modes = [r for r in rows if r['args'][:1] == ['set-mode'] and r['checked']]
+            self.assertEqual([r['args'] for r in modes], [['set-mode', 'manual_only']])
+            self.assertFalse(any('Do not expose' in title for title in titles))
+            if status_rev != 2:
+                self.assertFalse(any(r['enabled'] and r['args'][:1] == ['action']
+                                     for r in rows if r['args'] != ['action', 'refresh']))
 
     # 9. Rename inactive iPad increments revision and saves without display transition
     def test_rename_inactive_ipad_increments_revision_and_saves_without_display_transition(self):
@@ -425,10 +335,8 @@ class SyncProtocolTests(unittest.TestCase):
         daemon.engine = MagicMock()
 
         mock_save = MagicMock()
-        mock_notify = MagicMock()
         with patch.dict(cls.apply_config_change.__globals__, {
             "save_config": mock_save,
-            "notify_swiftbar": mock_notify,
         }):
             needs_transition, new_cfg = daemon.apply_config_change(
                 "save_pairing",
@@ -447,8 +355,6 @@ class SyncProtocolTests(unittest.TestCase):
             saved_cfg = mock_save.call_args[0][0]
             self.assertEqual(saved_cfg.revision, 2)
             self.assertEqual(saved_cfg.paired_ipads[1].name, "New Second iPad Name")
-            # SwiftBar notification must be sent
-            mock_notify.assert_called_once_with(delay=0.1)
 
     # 10. GUI daemon-owned change does not send duplicate client notification
     def test_gui_daemon_owned_change_does_not_send_duplicate_client_notification(self):
@@ -465,7 +371,7 @@ class SyncProtocolTests(unittest.TestCase):
         with patch("core.gui.confirm", return_value=True), \
              patch("subprocess.run") as mock_subproc, \
              patch("core.gui.read_view", return_value={"config": Config(revision=2, mode=OperationMode.MANUAL_ONLY)}), \
-             patch("core.autostart.notify_swiftbar") as mock_notify:
+             patch("subprocess.Popen") as mock_launch:
 
             mock_subproc.return_value = MagicMock(returncode=0, stdout="OK: 設定已更新", stderr="")
 
@@ -479,8 +385,8 @@ class SyncProtocolTests(unittest.TestCase):
             msg, view = work_fn()
             complete_fn((msg, view))
 
-            # GUI client process must NOT call notify_swiftbar (daemon owns the notification)
-            self.assertEqual(mock_notify.call_count, 0)
+            # The GUI reads the updated snapshot; no separate menu process is launched.
+            mock_launch.assert_not_called()
 
     # 11. Semantic config equality ignores revision and timestamp
     def test_semantic_config_equality_ignores_revision_and_timestamp(self):
@@ -505,4 +411,3 @@ class SyncProtocolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

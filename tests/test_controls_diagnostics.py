@@ -124,31 +124,18 @@ class ControlsTests(unittest.TestCase):
         self.assertTrue(engine.desired.needs_sidecar_connect)
 
     def test_menu_order_diagnostics_and_readable_labels(self):
-        menu = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            menu['render']({}, {}, False, service_running=True)
-        lines = output.getvalue().splitlines()
-        titles = [line.split(' |')[0] for line in lines if not line.startswith('-')]
+        from core.menu import render
+        rows = render({}, {}, False, service_running=True)['items']
+        titles = [r['title'] for r in rows if r['depth'] == 0 and not r['separator']]
         expected = ['螢幕與裝置', 'iPad 控制', '運作模式', '背景服務', '🌐 Language', '設定與配對',
                     '狀態與診斷', '重新整理螢幕狀態', '結束']
         self.assertEqual(titles[-9:], expected)
-        # Verify separators in the bottom menu section
-        clean_lines = [l.split(' |')[0] for l in lines]
-        daemon_stop_idx = clean_lines.index('--停止背景服務（保留選單）')
-        lang_idx = clean_lines.index('🌐 Language')
-        settings_idx = clean_lines.index('設定與配對')
-        diag_idx = clean_lines.index('狀態與診斷')
-        refresh_idx = clean_lines.index('重新整理螢幕狀態')
-        exit_idx = clean_lines.index('結束')
-
-        self.assertEqual(clean_lines[daemon_stop_idx + 1:lang_idx], ['---'])
-        self.assertEqual(clean_lines[diag_idx + 1:refresh_idx], ['---'])
-        self.assertEqual(clean_lines[refresh_idx + 1:exit_idx], ['---'])
-
-        diag = next(line for line in lines if line.startswith('狀態與診斷'))
-        self.assertIn('param1=gui param2=diagnostics', diag)
-        self.assertIn('color=#1c1c1e,#f2f2f7', diag)
+        for title in ('狀態與診斷', '重新整理螢幕狀態'):
+            index = next(i for i, r in enumerate(rows) if r['title'] == title)
+            self.assertTrue(rows[index + 1]['separator'])
+        diag = next(r for r in rows if r['title'] == '狀態與診斷')
+        self.assertEqual(diag['args'], ['gui', 'diagnostics'])
+        self.assertTrue(diag['enabled'])
 
     def test_action_errors_reach_gui_instead_of_false_success(self):
         cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))

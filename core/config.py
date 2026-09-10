@@ -17,7 +17,6 @@ from typing import Any, List, Optional
 from core.logger import get_logger
 from core.models import (
     DEFAULT_VIRTUAL_DISPLAY_NAME,
-    SWIFTBAR_PLUGIN_ID,
     IpadConfig,
     OperationMode,
     StatusSnapshot,
@@ -59,7 +58,6 @@ class Config:
     ignore_list: List[str] = field(default_factory=lambda: ["Dummy", "Virtual", "Capture"])
     virtual_display_name: str = DEFAULT_VIRTUAL_DISPLAY_NAME
     betterdisplaycli_path: Optional[str] = None
-    swiftbar_plugin_id: str = SWIFTBAR_PLUGIN_ID
     revision: int = 1
     updated_at: float = 0.0
 
@@ -79,7 +77,6 @@ class Config:
             "ignore_list": self.ignore_list,
             "virtual_display_name": self.virtual_display_name,
             "betterdisplaycli_path": self.betterdisplaycli_path,
-            "swiftbar_plugin_id": self.swiftbar_plugin_id,
             "revision": self.revision,
             "updated_at": self.updated_at,
         }
@@ -129,7 +126,6 @@ class Config:
             ignore_list=list(data.get("ignore_list", ["Dummy", "Virtual", "Capture"])),
             virtual_display_name=str(data.get("virtual_display_name", DEFAULT_VIRTUAL_DISPLAY_NAME)),
             betterdisplaycli_path=data.get("betterdisplaycli_path"),
-            swiftbar_plugin_id=str(data.get("swiftbar_plugin_id", SWIFTBAR_PLUGIN_ID)),
             revision=int(data.get("revision", 1)),
             updated_at=float(data.get("updated_at", 0.0)),
         )
@@ -264,7 +260,7 @@ def save_config(cfg: Config) -> None:
 def write_atomic_status(snapshot: StatusSnapshot) -> None:
     """Atomically write runtime status snapshot.
     
-    Prevents race condition where SwiftBar reads a partially written file.
+    Prevents race condition where the menu app reads a partially written file.
     Uses unique temp file name to prevent collision between concurrent writes.
     """
     r_dir = RUNTIME_DIR

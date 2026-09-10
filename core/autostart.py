@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import os
+import plistlib
 import re
 import socket
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 from typing import Optional, Tuple
@@ -39,33 +39,13 @@ def generate_plist_content(
     stdout_log = logs / "launchd.stdout.log"
     stderr_log = logs / "launchd.stderr.log"
 
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.padpilot.daemon</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{py}</string>
-        <string>{daemon_bin}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-    </dict>
-    <key>StandardOutPath</key>
-    <string>{stdout_log}</string>
-    <key>StandardErrorPath</key>
-    <string>{stderr_log}</string>
-</dict>
-</plist>
-"""
+    return plistlib.dumps({
+        "Label": "com.padpilot.daemon",
+        "ProgramArguments": [py, str(daemon_bin)],
+        "RunAtLoad": True, "KeepAlive": True,
+        "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        "StandardOutPath": str(stdout_log), "StandardErrorPath": str(stderr_log),
+    }).decode("utf-8")
 
 
 def daemon_pids() -> list[int]:
@@ -139,9 +119,6 @@ def enable_autostart(
         if res.returncode != 0 and "service already loaded" not in res.stderr.lower():
             raise RuntimeError(f"Login settings written, but daemon failed to start: {res.stderr.strip()}")
 
-        # Trigger SwiftBar refresh
-        notify_swiftbar(cfg.swiftbar_plugin_id)
-
         msg = "✓ PadPilot daemon will automatically run at login."
         logger.info(msg)
         return True, msg
@@ -179,9 +156,6 @@ def disable_autostart(
             )
             logger.info("Preserved current session by restarting daemon as standalone process")
 
-        # Trigger SwiftBar refresh
-        notify_swiftbar(cfg.swiftbar_plugin_id)
-
         msg = "✓ PadPilot daemon autostart at login has been disabled."
         logger.info(msg)
         return True, msg
@@ -199,69 +173,18 @@ def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
         return enable_autostart(plist_path)
 
 
-def is_swiftbar_recovery_bug_present() -> bool:
-    """Check if environment has macOS >= 26 and SwiftBar <= 2.1.1 which triggers the recovery popup on URL open."""
-    try:
-        import platform
-        mac_ver = platform.mac_ver()[0]
-        if not mac_ver:
-            return False
-        major = int(mac_ver.split(".")[0])
-        if major < 26:
-            return False
 
-        info_plist = Path("/Applications/SwiftBar.app/Contents/Info.plist")
-        if not info_plist.exists():
-            return False
-
-        import plistlib
-        with open(info_plist, "rb") as f:
-            data = plistlib.load(f)
-        ver_str = data.get("CFBundleShortVersionString", "")
-        parts = [int(p) for p in ver_str.split(".") if p.isdigit()]
-        if len(parts) >= 2 and parts[:2] == [2, 1] and (len(parts) < 3 or parts[2] <= 1):
-            return True
-        return False
-    except Exception:
-        return False
-
-
-_notify_lock = threading.Lock()
-_notify_timer: Optional[threading.Timer] = None
-
-
-def _fire_swiftbar_notification() -> None:
-    global _notify_timer
-    with _notify_lock:
-        _notify_timer = None
-    try:
-        subprocess.Popen(
-            ["open", "-g", "swiftbar://refreshallplugins"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception as e:
-        logger.warning(f"SwiftBar refresh notification failed: {e}")
-
-
-def notify_swiftbar(plugin_id: str = "", delay: float = 0.1) -> None:
-    """Trigger thread-safe debounced non-blocking SwiftBar UI refresh via URL scheme.
-
-    100ms debounce ensures rapid transitions or mutations in the process (e.g. config update -> evaluation -> export)
-    coalesce into a single URL event, preventing duplicate execution or menu flicker.
-    Uses subprocess.Popen to guarantee the state engine and caller threads are never blocked.
-    """
-    global _notify_timer
-    with _notify_lock:
-        if _notify_timer is not None:
-            _notify_timer.cancel()
-            _notify_timer = None
-
-        if delay > 0:
-            _notify_timer = threading.Timer(delay, _fire_swiftbar_notification)
-            _notify_timer.daemon = True
-            _notify_timer.start()
-
-    if delay <= 0:
-        _fire_swiftbar_notification()
-
+def open_menu_app() -> bool:
+    """Open our installed app, or the local build. No dependency on other menu apps."""
+    for app in (Path.home() / "Applications" / "PadPilot.app", PROJECT_ROOT / "build" / "PadPilot.app"):
+        try:
+            with (app / "Contents" / "Resources" / "runtime.json").open() as stream:
+                import json
+                runtime = json.load(stream)
+            if Path(runtime.get("project_root", "")).resolve() != PROJECT_ROOT:
+                continue
+            result = subprocess.run(["open", "-g", str(app)], capture_output=True, timeout=5)
+            return result.returncode == 0
+        except (OSError, ValueError, subprocess.SubprocessError):
+            continue
+    return False

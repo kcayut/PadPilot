@@ -73,7 +73,7 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
    betterdisplaycli get -identifiers
    ```
    若能正常印出顯示器清單 JSON，即代表 CLI 運作正常。
-5. 若 macOS 系統設定彈出「輔助使用 (Accessibility)」或「螢幕錄製 (Screen Recording)」權限要求，請確認 BetterDisplay 與 Terminal/SwiftBar 均已獲授權。
+5. 若 macOS 系統設定彈出「輔助使用 (Accessibility)」或「螢幕錄製 (Screen Recording)」權限要求，請核對實際提出要求的 App（例如 BetterDisplay）及系統提示，不要一律授權 Terminal 或其他 App。原生選單本身只讀快照並呼叫 CLI。
 
 ---
 

@@ -1,117 +1,86 @@
-# 🛠️ PadPilot 安裝與完整設定手冊 (Installation Guide)
+# PadPilot 安裝指南
 
-本文件詳細說明 PadPilot 的系統需求、依賴項目配置、自動與手動安裝流程，以及初次配對與解除安裝。
+目前架構是 **Swift／AppKit 原生選單列＋Python 核心＋Tk 設定視窗**，不需要 SwiftBar。沒有 pip 或 Swift 套件依賴。
 
----
+## 準備環境
 
-## 📋 系統需求 (System Requirements)
-
-- **Mac 機型**：建議配備 Apple Silicon 晶片之 Mac（如 Mac mini M1/M2/M4、Mac Studio、MacBook 等）。
-- **作業系統**：macOS 14 (Sonoma) 或更高版本。
-- **Python**：Python 3.10+（系統自帶或 Homebrew 安裝之 Python 3 均可）。
-- **iPad 裝置**：支援 Apple 原生 Sidecar 之 iPad，需登入相同之 Apple Account 並開啟 Wi-Fi / 藍牙 / 接力（Handoff）。
-- **實體連線（強烈建議）**：透過原廠或高品質 USB-C / Thunderbolt 傳輸線連接 Mac 與 iPad，提供最低延遲與最高連線穩定度。
-
-> [!IMPORTANT]
-> **Sidecar 核心先決條件**：
-> macOS 的 Sidecar 機制必須在**使用者已登入系統的階段**才能建立。如果您的 Mac 啟用了 FileVault 全磁碟加密，重開機後在尚未輸入密碼登入前，系統底層服務尚未啟動，無法自動連線 iPad。若您希望達到純無頭（Headless）冷開機自動進入系統，請參閱 [疑難排解手冊 - FileVault 與自動登入](TROUBLESHOOTING.md#filevault)。
-
----
-
-## 📦 依賴項目安裝 (Dependencies)
-
-PadPilot 的架構設計高度精簡，主控程式（Daemon）、CLI 與 GUI 均基於純 Python 標準庫（ctypes、tkinter 等），無額外 pip 套件需求。
-
-但為了達成 Menu Bar 整合與顯示器控制，需要以下輔助工具：
-
-### 1. SwiftBar（Menu Bar 整合）
-用於在 macOS 頂端選單列呈現動態圖示、即時連線狀態與快捷操作選單。
-- **透過 Homebrew 安裝**：
-  ```bash
-  brew install --cask swiftbar
-  ```
-- **或手動下載**：至 [SwiftBar 官方釋出頁面](https://github.com/swiftbar/SwiftBar/releases) 下載並移入 `/Applications`。
-
-### 2. BetterDisplay（顯示器控制與虛擬螢幕備援）
-提供 Sidecar 連線命令列介面，並在無螢幕、無 iPad 時提供虛擬螢幕（Framebuffer）供遠端桌面救護。
-- **透過 Homebrew 安裝**：
-  ```bash
-  brew install --cask betterdisplay
-  ```
-- **或手動下載**：至 [BetterDisplay 官方釋出頁面](https://github.com/waydabber/BetterDisplay/releases) 下載並移入 `/Applications`。
-- **啟用 CLI 控制介面**：開啟 BetterDisplay 設定 -> 勾選啟用 Command Line Interface (CLI) 支援。
-
----
-
-## ⚡ 快速安裝（推薦）
-
-PadPilot 提供非侵入式的一鍵安裝腳本，會自動探測環境依賴、建立 LaunchAgent、連結 SwiftBar 外掛與命令列工具：
+- macOS 14+，目前以 Apple Silicon 為主要驗證環境。
+- Python 3.10+，且同一個 Python 能匯入 `tkinter`；安裝器不代裝 Python／Tk。
+- Apple Command Line Tools，供本機編譯 App；完整 Xcode 不是必要條件。
+- [BetterDisplay](https://github.com/waydabber/BetterDisplay) 與可用的 CLI 控制能力。授權條件請以 BetterDisplay 說明為準。
+- 支援 Sidecar 的 iPad，先確認 macOS「螢幕鏡像輸出」可以手動連線。
 
 ```bash
-git clone https://github.com/kcayut/PadPilot.git
-cd PadPilot
-./scripts/install.sh
+xcode-select --install
+python3 --version
+python3 -c "import tkinter"
+xcrun --find swiftc
 ```
 
-*(若希望自動同意 Homebrew 安裝相依項目，可帶 `--yes` 參數：`./scripts/install.sh --yes`)*
+若缺少 Tk，請為正在使用的 Python 安裝對應 Tk 支援，不要混用不同 Python 的套件。Sidecar 需要使用者已登入；FileVault 登入前無法由 PadPilot 接管。參閱[疑難排解](TROUBLESHOOTING.md#filevault)。
 
-安裝流程包含：
-1. 探測並提示安裝 BetterDisplay 與 SwiftBar。
-2. 將 `swiftbar/padpilot.30s.py` 符號連結至 SwiftBar 外掛目錄。
-3. 依據本機 Python 與專案路徑，安全產生 `~/Library/LaunchAgents/com.padpilot.daemon.plist` 並載入背景守護行程。
-4. 在 `~/bin/padpilot-cli` 建立快捷命令列連結（若 `~/bin` 存在）。
+## 安裝或從舊版升級
 
----
-
-## 📱 配對您的 iPad (First-Time Pairing)
-
-初次安裝後，需讓 PadPilot 辨識並綁定欲控制的指定 iPad：
-
-### 方式 A：透過互動式 CLI 精靈（推薦）
-1. 將 iPad 透過傳輸線插上 Mac，並在 iPad 上信任該部電腦。
-2. 於終端機執行：
-   ```bash
-   ./bin/padpilot-cli pair --interactive
-   ```
-3. 程式會掃描當前 IOKit USB 匯流排與 Sidecar 目標，引導您選取欲綁定的 iPad。
-
-### 方式 B：透過 GUI 設定介面配對
-1. 執行 `./bin/padpilot-cli gui` 或由 Menu Bar 點選「設定與配對」。
-2. 切換至側邊欄「🔍 搜尋新裝置」分頁。
-3. 系統會列出當前偵測到的 USB 裝置與 Sidecar 目標，點擊「儲存為配對裝置」即可。
-
-配對完成後，iPad 識別碼會安全寫入：
-`~/Library/Application Support/PadPilot/config.json`
-
----
-
-## ⚙️ 啟動與日常使用
-
-1. **啟動 SwiftBar**：
-   ```bash
-   open -a SwiftBar
-   ```
-   macOS 頂端選單列即會顯示 PadPilot 圖示（`🖥️`、`📱`、`◻️` 等）。
-2. **管理開機自動登入啟動**：
-   ```bash
-   # 查看當前開機登入自啟狀態
-   ./bin/padpilot-cli autostart status
-
-   # 切換開啟 / 關閉
-   ./bin/padpilot-cli autostart toggle
-   ```
-
----
-
-## 🗑️ 解除安裝 (Uninstallation)
-
-PadPilot 提供完整的卸載腳本：
+在專案目錄執行：
 
 ```bash
-# 標準卸載：停止背景服務、卸載 LaunchAgent、移除 SwiftBar 外掛連結
-# （預設保留個人設定檔、日誌與已建立之虛擬螢幕）
-./scripts/uninstall.sh
+./scripts/install.sh
+# 僅自動同意透過 Homebrew 安裝缺少的 BetterDisplay：
+./scripts/install.sh --yes
+```
 
-# 徹底清除：完全刪除設定檔、歷史日誌與執行狀態
+安裝器會：
+
+1. 檢查 Python／Tk、Swift 編譯器及 BetterDisplay。
+2. 編譯並本機簽署 App，安裝至 `~/Applications/PadPilot.app`。
+3. 透過既有 CLI 停止舊服務，關閉舊原生選單，保留設定與配對。
+4. 將指向此專案的舊 PadPilot SwiftBar 外掛連結移到垃圾桶。檢查預設及已儲存的自訂外掛目錄；自行複製或修改的外掛只提示，不擅自刪除。SwiftBar 與其他外掛都保留。
+5. 按原本登入啟動偏好更新 LaunchAgent，再啟動 Python 服務與原生選單。首次安裝預設開啟登入啟動。
+6. 若 `~/bin` 存在且名稱未被占用，建立 CLI 快捷連結。
+
+App 記錄這次使用的 Python 及專案路徑。**請保留該 Python 環境與專案資料夾**；這版不是內含 Python 的獨立發行包。搬移後需重新安裝；安裝器會拒絕覆蓋屬於另一個專案路徑的同名 App／LaunchAgent，請先在原路徑解除安裝再搬移。正式公開的 Developer ID 簽署、公證與自動更新尚未包含。
+
+## 開啟與配對
+
+```bash
+open -a BetterDisplay
+open "$HOME/Applications/PadPilot.app"
+```
+
+選單「設定與配對」開啟原本的 Tk 視窗，可搜尋、儲存配對並指定控制目標；刪除配對仍有確認步驟。也能使用：
+
+```bash
+./bin/padpilot-cli pair --interactive
+./bin/padpilot-cli gui
+./bin/padpilot-cli gui diagnostics
+```
+
+設定儲存於 `~/Library/Application Support/PadPilot/config.json`，既有配對不需重建。
+
+## 日常操作與開發
+
+```bash
+./bin/padpilot-cli start            # 啟動服務並顯示選單
+./bin/padpilot-cli stop             # 停止服務、保留選單
+./bin/padpilot-cli exit             # 停止服務並關閉選單
+./bin/padpilot-cli autostart status
+./bin/padpilot-cli autostart toggle
+python3 scripts/build_app.py        # 僅建置 build/PadPilot.app，不安裝或啟動
+./bin/padpilot-cli menu-json        # 只讀原生選單模型，不掃描硬體
+```
+
+單元測試包含原生選單三語資料解碼、子選單、勾選／停用狀態及命令白名單：
+
+```bash
+python3 -m unittest discover -s tests
+python3 scripts/check_gui_layout.py
+```
+
+## 解除安裝
+
+```bash
+./scripts/uninstall.sh
 ./scripts/uninstall.sh --purge
 ```
+
+標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者移到垃圾桶，可復原。原始碼、BetterDisplay、SwiftBar、其他外掛及虛擬螢幕均不刪除。

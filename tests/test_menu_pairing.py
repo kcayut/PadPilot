@@ -15,7 +15,7 @@ from core.detector import DisplayDetector
 from core.models import DisplayInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-MENU = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))
+MENU = runpy.run_path(str(ROOT / 'core/menu.py'))
 CLI = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
 DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
 UUID = '11111111-1111-4111-8111-111111111111'
@@ -24,49 +24,31 @@ DEVICE = dict(name='工作 iPad', sidecar_uuid=UUID, usb_serial='serial-1')
 
 
 def rendered(status, cfg):
-    out = io.StringIO()
-    with contextlib.redirect_stdout(out):
-        MENU['render'](status, cfg, True, now=1000)
-    return out.getvalue()
+    return MENU['render'](status, cfg, True, now=1000)
 
 
 class MenuPairingTests(unittest.TestCase):
-    def test_compact_template_icons_and_missing_asset_fallback(self):
-        import base64
+    def test_template_icons_match_snapshot_and_transition(self):
         import struct
-        self.assertEqual([p.name for p in (ROOT / 'swiftbar').rglob('*') if p.is_file()
-                          and '__pycache__' not in p.parts and not p.name.startswith('.')], ['padpilot.30s.py'])
         for icon, name in [('📱', 'ipad'), ('🖥️', 'physical'), ('◻️', 'virtual'),
                            ('⏸️', 'paused'), ('⚠️', 'warning')]:
             status = {'icon': icon, 'actual': {'timestamp': 1000, 'sidecar_devices': []}}
-            first = rendered(status, {}).splitlines()[0]
-            self.assertEqual(first.split('|')[0].strip(), '')
-            encoded = first.split('templateImage=')[1].split()[0]
-            data = base64.b64decode(encoded, validate=True)
-            self.assertEqual(data, (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes())
+            self.assertEqual(rendered(status, {})['icon'], name)
+            data = (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes()
             self.assertEqual(struct.unpack('>II', data[16:24]), (36, 36))
-            self.assertIn('tooltip=PadPilot', first)
-            self.assertIn('\n' + icon + ' PadPilot |', rendered(status, {}))
-        warning = base64.b64encode((ROOT / 'assets/menu-icons/warning.png').read_bytes()).decode()
-        working = base64.b64encode((ROOT / 'assets/menu-icons/working.png').read_bytes()).decode()
-        self.assertIn(warning, rendered({}, {}).splitlines()[0])
+        self.assertEqual(rendered({}, {})['icon'], 'warning')
         status = {'icon': '📱', 'actual': {'timestamp': 1000, 'sidecar_devices': []},
                   'runtime': {'transition_state': 'CONNECTING'}}
-        self.assertIn(working, rendered(status, {}).splitlines()[0])
+        self.assertEqual(rendered(status, {})['icon'], 'working')
         status['runtime']['last_error'] = 'failed'
-        self.assertIn(warning, rendered(status, {}).splitlines()[0])
-        with patch('pathlib.Path.read_bytes', side_effect=OSError('missing')):
-            self.assertTrue(rendered({}, {}).splitlines()[0].startswith('⚠️ |'))
+        self.assertEqual(rendered(status, {})['icon'], 'warning')
 
-    def test_hidden_menu_outputs_nothing_without_loading_state(self):
-        function = MENU['main']
+    def test_hidden_menu_does_not_load_state(self):
+        function = MENU['read_menu']
         load = MagicMock()
-        output = io.StringIO()
         with patch('pathlib.Path.exists', return_value=True), \
-             patch.dict(function.__globals__, {'load_status': load}), \
-             contextlib.redirect_stdout(output):
-            function()
-        self.assertEqual(output.getvalue(), '')
+             patch.dict(function.__globals__, {'load_status': load}):
+            self.assertTrue(function()['hidden'])
         load.assert_not_called()
 
     def test_service_action_uses_process_state_not_snapshot_age(self):
@@ -80,26 +62,19 @@ class MenuPairingTests(unittest.TestCase):
                         (False, '服務狀態：已停止', 'start'),
                         (None, '服務狀態：無法確認', None),
                     ):
-                        output = io.StringIO()
-                        with contextlib.redirect_stdout(output):
-                            MENU['render']({'actual': {'timestamp': stamp}}, {'language': language},
-                                           False, now=1000, service_running=running)
-                        text = output.getvalue()
-                        self.assertIn(tr(label), text)
-                        actions = [line for line in text.splitlines()
-                                   if 'param1=start ' in line or 'param1=stop ' in line]
-                        self.assertEqual(len(actions), int(action is not None))
-                        if action:
-                            self.assertIn('param1=' + action + ' ', actions[0])
-            # Real entry point obtains process state, including query failure.
-            main = MENU['main']
+                        rows = MENU['render']({'actual': {'timestamp': stamp}}, {'language': language},
+                                              False, now=1000, service_running=running)['items']
+                        self.assertIn(tr(label), [r['title'] for r in rows])
+                        actions = [r['args'] for r in rows if r['args'] in (['start'], ['stop'])]
+                        self.assertEqual(actions, [[action]] if action else [])
+            read_menu = MENU['read_menu']
             for pids, expected in (([777], True), ([], False), (RuntimeError('query failed'), None)):
                 probe = MagicMock(side_effect=pids) if isinstance(pids, Exception) else MagicMock(return_value=pids)
                 draw = MagicMock()
                 with patch('pathlib.Path.exists', return_value=False), \
-                     patch.dict(main.__globals__, daemon_pids=probe, load_json=lambda *a: {},
+                     patch.dict(read_menu.__globals__, daemon_pids=probe, load_json=lambda *a: {},
                                 load_status=lambda: {}, render=draw):
-                    main()
+                    read_menu()
                 self.assertIs(draw.call_args.kwargs['service_running'], expected)
             with patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0, '777\n', '')) as run:
                 self.assertEqual(daemon_pids(), [777])
@@ -145,31 +120,29 @@ class MenuPairingTests(unittest.TestCase):
             'timestamp': 1000, 'sidecar_devices': [], 'online_displays': [
                 {'name': evil, 'width': 1280, 'height': 720}],
             'discovery_errors': {}, 'sidecar_connected': False}}
-        text = rendered(status, cfg)
-        self.assertIn('\n螢幕與裝置 |', text)
-        self.assertIn('\n--🖥️', text)
-        self.assertIn('\n----解析度', text)
-        self.assertNotIn('\n--Exit | bash=/tmp/evil', text)
-        self.assertNotIn(' | bash=/tmp/evil', text)
-        self.assertIn('設定與配對', text)
-        exit_line = text.splitlines()[-1]
-        self.assertTrue(exit_line.startswith('結束 |'))
-        self.assertIn('param1=exit', exit_line)
-        self.assertIn('refresh=true', exit_line)
-        self.assertNotIn('quit', text.lower())
+        rows = rendered(status, cfg)['items']
+        device = next(r for r in rows if 'bash=/tmp/evil' in r['title'])
+        self.assertEqual(device['depth'], 1)
+        self.assertEqual(device['args'], [])
+        self.assertNotIn('\n', device['title'])
+        resolution = next(r for r in rows if '解析度' in r['title'])
+        self.assertEqual(resolution['depth'], 2)
+        self.assertEqual(rows[-1]['args'], ['exit'])
+        self.assertEqual(rows[-1]['title'], '結束')
 
     def test_offline_profiles_and_stale_data_are_not_available(self):
         cfg = {'ipad': DEVICE, 'paired_ipads': [DEVICE]}
-        text = rendered({}, cfg)
-        self.assertIn('工作 iPad — 狀態未知', text)
-        line = next(l for l in text.splitlines() if l.startswith('--設為主螢幕'))
-        self.assertNotIn('bash=', line)
-        self.assertIn('結束', text)
+        rows = rendered({}, cfg)['items']
+        self.assertTrue(any('工作 iPad — 狀態未知' in r['title'] for r in rows))
+        self.assertFalse(next(r for r in rows if r['title'] == '設為主螢幕')['enabled'])
         status = {'configured_ipad': DEVICE, 'actual': {'timestamp': 1000,
                   'sidecar_devices': [], 'discovery_errors': {'sidecar': 'timeout'}}}
-        self.assertIn('工作 iPad — 狀態未知', rendered(status, cfg))
+        self.assertTrue(any('工作 iPad — 狀態未知' in r['title'] for r in rendered(status, cfg)['items']))
         status['actual']['discovery_errors'] = {}
-        self.assertIn('工作 iPad — 未偵測到', rendered(status, cfg))
+        self.assertTrue(any('工作 iPad — 未偵測到' in r['title'] for r in rendered(status, cfg)['items']))
+        for running in (False, None):
+            rows = MENU['render'](status, cfg, False, now=1000, service_running=running)['items']
+            self.assertFalse(next(r for r in rows if r['args'] == ['action', 'use_ipad_main'])['enabled'])
 
     def test_discovery_failure_and_empty_are_distinct_and_names_are_clean(self):
         bd = BetterDisplayCLI.__new__(BetterDisplayCLI)
@@ -205,13 +178,12 @@ class MenuPairingTests(unittest.TestCase):
 
     def test_pairing_timeout_does_not_fallback_to_unlocked_write(self):
         function = CLI['save_pairing']
-        save, refresh = MagicMock(), MagicMock()
+        save = MagicMock()
         with patch.dict(function.__globals__, {'load_config': Config, 'save_config': save,
-             'refresh_menu': refresh, 'send_daemon_cmd': lambda *a, **kw: 'Daemon response timed out'}):
+             'send_daemon_cmd': lambda *a, **kw: 'Daemon response timed out'}):
             with self.assertRaises(RuntimeError):
                 function(DEVICE, True)
         save.assert_not_called()
-        refresh.assert_not_called()
 
     def test_daemon_profile_save_does_not_trigger_display_transition(self):
         cls = DAEMON['PadPilotDaemon']
@@ -233,13 +205,12 @@ class MenuPairingTests(unittest.TestCase):
         with patch.dict(function.__globals__, {
             'cmd_stop': lambda _: events.append('stop'),
             'MENU_HIDDEN': MagicMock(touch=lambda: events.append('hide')),
-            'refresh_menu': lambda: events.append('refresh'),
         }), contextlib.redirect_stdout(io.StringIO()):
             function(argparse.Namespace())
-        self.assertEqual(events, ['stop', 'hide', 'refresh'])
+        self.assertEqual(events, ['stop', 'hide'])
         refresh = MagicMock()
         with patch.dict(function.__globals__, {'cmd_stop': MagicMock(side_effect=RuntimeError('still running')),
-                                               'refresh_menu': refresh}):
+                                               'open_menu_app': refresh}):
             with self.assertRaises(RuntimeError):
                 function(argparse.Namespace())
         refresh.assert_not_called()
@@ -256,15 +227,24 @@ class MenuPairingTests(unittest.TestCase):
     def test_stop_verifies_processes_before_deleting_runtime_files(self):
         function = CLI['cmd_stop']
         pids = MagicMock(side_effect=[[777], [], []])
-        refresh = MagicMock()
-        with patch.dict(function.__globals__, {'daemon_pids': pids, 'refresh_menu': refresh}), \
+        with patch.dict(function.__globals__, {'daemon_pids': pids}), \
              patch('subprocess.run', return_value=subprocess.CompletedProcess([], 1)), \
              patch('pathlib.Path.unlink') as unlink, patch('os.kill') as kill, \
              contextlib.redirect_stdout(io.StringIO()):
             function(argparse.Namespace(exiting=True))
         kill.assert_called_once()
         self.assertTrue(unlink.called)
-        refresh.assert_not_called()
+
+    def test_start_opens_native_menu_unless_called_by_the_app(self):
+        function = CLI['cmd_start']
+        launch = MagicMock()
+        with patch.dict(function.__globals__, {'daemon_pids': lambda: [777], 'open_menu_app': launch}), \
+             patch('pathlib.Path.unlink'), contextlib.redirect_stdout(io.StringIO()):
+            function(argparse.Namespace(no_menu=False))
+            launch.assert_called_once_with()
+            launch.reset_mock()
+            function(argparse.Namespace(no_menu=True))
+            launch.assert_not_called()
 
 
 if __name__ == '__main__':

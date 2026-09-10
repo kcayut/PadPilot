@@ -59,7 +59,7 @@ Defaults are a **4-second** physical display disconnect debounce, up to **3** Si
 | iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
 | Python | Python 3.10+. The graphical settings window also requires an importable `tkinter` module in that Python environment. The installer does not install Python or Tk. |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
-| [SwiftBar](https://github.com/swiftbar/SwiftBar) | Provides the menu bar interface. The background service and CLI can be used independently. |
+| Apple Command Line Tools | Builds the Swift/AppKit menu app; install using `xcode-select --install`. No SwiftBar, pip packages, or Swift packages are required. |
 | Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
 
 See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's MIT license does not cover third-party software licenses.
@@ -80,22 +80,16 @@ python3 -c "import tkinter"
 
 If importing `tkinter` fails, install matching Tk support for your Python environment before using the GUI.
 
-The installer checks for BetterDisplay and SwiftBar. If Homebrew is available, it can install missing tools after confirmation; add `--yes` to accept that step automatically. It then creates a user LaunchAgent, links the SwiftBar plugin, and **starts the background service immediately**.
-
-After installation, open BetterDisplay and SwiftBar:
+The installer checks Python/Tk, the Swift compiler, and BetterDisplay. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login.
 
 ```bash
 open -a BetterDisplay
-open -a SwiftBar
+open "$HOME/Applications/PadPilot.app"
 ```
 
-When SwiftBar first asks for a Plugin Folder, select:
+SwiftBar and its Plugin Folder are no longer needed. An upgrade moves only this checkout’s legacy PadPilot plugin symlinks to Trash; SwiftBar and other plugins are left alone.
 
-```text
-~/Library/Application Support/SwiftBar/plugins
-```
-
-If you already use a custom plugin directory, place the installed `padpilot.30s.py` symlink in that directory. Installation references the current checkout, so **keep the project folder in place**. Rerun the installer if you move it.
+The app currently references the local Python installation and checkout. **Keep both in place** and reinstall after moving them. This is a locally built app, not yet a notarized standalone distribution with bundled Python.
 
 ### 2. Select your iPad
 
@@ -199,7 +193,7 @@ Configuration and runtime state normally live in `~/Library/Application Support/
 ./scripts/uninstall.sh
 ```
 
-By default, this stops the service, removes the LaunchAgent and SwiftBar plugin link, and clears runtime state. It preserves configuration, logs, the checkout, the CLI shortcut, BetterDisplay, SwiftBar, and virtual screens. To also delete configuration and logs, use `./scripts/uninstall.sh --purge`; PadPilot cannot undo that deletion.
+By default, this stops the service and menu, moves this checkout’s app, LaunchAgent, and CLI shortcut to Trash, and clears status snapshots. Configuration, logs, source, BetterDisplay, and virtual displays are preserved. Use `./scripts/uninstall.sh --purge` to also move configuration and logs to Trash; these removals are recoverable.
 
 ## Documentation and contributing
 
@@ -216,4 +210,4 @@ Supporting guides are primarily in Traditional Chinese. Issues, translation impr
 
 Licensed under the [MIT License](LICENSE). Copyright (c) 2026 kcayut.
 
-Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) and [SwiftBar](https://github.com/swiftbar/SwiftBar) for display control and menu bar integration. PadPilot is an independent project, not affiliated with or endorsed by Apple, BetterDisplay, or SwiftBar.
+Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) for display control. PadPilot is an independent project, not affiliated with or endorsed by Apple or BetterDisplay.

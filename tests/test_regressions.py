@@ -27,7 +27,7 @@ class RegressionTests(unittest.TestCase):
         self.ipad = DisplayInfo(2, "Target iPad", is_main=True, is_sidecar=True)
         self.detector.observe.return_value = (ActualState(), ((), False))
         for target in ("core.state_engine.write_atomic_status", "core.state_engine.notify_error",
-                       "core.state_engine.StateEngine._notify_swiftbar", "core.state_engine.time.sleep"):
+                       "core.state_engine.time.sleep"):
             mock = patch(target)
             mock.start()
             self.addCleanup(mock.stop)

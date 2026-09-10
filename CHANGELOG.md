@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Replaced the SwiftBar plugin with a native Swift/AppKit menu app, retaining the Python state engine, CLI, Tk settings, and shared translations.
+- Added `menu-json`, native menu contract tests, and a dependency-free local app build.
+- Installer now builds PadPilot.app and preserves existing preferences; owned legacy plugin links and uninstalled app integrations go to Trash. SwiftBar is no longer required.
+- App still references the local Python and source checkout; standalone Python bundling, release signing, and notarization are not included.
+
 ## [0.1.0] - 2026-09-10
 
 ### Added

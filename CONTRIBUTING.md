@@ -11,7 +11,7 @@
 - **Python**：Python 3.10+（系統自帶或 Homebrew Python 均可）。
 - **依賴工具**：
   - [BetterDisplay](https://github.com/waydabber/BetterDisplay)（建議已安裝並啟用 CLI 工具）
-  - [SwiftBar](https://github.com/swiftbar/SwiftBar)（用於 Menu Bar 介面開發）
+  - Apple Command Line Tools（`xcode-select --install`；編譯 Swift/AppKit 選單）
 
 ### 複製專案與檢查
 ```bash
@@ -37,7 +37,16 @@ PadPilot 堅持使用無第三方依賴的 Tkinter 原生 Card UI。請確保視
 python3 scripts/check_gui_layout.py
 ```
 
-### 3. 機敏資訊與路徑掃描
+### 3. 建置原生選單
+
+```bash
+python3 scripts/build_app.py
+open build/PadPilot.app
+```
+
+單元測試包含實際編譯 AppKit 選單與三種語言資料契約，不會控制顯示器。開啟 App 會啟動既有 Python 服務；完整設定視窗仍使用 Tk。
+
+### 4. 機敏資訊與路徑掃描
 切勿將個人的 Home 目錄、區域網路 IP、真實 iPad 序號或金鑰提交至 Git：
 ```bash
 git grep -nE '/Users/|kcayut@|192\.168\.|10\.[0-9]+\.[0-9]+\.[0-9]+'
@@ -49,7 +58,7 @@ git grep -nE '/Users/|kcayut@|192\.168\.|10\.[0-9]+\.[0-9]+\.[0-9]+'
 
 1. **零重量外部套件依賴**：`core/` 模組原則上僅依賴 Python 標準庫以及系統自帶的 `ctypes`、`subprocess`、`tkinter`。
 2. **非侵入式與狀態自癒**：任何背景操作失敗時，必須遵循 Cooldown 與 Fallback 機制，不可引發無窮迴圈或癱瘓系統顯示器。
-3. **原子性狀態寫入**：狀態必須透過原子寫入更新至 `status.json`，供 SwiftBar 毫秒級讀取，嚴禁在 Menu Bar 觸發高成本硬體掃描。
+3. **原子性狀態寫入**：狀態必須透過原子寫入更新至 `status.json`，供原生選單與 GUI 讀取，嚴禁在 Menu Bar 觸發高成本硬體掃描。
 
 ---
 

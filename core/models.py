@@ -9,7 +9,6 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, List, Optional, Tuple
 
-SWIFTBAR_PLUGIN_ID = "padpilot.30s.py"
 DEFAULT_VIRTUAL_DISPLAY_NAME = "PadPilotVirtual"
 
 
@@ -188,7 +187,7 @@ class RuntimeState:
 
 @dataclass
 class StatusSnapshot:
-    """Atomic status snapshot exported for SwiftBar UI and CLI consumption."""
+    """Atomic status snapshot exported for native menu and CLI consumption."""
     timestamp: float
     mode: str
     icon: str

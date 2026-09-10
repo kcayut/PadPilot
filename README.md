@@ -59,7 +59,7 @@ PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器
 | iPad | 支援 Sidecar 的 iPad，與 Mac 登入相同 Apple Account 並啟用雙重認證。 |
 | Python | Python 3.10+；圖形設定視窗另外需要此 Python 環境可匯入 `tkinter`。安裝腳本不會安裝 Python／Tk。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | 提供 Sidecar 與顯示器控制。請選擇相容於 macOS 的版本，並確認 CLI 可用；命令列控制依上游授權需要 Pro 或有效試用。 |
-| [SwiftBar](https://github.com/swiftbar/SwiftBar) | 提供選單列介面；背景服務與 CLI 可獨立操作。 |
+| Apple Command Line Tools | 編譯 Swift／AppKit 原生選單列；首次安裝執行 `xcode-select --install`。不需要 SwiftBar、pip 套件或 Swift 套件。 |
 | 連線 | 初次設定建議使用可傳輸資料的 USB 線，並在 iPad 上信任 Mac。無線 Sidecar 另需 Wi-Fi、藍牙與 Handoff。 |
 
 裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的 MIT 授權不包含第三方軟體授權。
@@ -80,22 +80,16 @@ python3 -c "import tkinter"
 
 若 `tkinter` 匯入失敗，請為使用中的 Python 安裝相符的 Tk 支援後，再使用 GUI。
 
-安裝腳本會偵測 BetterDisplay／SwiftBar；若有 Homebrew，可依提示安裝缺少的工具。加上 `--yes` 可自動同意這一步。腳本接著會建立使用者層級 LaunchAgent、連結 SwiftBar 外掛，並**立即啟動背景服務**。
-
-安裝後請開啟 BetterDisplay 與 SwiftBar：
+安裝腳本會檢查 Python／Tk、Swift 編譯器與 BetterDisplay；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動。
 
 ```bash
 open -a BetterDisplay
-open -a SwiftBar
+open "$HOME/Applications/PadPilot.app"
 ```
 
-SwiftBar 初次啟動時，請將 Plugin Folder 設為：
+不再需要 SwiftBar 或設定 Plugin Folder。升級時只將指向此專案的舊 PadPilot 外掛連結移到垃圾桶；SwiftBar 與其他外掛不受影響。
 
-```text
-~/Library/Application Support/SwiftBar/plugins
-```
-
-若已使用自訂外掛目錄，請將安裝後的 `padpilot.30s.py` 符號連結放入既有目錄。安裝會引用目前的專案路徑，**請保留專案資料夾**；搬移後需重新執行安裝腳本。
+App 目前引用本機 Python 與專案路徑，**請保留 Python 環境與專案資料夾**；搬移後需重新安裝。這是本機編譯版本，尚非內含 Python、經公證的獨立發行包。
 
 ### 2. 指定 iPad
 
@@ -199,7 +193,7 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 ./scripts/uninstall.sh
 ```
 
-預設會停止背景服務、移除 LaunchAgent 與 SwiftBar 外掛連結、清除執行狀態；保留設定、日誌、專案、CLI 快捷連結，以及 BetterDisplay／SwiftBar 與虛擬螢幕。若要一併刪除設定與日誌，可使用 `./scripts/uninstall.sh --purge`；此刪除無法由 PadPilot 復原。
+預設會停止背景服務與原生選單，將此專案的 App、LaunchAgent 與 CLI 快捷連結移到垃圾桶，清除狀態快照；保留設定、日誌、專案及 BetterDisplay／虛擬螢幕。`./scripts/uninstall.sh --purge` 會另外將設定與日誌移到垃圾桶，可復原。
 
 ## 文件與貢獻
 
@@ -216,4 +210,4 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 本專案採用 [MIT License](LICENSE)。Copyright (c) 2026 kcayut.
 
-感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 與 [SwiftBar](https://github.com/swiftbar/SwiftBar) 提供顯示器控制與選單列整合能力。PadPilot 是獨立專案，未隸屬於 Apple、BetterDisplay 或 SwiftBar，也不代表其官方支援。
+感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。

@@ -14,7 +14,7 @@ from core.models import OperationMode, pairing_key
 from core.settings import apply_change
 
 ROOT = Path(__file__).resolve().parents[1]
-MENU = runpy.run_path(str(ROOT/'swiftbar/padpilot.30s.py'))
+MENU = runpy.run_path(str(ROOT/'core/menu.py'))
 DAEMON = runpy.run_path(str(ROOT/'bin/padpilotd'))
 ONE = {'name': '同名 iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111', 'usb_serial': 'usb1'}
 TWO = dict(ONE, sidecar_uuid='22222222-2222-4222-8222-222222222222', usb_serial='usb2')
@@ -80,30 +80,17 @@ class GuiSettingsTests(unittest.TestCase):
             read_view()
             self.assertEqual(list(Path(d).iterdir()), [])
 
-    def test_menu_removes_pairing_and_start_entries_and_uses_gui(self):
-        out = io.StringIO()
-        cfg = self.config().to_dict()
-        with contextlib.redirect_stdout(out):
-            MENU['render']({}, cfg, True)
-        text = out.getvalue()
-        section = text.split('\n螢幕與裝置 |')[1].split('\niPad 控制 |')[0]
-        self.assertNotIn('新增', section)
-        self.assertNotIn('更新配對', section)
-        self.assertEqual(section.count('刪除配對 |'), 2)
-        self.assertNotIn('啟動 PadPilot |', text)
-        for label in ('設定與配對', '刪除配對'):
-            line = next(l for l in text.splitlines() if label+' |' in l)
-            self.assertIn('param1=gui', line)
-            self.assertIn('terminal=false', line)
-        self.assertNotIn('開啟 BetterDisplay', text)
-        self.assertNotIn('檢視設定', text)
-        self.assertNotIn('配對精靈 Wizard…', text)
-        # Deleting last profile must not resurrect an older daemon snapshot.
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            MENU['render']({'paired_ipads': [ONE], 'configured_ipad': ONE},
-                           {'ipad': {}, 'paired_ipads': []}, True)
-        self.assertNotIn('同名 iPad', out.getvalue())
+    def test_menu_uses_gui_for_pairing_and_preserves_deleted_profiles(self):
+        model = MENU['render']({}, self.config().to_dict(), True)
+        rows = model['items']
+        self.assertEqual(sum(r['title'] == '刪除配對' for r in rows), 2)
+        for row in rows:
+            if row['title'] in ('設定與配對', '刪除配對'):
+                self.assertEqual(row['args'][0], 'gui')
+        self.assertNotIn('開啟 BetterDisplay', [r['title'] for r in rows])
+        model = MENU['render']({'paired_ipads': [ONE], 'configured_ipad': ONE},
+                               {'ipad': {}, 'paired_ipads': []}, True)
+        self.assertFalse(any('同名 iPad' in row['title'] for row in model['items']))
 
     def test_daemon_deleting_target_pauses_before_reevaluation(self):
         cls = DAEMON['PadPilotDaemon']

@@ -37,10 +37,9 @@ class LanguageTests(unittest.TestCase):
                              physical_displays=[DisplayInfo(1, 'Monitor')],
                              main_display=DisplayInfo(1, 'Monitor'))
         daemon.detector.observe.return_value = (actual, (('Monitor',), False))
-        render = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))['render']
+        render = runpy.run_path(str(ROOT / 'core/menu.py'))['render']
         with patch('core.state_engine.write_atomic_status') as write, \
-             patch('core.autostart.notify_swiftbar'), \
-             patch.dict(daemon.apply_config_change.__globals__, save_config=MagicMock(), notify_swiftbar=MagicMock()):
+             patch.dict(daemon.apply_config_change.__globals__, save_config=MagicMock()):
             daemon.engine.evaluate()
             original = write.call_args.args[0].to_dict()
             daemon.detector.reset_mock()
@@ -53,11 +52,8 @@ class LanguageTests(unittest.TestCase):
                 self.assertEqual(snapshot['config_revision'], daemon.config.revision)
                 for key in ('actual', 'desired', 'runtime', 'timestamp', 'evaluation_state', 'icon'):
                     self.assertEqual(snapshot[key], original[key])
-                out = io.StringIO()
-                with contextlib.redirect_stdout(out):
-                    render(snapshot, daemon.config.to_dict(), False)
-                controls = [line for line in out.getvalue().splitlines() if 'param1=action ' in line]
-                self.assertTrue(any('param2=use_ipad_main ' in line for line in controls))
+                rows = render(snapshot, daemon.config.to_dict(), False)['items']
+                self.assertTrue(any(r['args'] == ['action', 'use_ipad_main'] and r['enabled'] for r in rows))
             self.assertEqual(daemon.detector.mock_calls, [])
             self.assertEqual(daemon.bd_cli.mock_calls, [])
             write.reset_mock()
@@ -105,7 +101,7 @@ class LanguageTests(unittest.TestCase):
         daemon.engine = MagicMock()
         daemon.detector = MagicMock()
         namespace = daemon.apply_config_change.__globals__
-        with patch.dict(namespace, save_config=MagicMock(), notify_swiftbar=MagicMock()):
+        with patch.dict(namespace, save_config=MagicMock()):
             response = json.loads(daemon.handle_client_cmd(json.dumps({'command': 'set_language', 'params': {'language': 'en'}})))
         self.assertTrue(response['ok'])
         self.assertEqual(daemon.config.language, 'en')
@@ -115,7 +111,7 @@ class LanguageTests(unittest.TestCase):
         cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['submit_settings']
         stored = []
         with patch.dict(cli.__globals__, send_daemon_cmd=lambda *a, **k: 'Daemon is not running',
-                        load_config=lambda: Config(), save_config=stored.append, notify_swiftbar=MagicMock()):
+                        load_config=lambda: Config(), save_config=stored.append):
             with contextlib.redirect_stdout(io.StringIO()):
                 cli('set_language', {'language': 'ja'})
         self.assertEqual(stored[0].language, 'ja')
@@ -128,26 +124,24 @@ class LanguageTests(unittest.TestCase):
             self.assertTrue(translations['ja'])
             for text in translations.values():
                 self.assertEqual(fields(source), fields(text), source)
-        for path in ('core/gui.py', 'swiftbar/padpilot.30s.py'):
+        for path in ('core/gui.py', 'core/menu.py'):
             for node in ast.walk(ast.parse((ROOT / path).read_text())):
                 if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'tr'
                         and node.args and isinstance(node.args[0], ast.Constant)):
                     text = node.args[0].value
                     if any('\u4e00' <= c <= '\u9fff' for c in text):
                         self.assertIn(text, TRANSLATIONS)
-        render = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))['render']
+        render = runpy.run_path(str(ROOT / 'core/menu.py'))['render']
         for language in LANGUAGES:
             set_language(language)
             message = 'Physical display detected (我的螢幕 {0}). Automatic Sidecar not required.'
             self.assertIn('我的螢幕 {0}', tr_message(message))
             self.assertEqual(tr_message('Unrecognized error {raw}'), 'Unrecognized error {raw}')
             self.assertIn('4.0', tr_message('Physical display disconnected. Waiting debounce (4.0s remaining)...'))
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                render({}, {'language': language, 'ipad': {'name': '運作模式 {0} | test', 'usb_serial': 'USB123'}}, False)
-            text = output.getvalue()
+            model = render({}, {'language': language, 'ipad': {'name': '運作模式 {0} | test', 'usb_serial': 'USB123'}}, False)
+            text = '\n'.join(r['title'] for r in model['items'])
             self.assertIn(tr('設定與配對'), text)
-            self.assertIn('運作模式 {0} ｜ test', text)
+            self.assertIn('運作模式 {0} | test', text)
             self.assertIn('USB123', text)
             if language == 'en':
                 self.assertNotIn('狀態未知', text)
@@ -242,7 +236,7 @@ class LanguageTests(unittest.TestCase):
                         send_daemon_cmd=lambda *a, **k: 'Daemon is not running',
                         load_config=lambda: mock_cfg,
                         save_config=saved_configs.append,
-                        notify_swiftbar=MagicMock()):
+                        open_menu_app=MagicMock()):
             with contextlib.redirect_stdout(io.StringIO()):
                 cmd_set_lang(argparse.Namespace(language='ja'))
             self.assertEqual(len(saved_configs), 1)
@@ -256,27 +250,19 @@ class LanguageTests(unittest.TestCase):
                         send_daemon_cmd=lambda *a, **k: 'Daemon is not running',
                         load_config=lambda: mock_cfg_same,
                         save_config=saved_configs.append,
-                        notify_swiftbar=MagicMock()):
+                        open_menu_app=MagicMock()):
             with contextlib.redirect_stdout(io.StringIO()):
                 cmd_set_lang(argparse.Namespace(language='ja'))
             self.assertEqual(len(saved_configs), 0)
 
-        # Case 4: SwiftBar menu renders 🌐 Language and dispatches set-language
-        render = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))['render']
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            render({}, {'language': 'en'}, False)
-        text = out.getvalue()
-        self.assertIn('🌐 Language |', text)
-        self.assertIn("English | ansi=false emojize=false symbolize=false color=#1c1c1e,#f2f2f7 checked=true bash=", text)
-        self.assertIn("param1=set-language param2=en", text)
-        self.assertIn("param1=set-language param2=zh-Hant", text)
-        self.assertIn("param1=set-language param2=ja", text)
-
-        # Case 5: config_revision > status_config_revision applies Applying rules in target language
-        out_applying = io.StringIO()
-        with contextlib.redirect_stdout(out_applying):
-            render({'config_revision': 1, 'actual': {'timestamp': time.time()}},
-                   {'language': 'en', 'revision': 2}, False)
-        text_applying = out_applying.getvalue()
-        self.assertIn('Applying settings…', text_applying)
+        # Menu model preserves language dispatch and applying-state guards.
+        render = runpy.run_path(str(ROOT / 'core/menu.py'))['render']
+        rows = render({}, {'language': 'en'}, False)['items']
+        english = next(r for r in rows if r['args'] == ['set-language', 'en'])
+        self.assertTrue(english['checked'])
+        self.assertEqual(english['title'], 'English')
+        for language in ('zh-Hant', 'ja'):
+            self.assertTrue(any(r['args'] == ['set-language', language] for r in rows))
+        model = render({'config_revision': 1, 'actual': {'timestamp': time.time()}},
+                       {'language': 'en', 'revision': 2}, False)
+        self.assertTrue(any('Applying settings…' in r['title'] for r in model['items']))

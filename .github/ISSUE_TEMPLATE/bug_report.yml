@@ -35,8 +35,8 @@ body:
     id: versions
     attributes:
       label: 軟體版本
-      description: 請提供 PadPilot、BetterDisplay 與 SwiftBar 版本
-      placeholder: "PadPilot: 0.1.0, BetterDisplay: 3.x, SwiftBar: 2.0.0"
+      description: 請提供 PadPilot、Python 與 BetterDisplay 版本，以及原生 App 的建置方式
+      placeholder: "PadPilot: 0.1.0, Python: 3.x, BetterDisplay: 3.x, App: scripts/install.sh"
     validations:
       required: true
   - type: input

@@ -13,8 +13,7 @@ from core.autostart import (
     enable_autostart,
     generate_plist_content,
     is_autostart_enabled,
-    is_swiftbar_recovery_bug_present,
-    notify_swiftbar,
+    open_menu_app,
     toggle_autostart,
 )
 from core.config import Config
@@ -69,9 +68,8 @@ class TestPadPilotAutostart(unittest.TestCase):
             test_plist.write_text("<plist></plist>", encoding="utf-8")
             self.assertTrue(is_autostart_enabled(test_plist))
 
-    @patch("core.autostart.notify_swiftbar")
     @patch("subprocess.run")
-    def test_enable_and_disable_autostart(self, mock_run: MagicMock, mock_notify: MagicMock) -> None:
+    def test_enable_and_disable_autostart(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         with tempfile.TemporaryDirectory() as tmpdir:
             test_plist = Path(tmpdir) / "com.padpilot.daemon.plist"
@@ -89,9 +87,8 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertFalse(test_plist.is_file())
                 self.assertFalse(is_autostart_enabled(test_plist))
 
-    @patch("core.autostart.notify_swiftbar")
     @patch("subprocess.run")
-    def test_toggle_autostart(self, mock_run: MagicMock, mock_notify: MagicMock) -> None:
+    def test_toggle_autostart(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         with tempfile.TemporaryDirectory() as tmpdir:
             test_plist = Path(tmpdir) / "com.padpilot.daemon.plist"
@@ -108,35 +105,29 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertTrue(ok)
                 self.assertFalse(is_autostart_enabled(test_plist))
 
-    @patch("subprocess.Popen")
-    def test_notify_swiftbar_url_format_immediate(self, mock_popen: MagicMock) -> None:
-        notify_swiftbar("padpilot.30s.py", delay=0.0)
-        mock_popen.assert_called_once()
-        cmd = mock_popen.call_args[0][0]
-        self.assertEqual(cmd, ["open", "-g", "swiftbar://refreshallplugins"])
 
-    @patch("subprocess.Popen")
-    def test_notify_swiftbar_debounce_single_flight(self, mock_popen: MagicMock) -> None:
-        # Rapid multiple calls within 20ms should coalesce to 1 Popen call
-        notify_swiftbar("padpilot.30s.py", delay=0.05)
-        notify_swiftbar("padpilot.30s.py", delay=0.05)
-        notify_swiftbar("padpilot.30s.py", delay=0.05)
-        self.assertEqual(mock_popen.call_count, 0)
-        time.sleep(0.1)
-        self.assertEqual(mock_popen.call_count, 1)
+    def test_plist_escapes_paths(self):
+        import plistlib
+        data = plistlib.loads(generate_plist_content(project_root=Path('/tmp/A & B')).encode())
+        self.assertEqual(data['ProgramArguments'][1], '/tmp/A & B/bin/padpilotd')
 
-    @patch("subprocess.Popen")
-    def test_debounce_is_thread_safe_under_concurrent_notifications(self, mock_popen: MagicMock) -> None:
-        import concurrent.futures
-        # Call 10 times concurrently across threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(notify_swiftbar, "padpilot.30s.py", 0.05) for _ in range(10)]
-            for f in futures:
-                f.result()
-        time.sleep(0.1)
-        self.assertEqual(mock_popen.call_count, 1)
+    def test_menu_launcher_only_opens_matching_checkout(self):
+        import json
+        import core.autostart as startup
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            app = root / 'build/PadPilot.app/Contents/Resources'
+            app.mkdir(parents=True)
+            (app / 'runtime.json').write_text(json.dumps({'project_root': str(root)}))
+            with patch.object(startup, 'PROJECT_ROOT', root), patch('pathlib.Path.home', return_value=root), \
+                 patch('subprocess.run', return_value=MagicMock(returncode=0)) as run:
+                self.assertTrue(open_menu_app())
+                self.assertEqual(run.call_args.args[0], ['open', '-g', str(root / 'build/PadPilot.app')])
+                (app / 'runtime.json').write_text(json.dumps({'project_root': '/different/checkout'}))
+                run.reset_mock()
+                self.assertFalse(open_menu_app())
+                run.assert_not_called()
 
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

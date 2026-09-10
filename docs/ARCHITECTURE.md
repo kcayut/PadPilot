@@ -8,38 +8,23 @@ PadPilot 是一套專為無頭 Mac mini + iPad 打造的確定性顯示器狀態
 
 1. **實體螢幕優先 (Physical Display First)**：只要連接 HDMI / DP / USB-C 實體螢幕，系統即刻將主畫面交還給實體螢幕，自動化保持靜默，不擅自干預。
 2. **手動操作絕對優先 (Manual Override Absolute Priority)**：使用者的主觀操作（例如指定「將 iPad 作為副螢幕」）至高無上，自動化絕不隨意推翻。
-3. **狀態全透明 (Observability)**：背景決策與當前硬體現況原子化寫入快照，SwiftBar 與 GUI 只讀取快照，杜絕重度硬體輪詢。
+3. **狀態全透明 (Observability)**：背景決策與當前硬體現況原子化寫入快照，原生選單與 GUI 只讀取快照，杜絕重度硬體輪詢。
 4. **極限容錯與自癒 (Fault Tolerance & Self-Healing)**：任何硬體連線失敗均有防抖（Debounce）、重試限制（Retry Limit）與冷卻退避（Cooldown），避免連線風暴或 WindowServer 當機。
 
 ---
 
 ## 🏛️ 整體架構圖
 
+```text
+Swift / AppKit PadPilot.app
+  ├─ menu-json → core/menu.py → config.json + atomic status.json + daemon liveness
+  └─ CLI argument arrays → padpilot-cli → Unix socket → padpilotd
+                                                       ├─ Detector / IOKit / CoreGraphics
+                                                       └─ StateEngine → BetterDisplay CLI
+Tk settings GUI ─────────────→ shared CLI/config transactions
 ```
-                   ┌───────────────────────────────────┐
-                   │    SwiftBar Menu Bar Plugin       │
-                   │ (動態圖示 / 狀態 / Reason / Actions)  │
-                   └─────────────────▲─────────────────┘
-                                     │ 事件主動觸發: swiftbar://refreshplugin
-                                     │ 狀態讀取: atomic status.json (< 5ms)
-                                     ▼
-                   ┌───────────────────────────────────┐
-                   │   padpilotd (Display State Mgr)   │
-                   │  - observe() -> ActualState       │
-                   │  - policy()  -> DesiredState      │
-                   │  - Single-flight Transition Lock  │
-                   │  - Topology Generation Tracking   │
-                   └──────┬──────────────────────┬─────┘
-                          │                      │
-       硬體偵測 + Watchdog│                      │ 控制命令 (動態 Capability Probing)
-                          ▼                      ▼
-      ┌───────────────────────────┐   ┌───────────────────────────┐
-      │  CoreGraphics (ctypes)    │   │     BetterDisplay CLI     │
-      │  IOKit USB (ioreg)        │   │  - Sidecar Connect/Disc   │
-      │  Sleep / Wake 監聽        │   │  - Set Main Display       │
-      │  30s Watchdog 輪詢        │   │  - PadPilotVirtual Check  │
-      └───────────────────────────┘   └───────────────────────────┘
-```
+
+選單每秒檢查快照檔案是否改變；有變動或距上次讀取達 5 秒才呼叫 `menu-json`，不在選單讀取路徑掃描硬體。CLI 子程序不阻塞 AppKit 主執行緒；選單展開時不重建，關閉後呈現最新內容。動作採參數陣列與白名單，不把裝置名稱組成 shell 指令。登入由既有 LaunchAgent 啟動 Python 服務，再開啟原生 App；鎖檔避免多個選單實例。停止服務保留選單，只有「結束」才停服務並關閉選單。
 
 ---
 
@@ -62,7 +47,7 @@ PadPilot 是一套專為無頭 Mac mini + iPad 打造的確定性顯示器狀態
 
 ### 5. 原子狀態快照 (Atomic Snapshot Architecture)
 - 背景守護行程將觀測到的實際狀態、預期狀態與決策原因寫入暫存檔，並透過 `os.replace` 原子替換至 `~/Library/Application Support/PadPilot/runtime/status.json`。
-- SwiftBar 外掛與 CLI 僅讀取該 JSON，讀取耗時小於 5 毫秒，CPU 佔用率近乎 0.0%，完全杜絕在選單開啟時執行耗時的 `system_profiler`。
+- `core/menu.py` 與 GUI 讀取快照；設定版本不一致或資料過期時停用相應控制並保留未知狀態。選單主動「重新整理」才會透過 CLI 要求背景服務更新硬體狀態。
 
 ## USB 事件與暫時目標
 
