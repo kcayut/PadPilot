@@ -50,7 +50,10 @@ class NativeAppTests(unittest.TestCase):
             with patch.object(manage_app, 'ROOT', root), patch('pathlib.Path.home', return_value=home):
                 manage_app.retire_legacy_plugin()
                 self.assertFalse(plugin.is_symlink())
-                self.assertTrue(any((home / '.Trash').rglob('padpilot.30s.py')))
+                # The retired plugin is a dangling link; check the link itself.
+                moved = [directory / plugin.name for directory in (home / '.Trash').iterdir()]
+                self.assertTrue(any(path.is_symlink() and path.readlink() == root / 'swiftbar/padpilot.30s.py'
+                                    for path in moved))
                 self.assertEqual(other.read_text(), 'keep')
                 plugin.write_text('custom plugin')
                 manage_app.retire_legacy_plugin()

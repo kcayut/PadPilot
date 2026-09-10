@@ -2,7 +2,9 @@
 
 日期：2026-09-11。範圍為 GUI 版本、安裝可靠性、本機安全與文件；GitHub 建倉、Actions、remote、分支保護、tag、Release 及公開安全通報管道依要求略過。版本仍為 `0.1.0`，不宣稱 stable。
 
-後續更新：維護者已建立私人 GitHub 倉庫。已保留原 `origin`、新增獨立 `github` 遠端，並準備 `.github/workflows/ci.yml`：macOS/Python 3.10 與 3.14 軟體測試、Linux 完整歷史隱私關卡各自顯示。首次上傳與雲端結果需另行確認；以下「GitHub 略過」描述保留原輪次範圍，不代表倉庫現在仍不存在。分支保護、公開安全通報、tag／Release 尚未設定。
+後續更新：維護者已建立私人 GitHub 倉庫，原始碼與 CI 已首次上傳。已保留原 `origin`、新增獨立 `github` 遠端。`.github/workflows/ci.yml` 分開顯示 macOS/Python 3.10、3.14 軟體測試及 Linux 完整歷史隱私關卡，最新結果見 [GitHub Actions](https://github.com/kcayut/PadPilot/actions/workflows/ci.yml)。本機新增 CI 關卡測試後為 163 項；首輪雲端 3.14 通過，3.10 發現失效連結測試使用 glob 的版本差異，已改為直接檢查連結與指向，交由後續 CI 複驗。歷史隱私關卡如預期回報 tree=0、history=6，未繞過或關閉。
+
+以下「GitHub 略過」描述保留原輪次範圍，不代表倉庫現在仍不存在。目前方案的私人倉庫分支保護由 GitHub 回覆需升級 Pro；未升級或改成公開。公開安全通報、tag／Release 尚未設定。
 
 ## 清單狀態
 
@@ -26,7 +28,7 @@
 | 環境／情境 | 證據狀態 |
 | --- | --- |
 | Apple Silicon arm64、macOS 26.6.2、Python 3.14.6、Tk 9.0 | 本輪開發／GUI／編譯環境；不是完整無頭硬體相容認證。 |
-| Python 3.10 最低執行環境 | 未實跑，unknown。 |
+| Python 3.10 最低執行環境 | 已納入 macOS 15 arm64 CI，最新軟體結果見 Actions；GUI 真實版面與實機仍未驗收。 |
 | macOS 14 最低執行環境 | 編譯目標為 14.0；未在該系統實跑，unknown。 |
 | Intel Mac、其他 macOS／Tk 組合 | 未實跑，unknown。 |
 | Tk 缺失、安裝失敗、啟動回復、解除安裝範圍 | 暫存使用者目錄與假外部程序測試；不代表乾淨新 Mac 全流程驗收。 |
