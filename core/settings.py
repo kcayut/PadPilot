@@ -17,6 +17,18 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
     """Return whether the state engine needs to re-evaluate its target."""
     if not isinstance(payload, dict):
         raise ValueError('無效的設定資料')
+    if action == 'set_language':
+        if set(payload) != {'language'} or payload['language'] not in ('zh-Hant', 'en', 'ja'):
+            raise ValueError('Unsupported language')
+        cfg.language = payload['language']
+        return False  # Presentation only; never re-evaluate display connections.
+    if action in ('set_usb_event_wakeup', 'set_auto_detect_ipad'):
+        if set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
+            raise ValueError('請提供布林值 enabled')
+        field = action.removeprefix('set_')
+        changed = getattr(cfg, field) != payload['enabled']
+        setattr(cfg, field, payload['enabled'])
+        return changed
     if action == 'set_mode':
         mode_val = payload.get('mode')
         if not isinstance(mode_val, str):

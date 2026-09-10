@@ -26,6 +26,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
         export.start()
         self.addCleanup(export.stop)
         self.config = Config(
+            auto_detect_ipad=False,
             mode=OperationMode.AUTOMATIC,
             ipad=IpadConfig(name="Cayut iPad", sidecar_uuid="1111-2222-3333", usb_serial="USB12345"),
             debounce_seconds=4.0,

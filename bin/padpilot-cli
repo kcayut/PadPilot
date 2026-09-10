@@ -21,6 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import copy
 from core import __version__
 from core.autostart import (
+    daemon_pids,
     disable_autostart,
     enable_autostart,
     is_autostart_enabled,
@@ -327,15 +328,6 @@ def cmd_open_betterdisplay(args: argparse.Namespace) -> None:
     subprocess.run(["open", "-a", "BetterDisplay"], check=True)
 
 
-def daemon_pids() -> list[int]:
-    # Match this checkout's full script path, never unrelated Python processes.
-    pattern = r"(^| )" + re.escape(str(PROJECT_ROOT / "bin" / "padpilotd")) + r"( |$)"
-    result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True)
-    if result.returncode not in (0, 1):
-        raise RuntimeError("無法確認背景服務程序，未隱藏選單。" + result.stderr)
-    return [int(pid) for pid in result.stdout.split()]
-
-
 def cmd_stop(args: argparse.Namespace) -> None:
     plist = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
     if plist.exists():
@@ -430,7 +422,7 @@ def main() -> None:
     p_gui.add_argument("--select", help="Show confirmation for a saved target key")
     p_gui.set_defaults(func=cmd_gui)
     p_change = subparsers.add_parser("change-settings", help="Apply a validated JSON settings command from stdin")
-    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path"])
+    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"])
     p_change.set_defaults(func=cmd_change_settings)
 
     # start

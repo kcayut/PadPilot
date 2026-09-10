@@ -18,7 +18,7 @@ def descendants(widget):
 
 
 def main():
-    cfg = Config.from_dict({'ipad': {'name': 'iPad pro m2',
+    cfg = Config.from_dict({'auto_detect_ipad': False, 'ipad': {'name': 'iPad pro m2',
         'sidecar_uuid': '11111111-1111-4111-8111-111111111111', 'usb_serial': 'USB123'}})
     view = {'config': cfg, 'actual': {}, 'fresh': True, 'identifiers': [], 'status': {},
             'system_checks': [('登入啟動', '已設定')]}
@@ -112,7 +112,37 @@ def main():
             root.update()
             assert app.log_text.winfo_exists()
             assert app.diagnostic_hosts['decision'].winfo_children() == decision
-            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently.')
+            app.select_tab('settings')
+            root.update()
+            from unittest.mock import MagicMock
+            app.change = MagicMock()
+            toggles = [w for w in descendants(app.scroll_frame)
+                       if w.winfo_class() == 'TButton' and w.cget('text') in ('啟用', '停用')]
+            assert len(toggles) == 2
+            assert all(not w.winfo_ismapped() for w in toggles)
+            advanced = next(w for w in descendants(app.scroll_frame)
+                            if w.winfo_class() == 'TButton' and w.cget('text') == '▸ 進階選項')
+            advanced.invoke()
+            root.update()
+            assert all(w.winfo_ismapped() for w in toggles)
+            advanced.invoke()
+            root.update()
+            assert all(not w.winfo_ismapped() for w in toggles)
+            advanced.invoke()
+            root.update()
+            for button in toggles:
+                assert button.winfo_rootx() + button.winfo_width() <= root.winfo_rootx() + root.winfo_width()
+                button.invoke()
+            assert app.change.call_args_list[0].args == ('set_usb_event_wakeup', {'enabled': False})
+            assert app.change.call_args_list[1].args == ('set_auto_detect_ipad', {'enabled': True})
+            cfg.auto_detect_ipad = True
+            app.display(dict(heartbeat, config=cfg))
+            app.select_tab('paired')
+            root.update()
+            controls = [w for w in descendants(app.scroll_frame)
+                        if w.winfo_class() == 'TButton' and w.cget('text') in names]
+            assert len(controls) == 4 and all(w.instate(['disabled']) for w in controls)
+            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently; USB/discovery toggles dispatch correctly; saved-profile controls disabled during discovery.')
     finally:
         root.destroy()
 

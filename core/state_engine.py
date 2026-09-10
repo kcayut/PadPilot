@@ -20,6 +20,7 @@ from core.detector import DisplayDetector
 from core.logger import get_logger
 from core.models import (
     ActualState,
+    IpadConfig,
     DesiredState,
     DisplayRole,
     IconStatus,
@@ -51,6 +52,11 @@ class StateEngine:
         self._eval_lock = threading.RLock()
         self.status_revision = 0
         self._last_exported_meaningful_content = None
+
+    def target_ipad(self, actual):
+        if self.config.auto_detect_ipad:
+            return actual.resolved_ipad or IpadConfig()
+        return self.config.ipad
 
     def set_mode(self, mode: OperationMode) -> None:
         """Update operational mode."""
@@ -100,7 +106,10 @@ class StateEngine:
     def reconnect_sidecar(self) -> bool:
         with self._eval_lock:
             actual = self._observe()
-            specifier = self.config.ipad.sidecar_uuid or self.config.ipad.name
+            target = self.target_ipad(actual)
+            specifier = target.sidecar_uuid or target.name
+            if self.config.auto_detect_ipad and not specifier:
+                return False
             role = self.runtime.user_override.target_role if self.runtime.user_override else None
             if role not in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY):
                 role = DisplayRole.IPAD_MAIN
@@ -173,7 +182,7 @@ class StateEngine:
             if not (actual.sidecar_connected and actual.sidecar_display_online):
                 return False
             if actual.main_display and (actual.main_display.is_sidecar or (
-                self.config.ipad.name and self.config.ipad.name.lower() in actual.main_display.name.lower()
+                self.target_ipad(actual).name and self.target_ipad(actual).name.lower() in actual.main_display.name.lower()
             )):
                 return True
             return False
@@ -215,6 +224,14 @@ class StateEngine:
     def _policy(self, actual: ActualState, config: Config, runtime: RuntimeState) -> DesiredState:
         """Evaluate policy rules and calculate DesiredState with clear Reason."""
         now = time.time()
+
+        if config.auto_detect_ipad and not (actual.resolved_ipad and actual.resolved_ipad.sidecar_uuid):
+            if runtime.mode == OperationMode.MANUAL_ONLY or runtime.debounce_until > now:
+                return DesiredState(DisplayRole.NO_CHANGE, "自動偵測尚無唯一目標；保留目前顯示。")
+            return DesiredState(
+                DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL,
+                actual.discovery_errors.get("auto_detect", "自動偵測尚無唯一目標；使用備援螢幕。"),
+            )
 
         # 1. Check User Override
         if runtime.user_override:
@@ -435,7 +452,8 @@ class StateEngine:
                         self._export_status(satisfied=False, evaluation_state="applying")
 
                         # Connect Sidecar
-                        specifier = self.config.ipad.sidecar_uuid or self.config.ipad.name or "iPad"
+                        target = self.target_ipad(actual)
+                        specifier = target.sidecar_uuid or target.name or "iPad"
                         connected = self.bd_cli.connect_sidecar(specifier)
 
                         if connected:
@@ -472,7 +490,8 @@ class StateEngine:
                     self.desired = desired
 
                 if desired.needs_sidecar_disconnect:
-                    specifier = self.config.ipad.sidecar_uuid or self.config.ipad.name
+                    target = self.target_ipad(actual)
+                    specifier = target.sidecar_uuid or target.name
                     success = self.bd_cli.disconnect_sidecar(specifier)
                     if not success:
                         self.runtime.last_error = "Could not disconnect the configured iPad."
@@ -483,9 +502,10 @@ class StateEngine:
 
                     target_name = desired.needs_main_display_target
                     if target_name == "ipad":
+                        target = self.target_ipad(actual)
                         live_names = [d.get("name") for d in actual.sidecar_devices
-                                      if d.get("uuid", "").casefold() == self.config.ipad.sidecar_uuid.casefold()]
-                        name = live_names[0] if len(live_names) == 1 and live_names[0] else self.config.ipad.name
+                                      if d.get("uuid", "").casefold() == target.sidecar_uuid.casefold()]
+                        name = live_names[0] if len(live_names) == 1 and live_names[0] else target.name
                         matches = [d for d in actual.online_displays if d.is_sidecar and d.name == name]
                         spec = matches[0].uuid or matches[0].name if len(matches) == 1 else name
                         success = bool(spec) and self.bd_cli.set_main_display(spec)

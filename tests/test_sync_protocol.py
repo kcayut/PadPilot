@@ -337,7 +337,7 @@ class SyncProtocolTests(unittest.TestCase):
         self.assertEqual(mock_popen.call_args[0][0], ["open", "-g", "swiftbar://refreshallplugins"])
 
         # When SwiftBar re-runs the plugin script, it renders with the fresh config
-        fresh_config = Config(revision=2, mode=OperationMode.MANUAL_ONLY, ipad=IpadConfig(name="New iPad Name"))
+        fresh_config = Config(auto_detect_ipad=False, revision=2, mode=OperationMode.MANUAL_ONLY, ipad=IpadConfig(name="New iPad Name"))
         status = {
             "config_revision": 2,
             "status_revision": 1,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -65,6 +66,15 @@ def generate_plist_content(
 </dict>
 </plist>
 """
+
+
+def daemon_pids() -> list[int]:
+    # Match this checkout's full script path, never unrelated Python processes.
+    pattern = r"(^| )" + re.escape(str(PROJECT_ROOT / "bin" / "padpilotd")) + r"( |$)"
+    result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=2)
+    if result.returncode not in (0, 1):
+        raise RuntimeError("無法確認背景服務程序，未隱藏選單。" + result.stderr)
+    return [int(pid) for pid in result.stdout.split()]
 
 
 def is_daemon_running() -> bool:

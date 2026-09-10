@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import io
 import runpy
+import subprocess
 import time
 import unittest
 from pathlib import Path
@@ -20,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ControlsTests(unittest.TestCase):
     def test_renamed_profile_resolves_live_sidecar_and_distinct_display_uuid(self):
-        cfg = Config(ipad=IpadConfig(name='自訂標籤', sidecar_uuid='SESSION'))
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='自訂標籤', sidecar_uuid='SESSION'))
         bd = MagicMock(spec=BetterDisplayCLI)
         bd.check_virtual_display.return_value = (True, True)
         bd.get_sidecar_list.return_value = [{'uuid': 'SESSION', 'name': 'ky iPad pro m2'}]
@@ -41,7 +42,7 @@ class ControlsTests(unittest.TestCase):
         bd.set_main_display.assert_called_once_with('DISPLAY')
 
     def test_session_connected_without_display_is_not_offline(self):
-        cfg = Config(ipad=IpadConfig(name='Label', sidecar_uuid='SESSION'))
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='Label', sidecar_uuid='SESSION'))
         bd = MagicMock(spec=BetterDisplayCLI)
         bd.get_sidecar_list.return_value = []
         bd.check_virtual_display.return_value = (False, False)
@@ -76,7 +77,7 @@ class ControlsTests(unittest.TestCase):
                 self.assertIs(bd.get_sidecar_connected('SESSION'), expected)
 
     def test_late_connection_clears_error_and_cooldown_without_transition(self):
-        cfg = Config(ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
         detector, bd = MagicMock(), MagicMock()
         engine = StateEngine(cfg, detector, bd)
         actual = ActualState(main_display=DisplayInfo(2, 'iPad', is_sidecar=True, is_main=True),
@@ -107,7 +108,7 @@ class ControlsTests(unittest.TestCase):
         self.assertEqual(engine.runtime.last_error, 'connection failed')
 
     def test_reconnect_preserves_secondary_override_after_intentional_disconnect(self):
-        cfg = Config(ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
         detector, bd = MagicMock(), MagicMock()
         engine = StateEngine(cfg, detector, bd)
         physical = DisplayInfo(1, 'Monitor', is_main=True)
@@ -126,11 +127,11 @@ class ControlsTests(unittest.TestCase):
         menu = runpy.run_path(str(ROOT / 'swiftbar/padpilot.30s.py'))
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
-            menu['render']({}, {}, False)
+            menu['render']({}, {}, False, service_running=True)
         lines = output.getvalue().splitlines()
         titles = [line.split(' |')[0] for line in lines if not line.startswith('-')]
         expected = ['螢幕與裝置', 'iPad 控制', '運作模式', '背景服務', '設定與配對',
-                    '狀態與診斷', '重新整理螢幕狀態', 'Exit']
+                    '狀態與診斷', '重新整理螢幕狀態', '結束']
         self.assertEqual(titles[-8:], expected)
         # Verify separators in the bottom menu section
         clean_lines = [l.split(' |')[0] for l in lines]
@@ -138,7 +139,7 @@ class ControlsTests(unittest.TestCase):
         settings_idx = clean_lines.index('設定與配對')
         diag_idx = clean_lines.index('狀態與診斷')
         refresh_idx = clean_lines.index('重新整理螢幕狀態')
-        exit_idx = clean_lines.index('Exit')
+        exit_idx = clean_lines.index('結束')
 
         self.assertEqual(clean_lines[daemon_stop_idx + 1:settings_idx], ['---'])
         self.assertEqual(clean_lines[diag_idx + 1:refresh_idx], ['---'])
@@ -159,7 +160,7 @@ class ControlsTests(unittest.TestCase):
         from core.gui import SettingsWindow
         app = SettingsWindow.__new__(SettingsWindow)
         app.readonly = app.busy = False
-        cfg = Config(ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
         app.view = {'config': cfg}
         app.run_action = MagicMock(return_value='OK: requested')
         app.task = lambda work, complete: work()
@@ -195,12 +196,33 @@ class ControlsTests(unittest.TestCase):
             app.search()
         self.assertEqual(events, ['refresh', 'read'])
 
+    def test_gui_open_refresh_uses_real_action_success_path(self):
+        from core.gui import SettingsWindow
+        app = SettingsWindow.__new__(SettingsWindow)
+        app.current_tab = 'paired'
+        app.display = MagicMock()
+        app.task = lambda work, complete: complete(work())
+        view = {'config': Config(), 'actual': {}}
+        # Mock only external boundaries; run the shared action helper itself.
+        result = subprocess.CompletedProcess([], 0, stdout='OK: refreshed\n', stderr='')
+        with patch('core.autostart.is_daemon_running', return_value=True), \
+             patch('core.gui.subprocess.run', return_value=result) as run, \
+             patch('core.gui.read_view', return_value=view) as read:
+            app.search()
+            self.assertEqual(run.call_args.args[0][-2:], ['action', 'refresh'])
+            read.assert_called_once_with(scan=True)
+            app.display.assert_called_once_with(view)
+            self.assertEqual(SettingsWindow.run_action('refresh'), 'OK: refreshed')
+            result.returncode, result.stderr = 1, 'refresh failed'
+            with self.assertRaisesRegex(RuntimeError, 'refresh failed'):
+                SettingsWindow.run_action('refresh')
+
     def test_profile_name_draft_preserves_expected_revision(self):
         from core.gui import SettingsWindow
         app = SettingsWindow.__new__(SettingsWindow)
         app.busy = False
         app.root = MagicMock()
-        cfg = Config(ipad=IpadConfig(name='Old name', sidecar_uuid='SESSION'), revision=9)
+        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='Old name', sidecar_uuid='SESSION'), revision=9)
         app.view = {'config': cfg}
         app.dirty_fields = {'name.SESSION': {'value': 'New name', 'base_revision': 7}}
         app.change = MagicMock()

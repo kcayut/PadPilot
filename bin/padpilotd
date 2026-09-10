@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import copy
+from contextlib import nullcontext
 from core.betterdisplay import BetterDisplayCLI
 from core.autostart import notify_swiftbar
 from core.config import APP_SUPPORT_DIR, load_config, save_config
@@ -27,6 +28,7 @@ from core.logger import get_logger
 from core.models import DisplayRole, OperationMode
 from core.state_engine import StateEngine
 from core.settings import ConflictError, apply_change
+from core.usb_events import USBEventMonitor
 
 logger = get_logger("Daemon")
 
@@ -36,6 +38,9 @@ SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 class PadPilotDaemon:
     def __init__(self) -> None:
         self.running = True
+        self.wakeup = threading.Event()
+        self.usb_monitor = USBEventMonitor(self.wakeup.set)
+        self.usb_monitor_enabled = False
         self.config_lock = threading.RLock()
         self.config = load_config()
         self.ensure_betterdisplay_running()
@@ -55,7 +60,8 @@ class PadPilotDaemon:
 
     def apply_config_change(self, action: str, payload: dict, expected_revision: Optional[int] = None) -> tuple[bool, Any]:
         """Short-lived config mutation transaction."""
-        with self.config_lock:
+        engine = getattr(self, "engine", None)
+        with self.config_lock, getattr(engine, "_eval_lock", nullcontext()):
             if not hasattr(self, "config") or self.config is None:
                 self.config = load_config()
             if expected_revision is not None and self.config.revision != expected_revision:
@@ -75,7 +81,9 @@ class PadPilotDaemon:
             return needs_transition, self.config
 
     def _run_config_side_effects(self, action: str) -> None:
-        if action == 'set_betterdisplaycli_path':
+        if action == 'set_usb_event_wakeup':
+            self.wakeup.set()
+        elif action == 'set_betterdisplaycli_path':
             self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
             if hasattr(self, 'detector') and self.detector is not None:
                 self.detector.bd_cli = self.bd_cli
@@ -123,7 +131,7 @@ class PadPilotDaemon:
             arg = parts[1] if len(parts) > 1 else ""
             if command == "set_mode":
                 params = {"mode": arg}
-            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart"):
+            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):
                 try:
                     params = json.loads(arg) if arg else {}
                 except Exception:
@@ -132,7 +140,7 @@ class PadPilotDaemon:
                 params = {}
 
         # Handle config mutation actions
-        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path"):
+        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):
             try:
                 changed, cfg = self.apply_config_change(command, params, expected_rev)
             except ConflictError as e:
@@ -189,7 +197,7 @@ class PadPilotDaemon:
             return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Automation state reset"
         elif command == "stop":
             logger.info("Daemon stop requested via IPC")
-            self.running = False
+            self.stop()
             resp = {"id": req_id, "ok": True, "message": "OK: Daemon stopping"}
             return json.dumps(resp, ensure_ascii=False) if is_json else "OK: Daemon stopping"
         else:
@@ -264,47 +272,43 @@ class PadPilotDaemon:
         ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
         ipc_thread.start()
 
-        # Initial evaluate
-        self.engine.evaluate(trigger="startup")
-
-        # Boot Warmup: In the first 30 seconds after startup, macOS Bluetooth, AWDL,
-        # and Continuity take 5-15s to discover the iPad. If not yet satisfied,
-        # poll rapidly every 2 seconds to connect Sidecar as soon as iPad appears,
-        # rather than waiting for the standard 30-second watchdog interval.
-        logger.info("Entering boot warmup phase (fast-polling every 2s for up to 30s)...")
-        warmup_end = time.time() + 30.0
-        while self.running and time.time() < warmup_end:
-            time.sleep(2.0)
-            if not self.running:
-                break
-            # Fresh evaluation on every tick
-            self.engine.evaluate(trigger="boot_warmup")
-            if (
-                self.engine.actual
-                and self.engine.desired
-                and self.engine.is_satisfied(self.engine.actual, self.engine.desired)
-            ):
-                real_physical = [
-                    d for d in self.engine.actual.physical_displays
-                    if not d.is_virtual and not d.is_sidecar and d.width > 1 and d.height > 1
-                ]
-                if len(real_physical) > 0 or self.engine.actual.sidecar_connected:
-                    logger.info(
-                        f"Display state satisfied during warmup (real_physical={[d.name for d in real_physical]}, "
-                        f"sidecar_connected={self.engine.actual.sidecar_connected}). Transitioning to standard watchdog."
-                    )
+        # Events and Watchdog share one consumer; notifications coalesce while busy.
+        warmup_end = time.monotonic() + 30.0
+        try:
+            self.sync_usb_monitor()
+            self.engine.evaluate(trigger="startup")
+            while self.running:
+                timeout = 2.0 if time.monotonic() < warmup_end else 30.0
+                debounce = self.engine.runtime.debounce_until - time.time()
+                if debounce > 0:
+                    timeout = min(timeout, debounce)
+                event = self.wakeup.wait(timeout)
+                self.wakeup.clear()
+                if not self.running:
                     break
+                self.sync_usb_monitor()
+                if event and self.config.usb_event_wakeup:
+                    # Continuity discovery may lag the USB driver notification.
+                    warmup_end = time.monotonic() + 30.0
+                self.detector.usb_monitor_error = self.usb_monitor.error if self.usb_monitor_enabled else ''
+                self.engine.evaluate(trigger="usb_event" if event else "watchdog")
+        finally:
+            self.usb_monitor.stop()
 
-        # 30-second Watchdog loop
-        logger.info("Entering 30-second watchdog reconciliation loop")
-        while self.running:
-            time.sleep(30)
-            if self.running:
-                self.engine.evaluate(trigger="watchdog_30s")
+    def sync_usb_monitor(self):
+        enabled = self.config.usb_event_wakeup
+        if enabled != self.usb_monitor_enabled:
+            self.usb_monitor_enabled = enabled
+            if enabled:
+                self.usb_monitor.start()
+            else:
+                self.usb_monitor.stop()
+
 
     def stop(self) -> None:
         logger.info("Stopping PadPilot Daemon...")
         self.running = False
+        self.wakeup.set()
 
 
 def main() -> None:

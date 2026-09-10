@@ -1,0 +1,1561 @@
+{
+  "進階選項": {"en": "Advanced options", "ja": "詳細オプション"},
+  "自動模式": {
+    "en": "Automatic mode",
+    "ja": "自動モード"
+  },
+  "僅手動模式": {
+    "en": "Manual only",
+    "ja": "手動モード"
+  },
+  "偏好 iPad 模式": {
+    "en": "Prefer iPad",
+    "ja": "iPad 優先モード"
+  },
+  "無實體螢幕時自動連線 iPad 並設為主螢幕；有實體螢幕時以實體為主，已連線的 iPad 保持為副螢幕。": {
+    "en": "With no physical display, connect iPad as the main display. Otherwise, keep the physical display primary and connected iPad secondary.",
+    "ja": "物理ディスプレイがない場合、iPad に接続してメインにします。物理ディスプレイがある場合はそちらを優先し、接続済みの iPad はサブのままにします。"
+  },
+  "自動化程序暫停，不主動連線或斷開，完全由使用者自 Menu Bar 手動操控。": {
+    "en": "Pause automation. Connect and disconnect manually from the menu bar.",
+    "ja": "自動化を一時停止します。接続と切断はメニューバーから手動で操作します。"
+  },
+  "即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。": {
+    "en": "Connect iPad as the main display even when a physical display is attached.",
+    "ja": "物理ディスプレイが接続されていても、iPad を優先してメインにします。"
+  },
+  "{0}#使用手冊": {
+    "en": "{0}#使用手冊",
+    "ja": "{0}#使用手冊"
+  },
+  "自動登入": {
+    "en": "Automatic login",
+    "ja": "自動ログイン"
+  },
+  "登入啟動": {
+    "en": "Launch at login",
+    "ja": "ログイン時に起動"
+  },
+  "背景服務": {
+    "en": "Background service",
+    "ja": "バックグラウンドサービス"
+  },
+  "未設定": {
+    "en": "Not set",
+    "ja": "未設定"
+  },
+  "尚未檢查": {
+    "en": "Not checked",
+    "ja": "未確認"
+  },
+  "尚未驗證": {
+    "en": "Not verified",
+    "ja": "未検証"
+  },
+  "未知": {
+    "en": "Unknown",
+    "ja": "不明"
+  },
+  "評估中": {
+    "en": "Evaluating",
+    "ja": "評価中"
+  },
+  "待確認": {
+    "en": "Needs confirmation",
+    "ja": "要確認"
+  },
+  "人工確認": {
+    "en": "Manual check",
+    "ja": "手動確認"
+  },
+  "滑鼠與鍵盤": {
+    "en": "Mouse and keyboard",
+    "ja": "マウスとキーボード"
+  },
+  "注意": {
+    "en": "Note",
+    "ja": "注意"
+  },
+  "提示": {
+    "en": "Tip",
+    "ja": "ヒント"
+  },
+  "未開啟": {
+    "en": "Off",
+    "ja": "オフ"
+  },
+  "已開啟": {
+    "en": "On",
+    "ja": "オン"
+  },
+  "未啟用": {
+    "en": "Not enabled",
+    "ja": "無効"
+  },
+  "未回應": {
+    "en": "Not responding",
+    "ja": "応答なし"
+  },
+  "未找到": {
+    "en": "Not found",
+    "ja": "見つかりません"
+  },
+  "未在標準": {
+    "en": "Not in standard location",
+    "ja": "標準の場所にありません"
+  },
+  "尚未配對": {
+    "en": "Not paired",
+    "ja": "未ペアリング"
+  },
+  "未登錄": {
+    "en": "Not registered",
+    "ja": "未登録"
+  },
+  "設定異常": {
+    "en": "Configuration issue",
+    "ja": "設定の問題"
+  },
+  "不通過": {
+    "en": "Failed",
+    "ja": "不合格"
+  },
+  "失敗": {
+    "en": "Failure",
+    "ja": "失敗"
+  },
+  "錯誤": {
+    "en": "Error",
+    "ja": "エラー"
+  },
+  "已設定": {
+    "en": "Configured",
+    "ja": "設定済み"
+  },
+  "執行中": {
+    "en": "Running",
+    "ja": "実行中"
+  },
+  "已安裝": {
+    "en": "Installed",
+    "ja": "インストール済み"
+  },
+  "可用": {
+    "en": "Available",
+    "ja": "利用可能"
+  },
+  "已啟用": {
+    "en": "Enabled",
+    "ja": "有効"
+  },
+  "通過": {
+    "en": "Passed",
+    "ja": "合格"
+  },
+  "正常": {
+    "en": "Normal",
+    "ja": "正常"
+  },
+  "已連線": {
+    "en": "Connected",
+    "ja": "接続済み"
+  },
+  "狀態未知": {
+    "en": "Status unknown",
+    "ja": "状態不明"
+  },
+  "已偵測到 Sidecar": {
+    "en": "Sidecar detected",
+    "ja": "Sidecar を検出"
+  },
+  "僅 USB 已接上": {
+    "en": "USB only",
+    "ja": "USB のみ接続"
+  },
+  "未偵測到": {
+    "en": "Not detected",
+    "ja": "未検出"
+  },
+  "設定更新失敗": {
+    "en": "Settings update failed",
+    "ja": "設定の更新に失敗しました"
+  },
+  "刪除": {
+    "en": "Delete",
+    "ja": "削除"
+  },
+  "是": {
+    "en": "Yes",
+    "ja": "はい"
+  },
+  "否": {
+    "en": "No",
+    "ja": "いいえ"
+  },
+  "全部": {
+    "en": "All",
+    "ja": "すべて"
+  },
+  "PadPilot — 螢幕與配對管理": {
+    "en": "PadPilot — Displays & Pairing",
+    "ja": "PadPilot — ディスプレイとペアリング"
+  },
+  "智慧顯示器管理系統": {
+    "en": "Smart display management",
+    "ja": "スマートディスプレイ管理"
+  },
+  "已配對 iPad": {
+    "en": "Paired iPads",
+    "ja": "ペアリング済み iPad"
+  },
+  "搜尋新裝置": {
+    "en": "Find devices",
+    "ja": "デバイスを検索"
+  },
+  "運作與偏好": {
+    "en": "Preferences",
+    "ja": "環境設定"
+  },
+  "連線螢幕狀態": {
+    "en": "Connected displays",
+    "ja": "接続中のディスプレイ"
+  },
+  "虛擬備援螢幕": {
+    "en": "Virtual fallback",
+    "ja": "仮想ディスプレイ"
+  },
+  "狀態與診斷": {
+    "en": "Status & diagnostics",
+    "ja": "状態と診断"
+  },
+  "模式：讀取中…": {
+    "en": "Mode: Loading…",
+    "ja": "モード：読み込み中…"
+  },
+  "主力：讀取中…": {
+    "en": "Target: Loading…",
+    "ja": "対象：読み込み中…"
+  },
+  "🔄 重新整理狀態": {
+    "en": "🔄 Refresh status",
+    "ja": "🔄 状態を更新"
+  },
+  "📖 使用說明": {
+    "en": "📖 User guide",
+    "ja": "📖 使い方"
+  },
+  "🩺 疑難排解": {
+    "en": "🩺 Troubleshooting",
+    "ja": "🩺 トラブルシューティング"
+  },
+  "↗ GitHub 專案": {
+    "en": "↗ GitHub project",
+    "ja": "↗ GitHub プロジェクト"
+  },
+  "管理已配對至 PadPilot 的 iPad 設備清單": {
+    "en": "Manage iPads paired with PadPilot",
+    "ja": "PadPilot とペアリングした iPad を管理"
+  },
+  "正在讀取…": {
+    "en": "Loading…",
+    "ja": "読み込み中…"
+  },
+  "管理已記錄的 iPad 裝置，指定無螢幕時的自動接管主力": {
+    "en": "Manage saved iPads and choose the target for headless use",
+    "ja": "保存済みの iPad を管理し、ディスプレイなしで使う対象を指定"
+  },
+  "搜尋與配對": {
+    "en": "Find & pair devices",
+    "ja": "デバイスの検索とペアリング"
+  },
+  "自動探測附近的 Sidecar 設備與 USB 連線進行配對": {
+    "en": "Find nearby Sidecar devices and USB connections for pairing",
+    "ja": "近くの Sidecar デバイスと USB 接続を検出してペアリング"
+  },
+  "運作與偏好設定": {
+    "en": "Preferences",
+    "ja": "環境設定"
+  },
+  "檢視與即時切換運作模式、登入啟動狀態與防護參數": {
+    "en": "Change operation mode, launch at login, and review safeguards",
+    "ja": "動作モードやログイン時の起動を変更し、保護設定を確認"
+  },
+  "目前連線螢幕": {
+    "en": "Connected displays",
+    "ja": "接続中のディスプレイ"
+  },
+  "檢視當前上線的實體螢幕、Sidecar 與虛擬備援螢幕": {
+    "en": "View physical, Sidecar, and virtual displays currently online",
+    "ja": "接続中の物理、Sidecar、仮想ディスプレイを確認"
+  },
+  "選擇並指定 BetterDisplay 虛擬螢幕作為無頭備援": {
+    "en": "Choose a BetterDisplay virtual display for headless fallback",
+    "ja": "ディスプレイなしで使う BetterDisplay 仮想ディスプレイを指定"
+  },
+  "檢視系統即時決策狀態、狀態機轉換與運行日誌": {
+    "en": "View live decisions, transitions, and service logs",
+    "ja": "現在の判断、状態遷移、動作ログを確認"
+  },
+  "自動偵測已啟用；目前目標及控制請見選單列「iPad 控制」。已存配對保留不變。": {
+    "en": "Auto-detection is enabled. Use “iPad controls” in the menu bar for the current target. Saved pairings are retained.",
+    "ja": "自動検出が有効です。現在の対象はメニューバーの「iPad 操作」で確認できます。保存済みのペアリングは保持されます。"
+  },
+  "尚未配對任何 iPad": {
+    "en": "No paired iPads",
+    "ja": "ペアリング済みの iPad はありません"
+  },
+  "請前往「搜尋新裝置」尋找身旁的 iPad 並完成配對設定。": {
+    "en": "Open “Find devices” to find and pair a nearby iPad.",
+    "ja": "「デバイスを検索」で近くの iPad を探してペアリングしてください。"
+  },
+  "前往搜尋新裝置": {
+    "en": "Find devices",
+    "ja": "デバイスを検索"
+  },
+  "刪除配對": {
+    "en": "Delete pairing",
+    "ja": "ペアリングを削除"
+  },
+  "未命名 iPad": {
+    "en": "Unnamed iPad",
+    "ja": "名称未設定の iPad"
+  },
+  "★ 已存主力 iPad": {
+    "en": "★ Saved target iPad",
+    "ja": "★ 保存済み対象 iPad"
+  },
+  "★ 主要管理 iPad (自動接管)": {
+    "en": "★ Primary iPad (automatic)",
+    "ja": "★ メイン iPad（自動接続）"
+  },
+  "● 已連線": {
+    "en": "● Connected",
+    "ja": "● 接続済み"
+  },
+  "⚡ 僅 USB 接上": {
+    "en": "⚡ USB only",
+    "ja": "⚡ USB のみ接続"
+  },
+  "📡 偵測到 Sidecar": {
+    "en": "📡 Sidecar detected",
+    "ja": "📡 Sidecar を検出"
+  },
+  "○ 離線未連線": {
+    "en": "○ Offline",
+    "ja": "○ 未接続"
+  },
+  "控制": {
+    "en": "Controls",
+    "ja": "操作"
+  },
+  "作為副螢幕": {
+    "en": "Secondary",
+    "ja": "サブにする"
+  },
+  "設為主螢幕": {
+    "en": "Make main",
+    "ja": "メインにする"
+  },
+  "中斷連線": {
+    "en": "Disconnect",
+    "ja": "切断"
+  },
+  "重新連線": {
+    "en": "Reconnect",
+    "ja": "再接続"
+  },
+  "請先在「設定」中設為主要管理 iPad。": {
+    "en": "Select this as the primary iPad in Settings first.",
+    "ja": "先に「設定」でメイン iPad に指定してください。"
+  },
+  "收合 ▲": {
+    "en": "Collapse ▲",
+    "ja": "折りたたむ ▲"
+  },
+  "設定 ▼": {
+    "en": "Settings ▼",
+    "ja": "設定 ▼"
+  },
+  " (目前已接上 USB)": {
+    "en": " (USB connected)",
+    "ja": "（USB 接続済み）"
+  },
+  "USB 序號:      {0}{1}": {
+    "en": "USB serial:      {0}{1}",
+    "ja": "USB シリアル：      {0}{1}"
+  },
+  "自訂名稱：": {
+    "en": "Custom name:",
+    "ja": "表示名："
+  },
+  "更新名稱": {
+    "en": "Update name",
+    "ja": "名前を更新"
+  },
+  "對應 USB：": {
+    "en": "USB device:",
+    "ja": "USB 対応："
+  },
+  "略過 / 未綁定 USB": {
+    "en": "Skip / No USB binding",
+    "ja": "スキップ / USB 未関連付け"
+  },
+  "更新 USB 設定": {
+    "en": "Update USB",
+    "ja": "USB を更新"
+  },
+  "主力管理：": {
+    "en": "Primary iPad:",
+    "ja": "メイン iPad："
+  },
+  "✓ 已存主力 iPad；關閉自動偵測後生效": {
+    "en": "✓ Saved target; used when auto-detection is off",
+    "ja": "✓ 保存済みの対象。自動検出をオフにすると有効"
+  },
+  "✓ 目前已是主要管理 iPad（無實體外接螢幕時自動連線接管）": {
+    "en": "✓ Primary iPad (connects automatically without a physical display)",
+    "ja": "✓ メイン iPad（物理ディスプレイがない場合に自動接続）"
+  },
+  "設為主要管理 iPad": {
+    "en": "Set as primary iPad",
+    "ja": "メイン iPad に指定"
+  },
+  "（當 Mac 未接實體外接螢幕時，系統將自動連線此 iPad 作為主顯示器）": {
+    "en": "(Connects as the main display when no physical display is attached)",
+    "ja": "(物理ディスプレイがない場合、メインとして自動接続)"
+  },
+  "💡 搜尋與配對須知": {
+    "en": "💡 Before pairing",
+    "ja": "💡 ペアリングの前に"
+  },
+  "🔍 搜尋可配對裝置": {
+    "en": "🔍 Find devices",
+    "ja": "🔍 デバイスを検索"
+  },
+  "請確認 Mac 與 iPad 登入相同 Apple Account，且藍牙與 Wi-Fi 已開啟；建議以 USB-C 直連確保無頭開機時自動接管。": {
+    "en": "Use the same Apple Account on Mac and iPad, with Bluetooth and Wi-Fi on. A direct USB-C connection is recommended for headless startup.",
+    "ja": "Mac と iPad で同じ Apple Account を使用し、Bluetooth と Wi-Fi をオンにしてください。ディスプレイなしでの起動には USB-C の直接接続を推奨します。"
+  },
+  "可配對裝置 ({0} 台)": {
+    "en": "Available devices ({0})",
+    "ja": "ペアリング可能なデバイス（{0} 台）"
+  },
+  "目前未偵測到 Sidecar 候選設備": {
+    "en": "No Sidecar devices detected",
+    "ja": "Sidecar の候補が見つかりません"
+  },
+  "若 iPad 已在身旁，請解鎖螢幕或在 macOS「控制中心 > 螢幕鏡像輸出」中確認是否能看到該 iPad。": {
+    "en": "Unlock the nearby iPad, or check macOS Control Center > Screen Mirroring for the device.",
+    "ja": "iPad のロックを解除するか、macOS の「コントロールセンター > 画面ミラーリング」に表示されるか確認してください。"
+  },
+  "未命名裝置": {
+    "en": "Unnamed device",
+    "ja": "名称未設定のデバイス"
+  },
+  "已在此 Mac 配對": {
+    "en": "Paired on this Mac",
+    "ja": "この Mac でペアリング済み"
+  },
+  "新發現裝置": {
+    "en": "New device",
+    "ja": "新しいデバイス"
+  },
+  "未綁定": {
+    "en": "Not bound",
+    "ja": "未関連付け"
+  },
+  "目前關聯 USB:  {0}": {
+    "en": "Linked USB:  {0}",
+    "ja": "関連付け済み USB：  {0}"
+  },
+  "✓ 此裝置已完成配對。若需自訂名稱、對應 USB 或設為主力 iPad，請至「已配對 iPad」分頁設定。": {
+    "en": "✓ Already paired. Open “Paired iPads” to edit its name, USB binding, or primary target.",
+    "ja": "✓ ペアリング済みです。名前、USB の関連付け、メインの指定は「ペアリング済み iPad」で変更できます。"
+  },
+  "前往「已配對 iPad」設定 →": {
+    "en": "Open paired iPads →",
+    "ja": "ペアリング済み iPad へ →"
+  },
+  "設為主要管理 iPad（無螢幕時自動接管）": {
+    "en": "Use as primary iPad (automatic headless connection)",
+    "ja": "メイン iPad に指定（ディスプレイなしで自動接続）"
+  },
+  "完成配對並儲存全部": {
+    "en": "Pair & save",
+    "ja": "ペアリングして保存"
+  },
+  "⚙️ 運作模式 (Operation Mode)": {
+    "en": "⚙️ Operation mode",
+    "ja": "⚙️ 動作モード"
+  },
+  "（點選卡片或按鈕即可即時切換）": {
+    "en": "(Select a card or button to switch)",
+    "ja": "(カードまたはボタンで切り替え)"
+  },
+  "✓ 目前生效中": {
+    "en": "✓ Active",
+    "ja": "✓ 有効"
+  },
+  "切換為此模式": {
+    "en": "Use this mode",
+    "ja": "このモードにする"
+  },
+  "USB 與 iPad 自動偵測": {
+    "en": "USB & iPad auto-detection",
+    "ja": "USB と iPad の自動検出"
+  },
+  "USB 插拔即時喚醒": {
+    "en": "Wake on USB connect/disconnect",
+    "ja": "USB の接続・切断で即時検出"
+  },
+  "收到原生 USB 事件即重新評估；保留防抖與 30 秒 Watchdog，非保證瞬間連線。": {
+    "en": "Re-evaluate on native USB events. Debouncing and the 30-second watchdog remain; connection is not guaranteed to be instant.",
+    "ja": "USB イベントで再評価します。デバウンスと 30 秒の監視は維持され、即時接続を保証するものではありません。"
+  },
+  "自動偵測 iPad（免 PadPilot 配對）": {
+    "en": "Auto-detect iPad (no PadPilot pairing)",
+    "ja": "iPad を自動検出（PadPilot ペアリング不要）"
+  },
+  "限唯一 USB iPad 與唯一 Sidecar 候選；優先使用已存配對。多台環境請關閉並指定配對。": {
+    "en": "Requires one USB iPad and one Sidecar candidate; saved pairings take priority. With multiple devices, disable this and choose a pairing.",
+    "ja": "USB の iPad と Sidecar 候補が各 1 台の場合のみ。保存済みペアリングを優先します。複数台の場合はオフにして対象を指定してください。"
+  },
+  "：已啟用": {
+    "en": ": Enabled",
+    "ja": "：有効"
+  },
+  "：已停用": {
+    "en": ": Disabled",
+    "ja": "：無効"
+  },
+  "停用": {
+    "en": "Disable",
+    "ja": "無効にする"
+  },
+  "啟用": {
+    "en": "Enable",
+    "ja": "有効にする"
+  },
+  "本次偵測目標：": {
+    "en": "Detected target: ",
+    "ja": "検出した対象："
+  },
+  "本次偵測目標：尚無唯一目標或狀態待更新": {
+    "en": "Detected target: No unique target or status pending",
+    "ja": "検出した対象：一意の対象なし、または状態更新待ち"
+  },
+  "免配對不會略過 Apple Sidecar 的帳號、信任與相容性要求；唯一候選仍是推定。": {
+    "en": "Apple Sidecar account, trust, and compatibility requirements still apply. A unique candidate is still an inference.",
+    "ja": "Apple Sidecar のアカウント、信頼、互換性の要件は必要です。候補が 1 台でも推定である点は変わりません。"
+  },
+  "🚀 登入時自動啟動 PadPilot：": {
+    "en": "🚀 Launch PadPilot at login:",
+    "ja": "🚀 ログイン時に起動："
+  },
+  "已停用": {
+    "en": "Disabled",
+    "ja": "無効"
+  },
+  "（隨 macOS 登入背景自動執行）": {
+    "en": "(Runs in the background at macOS login)",
+    "ja": "(macOS ログイン時にバックグラウンド実行)"
+  },
+  "切換為停用": {
+    "en": "Disable",
+    "ja": "無効にする"
+  },
+  "切換為啟用": {
+    "en": "Enable",
+    "ja": "有効にする"
+  },
+  "🛡️ 防護機制與保護參數": {
+    "en": "🛡️ Connection safeguards",
+    "ja": "🛡️ 接続の保護設定"
+  },
+  "瞬斷防抖等待 (Debounce)": {
+    "en": "Debounce",
+    "ja": "デバウンス"
+  },
+  "{0} 秒": {
+    "en": "{0} seconds",
+    "ja": "{0} 秒"
+  },
+  "實體螢幕拔插瞬斷時的緩衝計時，未滿前不觸發切換": {
+    "en": "Wait before switching after a brief physical display disconnection",
+    "ja": "物理ディスプレイの瞬断後、切り替え前に待機"
+  },
+  "最大重試次數 (Max Retries)": {
+    "en": "Max retries",
+    "ja": "最大再試行回数"
+  },
+  "{0} 次": {
+    "en": "{0} times",
+    "ja": "{0} 回"
+  },
+  "Sidecar 連線異常時的自動重試上限": {
+    "en": "Maximum automatic retries for Sidecar connection failures",
+    "ja": "Sidecar 接続失敗時の自動再試行上限"
+  },
+  "重試間隔 (Retry Interval)": {
+    "en": "Retry interval",
+    "ja": "再試行間隔"
+  },
+  "每次重試之間的等待秒數": {
+    "en": "Wait between retries",
+    "ja": "再試行の待機時間"
+  },
+  "冷卻保護時間 (Cooldown)": {
+    "en": "Cooldown",
+    "ja": "クールダウン"
+  },
+  "重試全數失敗後進入冷卻，防止連線風暴": {
+    "en": "Pause after all retries fail to prevent repeated connection attempts",
+    "ja": "すべての再試行失敗後、連続接続を防ぐために待機"
+  },
+  "排除佔位名稱 (Ignore List)": {
+    "en": "Ignore list",
+    "ja": "除外リスト"
+  },
+  "無": {
+    "en": "None",
+    "ja": "なし"
+  },
+  "忽略特定佔位螢幕名稱（如 Generic Display）": {
+    "en": "Ignore placeholder display names such as Generic Display",
+    "ja": "Generic Display などの仮のディスプレイ名を除外"
+  },
+  "📁 系統路徑與整合": {
+    "en": "📁 Paths & integrations",
+    "ja": "📁 パスと連携"
+  },
+  "未找到可用的 BetterDisplay CLI": {
+    "en": "No usable BetterDisplay CLI found",
+    "ja": "利用可能な BetterDisplay CLI がありません"
+  },
+  "手動指定": {
+    "en": "Custom",
+    "ja": "手動指定"
+  },
+  "自動偵測": {
+    "en": "Auto-detect",
+    "ja": "自動検出"
+  },
+  "手動設定": {
+    "en": "Set path",
+    "ja": "手動設定"
+  },
+  "恢復預設": {
+    "en": "Reset",
+    "ja": "既定に戻す"
+  },
+  "設定檔位置：": {
+    "en": "Config file:",
+    "ja": "設定ファイル："
+  },
+  "⚠️ 螢幕資料待更新": {
+    "en": "⚠️ Display status needs updating",
+    "ja": "⚠️ ディスプレイの状態を更新してください"
+  },
+  "上次偵測資料已超過 120 秒或尚未取得，請點擊左側「重新整理狀態」。": {
+    "en": "No data or data older than 120 seconds. Click “Refresh status” in the sidebar.",
+    "ja": "データがないか、120 秒以上経過しています。左側の「状態を更新」を押してください。"
+  },
+  "目前無任何上線顯示器": {
+    "en": "No displays online",
+    "ja": "接続中のディスプレイはありません"
+  },
+  "未命名螢幕": {
+    "en": "Unnamed display",
+    "ja": "名称未設定のディスプレイ"
+  },
+  "主顯示器": {
+    "en": "Main display",
+    "ja": "メインディスプレイ"
+  },
+  "延伸顯示器": {
+    "en": "Extended display",
+    "ja": "拡張ディスプレイ"
+  },
+  "虛擬螢幕": {
+    "en": "Virtual display",
+    "ja": "仮想ディスプレイ"
+  },
+  "實體螢幕": {
+    "en": "Physical display",
+    "ja": "物理ディスプレイ"
+  },
+  "◻️ BetterDisplay 虛擬備援螢幕設定": {
+    "en": "◻️ BetterDisplay virtual fallback",
+    "ja": "◻️ BetterDisplay 仮想ディスプレイ設定"
+  },
+  "🔄 重新探測": {
+    "en": "🔄 Rescan",
+    "ja": "🔄 再検出"
+  },
+  "當未接外接螢幕且 Sidecar 連線斷線時，虛擬螢幕將作為無頭備援 Framebuffer，供遠端救援存取。": {
+    "en": "Without an external display or Sidecar connection, the virtual display provides a headless framebuffer for remote recovery.",
+    "ja": "外部ディスプレイも Sidecar 接続もない場合、仮想ディスプレイがリモート復旧用のフレームバッファーになります。"
+  },
+  "選擇指定備援螢幕：": {
+    "en": "Fallback display:",
+    "ja": "予備ディスプレイ："
+  },
+  "尚未指定": {
+    "en": "Not selected",
+    "ja": "未指定"
+  },
+  "未探測到虛擬螢幕": {
+    "en": "No virtual displays detected",
+    "ja": "仮想ディスプレイは未検出"
+  },
+  "指定為備援螢幕": {
+    "en": "Use as fallback",
+    "ja": "予備に指定"
+  },
+  "未探測到任何 BetterDisplay 虛擬螢幕": {
+    "en": "No BetterDisplay virtual displays detected",
+    "ja": "BetterDisplay の仮想ディスプレイは未検出"
+  },
+  "請先在 BetterDisplay App 中建立至少一個虛擬顯示器（建議命名為 PadPilotVirtual）。": {
+    "en": "Create a virtual display in BetterDisplay first (suggested name: PadPilotVirtual).",
+    "ja": "先に BetterDisplay で仮想ディスプレイを作成してください（推奨名：PadPilotVirtual）。"
+  },
+  "✓ 目前指定備援": {
+    "en": "✓ Current fallback",
+    "ja": "✓ 現在の予備"
+  },
+  "已連接": {
+    "en": "Connected",
+    "ja": "接続済み"
+  },
+  "未連接": {
+    "en": "Disconnected",
+    "ja": "未接続"
+  },
+  "設為此備援": {
+    "en": "Use this fallback",
+    "ja": "この予備を使用"
+  },
+  "🩺 自動化決策與狀態機": {
+    "en": "🩺 Automation decisions & state",
+    "ja": "🩺 自動化の判断と状態"
+  },
+  "重新整理": {
+    "en": "Refresh",
+    "ja": "更新"
+  },
+  "切換中…": {
+    "en": "Switching…",
+    "ja": "切り替え中…"
+  },
+  "套用新設定中…（等待背景服務評估）": {
+    "en": "Applying settings… (waiting for service evaluation)",
+    "ja": "設定を適用中…（サービスの評価待ち）"
+  },
+  "不同步": {
+    "en": "Out of sync",
+    "ja": "同期不一致"
+  },
+  "⚠️ 設定檔版本與背景服務狀態不一致，正在重新整理…": {
+    "en": "⚠️ Config and service versions differ. Refreshing…",
+    "ja": "⚠️ 設定とサービスのバージョンが異なります。更新中…"
+  },
+  "已滿足": {
+    "en": "Satisfied",
+    "ja": "条件を満たしています"
+  },
+  "尚無背景決策資訊": {
+    "en": "No service decision available",
+    "ja": "サービスの判断情報はありません"
+  },
+  "期望目標：": {
+    "en": "Desired target:",
+    "ja": "期待する対象："
+  },
+  "實際狀態：": {
+    "en": "Actual state:",
+    "ja": "実際の状態："
+  },
+  "資料待更新": {
+    "en": "Awaiting update",
+    "ja": "更新待ち"
+  },
+  "滿足": {
+    "en": "Satisfied",
+    "ja": "条件を満たす"
+  },
+  "狀態機轉換：": {
+    "en": "Transition:",
+    "ja": "状態遷移："
+  },
+  "⚠️ 冷卻保護中": {
+    "en": "⚠️ Cooling down",
+    "ja": "⚠️ クールダウン中"
+  },
+  "決策依據：": {
+    "en": "Reason:",
+    "ja": "判断理由："
+  },
+  "最近錯誤：": {
+    "en": "Last error:",
+    "ja": "最近のエラー："
+  },
+  "啟動與必要設定偵測 — 需要使用者帳號密碼": {
+    "en": "Startup checks — account authentication required",
+    "ja": "起動と必要設定の確認 — アカウント認証が必要"
+  },
+  "啟動與必要設定偵測": {
+    "en": "Startup & required settings",
+    "ja": "起動と必要設定の確認"
+  },
+  "查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。": {
+    "en": "macOS may ask for an administrator account and password to query login items. Enter them in the system dialog; PadPilot does not collect or store passwords. Only refreshing this section runs the query.",
+    "ja": "ログイン項目の確認には、macOS が管理者アカウントとパスワードを求める場合があります。システムの認証画面に入力してください。PadPilot はパスワードを収集・保存しません。この欄の更新時のみ確認します。"
+  },
+  "說明 ↗": {
+    "en": "Help ↗",
+    "ja": "ヘルプ ↗"
+  },
+  "📜 系統運行日誌 (padpilot.log)": {
+    "en": "📜 Service logs (padpilot.log)",
+    "ja": "📜 動作ログ（padpilot.log）"
+  },
+  "展開 ▼": {
+    "en": "Expand ▼",
+    "ja": "展開 ▼"
+  },
+  "篩選：": {
+    "en": "Filter:",
+    "ja": "フィルター："
+  },
+  "僅 WARNING / ERROR": {
+    "en": "WARNING / ERROR only",
+    "ja": "WARNING / ERROR のみ"
+  },
+  "僅 ERROR": {
+    "en": "ERROR only",
+    "ja": "ERROR のみ"
+  },
+  "僅 INFO": {
+    "en": "INFO only",
+    "ja": "INFO のみ"
+  },
+  "🔄 刷新日誌": {
+    "en": "🔄 Refresh logs",
+    "ja": "🔄 ログを更新"
+  },
+  "外部開啟": {
+    "en": "Open externally",
+    "ja": "外部で開く"
+  },
+  "尚無日誌檔案。\n": {
+    "en": "No log file yet.\n",
+    "ja": "ログファイルはまだありません。\n"
+  },
+  "無法讀取日誌：{0}\n": {
+    "en": "Cannot read logs: {0}\n",
+    "ja": "ログを読み取れません：{0}\n"
+  },
+  "（查無符合篩選條件的日誌紀錄）\n": {
+    "en": "(No matching log entries)\n",
+    "ja": "（条件に一致するログはありません）\n"
+  },
+  "模式：{0} (套用中…)": {
+    "en": "Mode: {0} (applying…)",
+    "ja": "モード：{0}（適用中…）"
+  },
+  "模式：{0}": {
+    "en": "Mode: {0}",
+    "ja": "モード：{0}"
+  },
+  "尚無唯一目標": {
+    "en": "No unique target",
+    "ja": "一意の対象なし"
+  },
+  "主力：{0}": {
+    "en": "Target: {0}",
+    "ja": "対象：{0}"
+  },
+  "部分狀態未知：": {
+    "en": "Some status is unknown: ",
+    "ja": "一部の状態は不明："
+  },
+  "正在套用新設定至硬體…": {
+    "en": "Applying settings to hardware…",
+    "ja": "ハードウェアに設定を適用中…"
+  },
+  "⚠️ 設定版本不同步，正在重新整理…": {
+    "en": "⚠️ Config versions differ. Refreshing…",
+    "ja": "⚠️ 設定のバージョンが異なります。更新中…"
+  },
+  "更新於 {0} · {1} 台已配對": {
+    "en": "Updated {0} · {1} paired",
+    "ja": "更新 {0} · {1} 台ペアリング済み"
+  },
+  "處理中，請稍候…": {
+    "en": "Working, please wait…",
+    "ja": "処理中です。お待ちください…"
+  },
+  "⚠️ 設定已被其他來源修改，請確認最新設定。": {
+    "en": "⚠️ Settings changed elsewhere. Check the latest settings.",
+    "ja": "⚠️ 別の場所で設定が変更されました。最新の設定を確認してください。"
+  },
+  "設定衝突": {
+    "en": "Settings conflict",
+    "ja": "設定の競合"
+  },
+  "此設定已被其他來源（如 Menu Bar 或 CLI）修改。\n\n您輸入的內容已保留，請檢視最新狀態後再次儲存。": {
+    "en": "Settings changed elsewhere (such as the menu bar or CLI).\n\nYour input is retained. Review the latest state and save again.",
+    "ja": "別の場所（メニューバーや CLI など）で設定が変更されました。\n\n入力内容は保持されています。最新の状態を確認し、再度保存してください。"
+  },
+  "操作未完成；請檢查錯誤後重試。": {
+    "en": "Action incomplete. Check the error and retry.",
+    "ja": "操作は完了していません。エラーを確認して再試行してください。"
+  },
+  "此卡片已更新於 ": {
+    "en": "Card updated at ",
+    "ja": "このカードの更新時刻："
+  },
+  "操作失敗": {
+    "en": "Action failed",
+    "ja": "操作に失敗しました"
+  },
+  "控制目標已變更，請重新整理後再操作。": {
+    "en": "The target changed. Refresh before trying again.",
+    "ja": "操作対象が変更されました。更新してから再試行してください。"
+  },
+  "切換至{0}?": {
+    "en": "Switch to {0}?",
+    "ja": "{0} に切り替えますか？"
+  },
+  "切換模式失敗": {
+    "en": "Mode change failed",
+    "ja": "モードの切り替えに失敗しました"
+  },
+  "已成功切換為 {0}": {
+    "en": "Switched to {0}",
+    "ja": "{0} に切り替えました"
+  },
+  "設定為{0}後，每次開機登入 macOS 時將{1}於背景執行 PadPilot 守護程序。": {
+    "en": "Login setting: {0}. PadPilot will {1} run in the background at macOS login.",
+    "ja": "ログイン設定：{0}。macOS ログイン時のバックグラウンド実行：{1}。"
+  },
+  "自動": {
+    "en": "Automatic",
+    "ja": "自動"
+  },
+  "不": {
+    "en": "not",
+    "ja": "実行しない"
+  },
+  "確定{0}登入時自動啟動?": {
+    "en": "{0} launch at login?",
+    "ja": "ログイン時の起動を「{0}」にしますか？"
+  },
+  "目前已經是預設自動偵測狀態。": {
+    "en": "Already using automatic detection.",
+    "ja": "既に自動検出を使用しています。"
+  },
+  "恢復預設 CLI 路徑?": {
+    "en": "Reset CLI path?",
+    "ja": "CLI パスを既定に戻しますか？"
+  },
+  "將清除手動指定的路徑，改為由系統自動探測 BetterDisplay CLI。": {
+    "en": "Clear the custom path and automatically detect BetterDisplay CLI.",
+    "ja": "手動指定のパスを消去し、BetterDisplay CLI を自動検出します。"
+  },
+  "手動設定 BetterDisplay CLI 路徑": {
+    "en": "Set BetterDisplay CLI path",
+    "ja": "BetterDisplay CLI のパスを設定"
+  },
+  "⚙️ 手動指定 BetterDisplay CLI": {
+    "en": "⚙️ Custom BetterDisplay CLI",
+    "ja": "⚙️ BetterDisplay CLI を手動指定"
+  },
+  "請輸入或選擇 betterdisplaycli 執行檔，或 BetterDisplay.app 應用程式路徑：": {
+    "en": "Enter or select the betterdisplaycli executable or BetterDisplay.app path:",
+    "ja": "betterdisplaycli 実行ファイルまたは BetterDisplay.app のパスを入力・選択してください："
+  },
+  "選擇 BetterDisplay CLI 或 App": {
+    "en": "Select BetterDisplay CLI or App",
+    "ja": "BetterDisplay CLI または App を選択"
+  },
+  "瀏覽…": {
+    "en": "Browse…",
+    "ja": "参照…"
+  },
+  "無效路徑": {
+    "en": "Invalid path",
+    "ja": "無効なパス"
+  },
+  "請輸入或選擇有效的路徑，或點擊「恢復預設」以使用自動偵測。": {
+    "en": "Enter a valid path, or choose “Reset” for automatic detection.",
+    "ja": "有効なパスを入力するか、「既定に戻す」で自動検出を使用してください。"
+  },
+  "指定路徑不存在或無執行權限：\n{0}": {
+    "en": "Path missing or not executable:\n{0}",
+    "ja": "パスが存在しないか実行権限がありません：\n{0}"
+  },
+  "儲存": {
+    "en": "Save",
+    "ja": "保存"
+  },
+  "取消": {
+    "en": "Cancel",
+    "ja": "キャンセル"
+  },
+  "名稱不可為空": {
+    "en": "Name required",
+    "ja": "名前が必要です"
+  },
+  "請輸入有效的裝置名稱。": {
+    "en": "Enter a valid device name.",
+    "ja": "有効なデバイス名を入力してください。"
+  },
+  "名稱未變更": {
+    "en": "Name unchanged",
+    "ja": "名前は変更されていません"
+  },
+  "裝置名稱已經是「{0}」，未作任何變更。": {
+    "en": "The name is already “{0}”. No changes made.",
+    "ja": "名前は既に「{0}」です。変更はありません。"
+  },
+  "是否將名稱由：\n{0}\n\n更改成：\n{1}": {
+    "en": "Change name from:\n{0}\n\nto:\n{1}",
+    "ja": "名前を変更しますか：\n{0}\n\n変更後：\n{1}"
+  },
+  "確定更新裝置名稱?": {
+    "en": "Update device name?",
+    "ja": "デバイス名を更新しますか？"
+  },
+  "略過 / 未綁定": {
+    "en": "Skip / Not bound",
+    "ja": "スキップ / 未関連付け"
+  },
+  "USB 設定未變更": {
+    "en": "USB settings unchanged",
+    "ja": "USB 設定は変更されていません"
+  },
+  "USB 序號已是「{0}」，未作任何變更。": {
+    "en": "USB serial is already “{0}”. No changes made.",
+    "ja": "USB シリアルは既に「{0}」です。変更はありません。"
+  },
+  "裝置：{0}\n\n是否將 USB 序號由：\n原設定：{1}\n變更為：{2}": {
+    "en": "Device: {0}\n\nChange USB serial:\nFrom: {1}\nTo: {2}",
+    "ja": "デバイス：{0}\n\nUSB シリアルを変更しますか：\n変更前：{1}\n変更後：{2}"
+  },
+  "確定更新 USB 設定?": {
+    "en": "Update USB settings?",
+    "ja": "USB 設定を更新しますか？"
+  },
+  "配對紀錄已變更或不存在，請重新開啟清單。": {
+    "en": "Pairing changed or no longer exists. Reopen the list.",
+    "ja": "ペアリングが変更されたか存在しません。一覧を開き直してください。"
+  },
+  "裝置：{0}\n僅刪除 PadPilot 的配對紀錄，不解除 Apple 系統配對。": {
+    "en": "Device: {0}\nOnly remove the PadPilot record. Apple system pairing is retained.",
+    "ja": "デバイス：{0}\nPadPilot の記録のみを削除します。Apple のシステムペアリングは解除しません。"
+  },
+  "\n這是目前主力 iPad；刪除後改為僅手動模式，保留目前螢幕連線。": {
+    "en": "\nThis is the primary iPad. Deleting switches to manual mode and retains current display connections.",
+    "ja": "\n現在のメイン iPad です。削除後は手動モードになり、現在のディスプレイ接続は維持されます。"
+  },
+  "確定刪除配對?": {
+    "en": "Delete pairing?",
+    "ja": "ペアリングを削除しますか？"
+  },
+  "找不到配對紀錄。": {
+    "en": "Pairing not found.",
+    "ja": "ペアリングが見つかりません。"
+  },
+  "裝置：{0}\n當未接外接螢幕時，系統將自動連線此 iPad 並將其切換為主顯示器。\n（將清除原主力 iPad 的暫時覆寫）": {
+    "en": "Device: {0}\nConnect this iPad as the main display when no external display is attached.\n(Clears the previous primary iPad override)",
+    "ja": "デバイス：{0}\n外部ディスプレイがない場合、この iPad をメインとして自動接続します。\n（以前のメイン iPad の一時的な上書きは解除されます）"
+  },
+  "指定為主要管理 iPad?": {
+    "en": "Use as primary iPad?",
+    "ja": "メイン iPad に指定しますか？"
+  },
+  "配對資料不完整": {
+    "en": "Incomplete pairing data",
+    "ja": "ペアリング情報が不足しています"
+  },
+  "當未接外接螢幕時，系統將自動連線並以此 iPad 作為主要顯示器。": {
+    "en": "Connect this iPad as the main display when no external display is attached.",
+    "ja": "外部ディスプレイがない場合、この iPad をメインとして自動接続します。"
+  },
+  "指定為虛擬備援?": {
+    "en": "Use as virtual fallback?",
+    "ja": "仮想の予備に指定しますか？"
+  },
+  "螢幕：{0}\n之後以此螢幕作為備援；依目前模式可能啟用它，不主動移除原有備援連線。": {
+    "en": "Display: {0}\nUse as fallback from now on. It may be enabled by the current mode; existing fallback connections are retained.",
+    "ja": "ディスプレイ：{0}\n今後の予備として使用します。現在のモードにより有効になる場合があります。既存の予備接続は維持されます。"
+  },
+  "僅手動": {
+    "en": "Manual only",
+    "ja": "手動のみ"
+  },
+  "偏好 iPad": {
+    "en": "Prefer iPad",
+    "ja": "iPad を優先"
+  },
+  "解析度：{0} × {1}": {
+    "en": "Resolution: {0} × {1}",
+    "ja": "解像度：{0} × {1}"
+  },
+  "螢幕 UUID": {
+    "en": "Display UUID",
+    "ja": "ディスプレイ UUID"
+  },
+  "USB 序號": {
+    "en": "USB serial",
+    "ja": "USB シリアル"
+  },
+  "背景服務尚未提供裝置清單，請重新啟動": {
+    "en": "Service has no device list yet. Restart it.",
+    "ja": "サービスがデバイス一覧を提供していません。再起動してください。"
+  },
+  "主螢幕：{0}": {
+    "en": "Main display: {0}",
+    "ja": "メイン：{0}"
+  },
+  "（尚無最新狀態）": {
+    "en": " (no recent status)",
+    "ja": "（最新の状態なし）"
+  },
+  "同步狀態重新讀取中…": {
+    "en": "Reloading sync status…",
+    "ja": "同期状態を再読み込み中…"
+  },
+  "套用設定中…": {
+    "en": "Applying settings…",
+    "ja": "設定を適用中…"
+  },
+  "偵測異常": {
+    "en": "Detection issue",
+    "ja": "検出の問題"
+  },
+  "發生錯誤": {
+    "en": "Error occurred",
+    "ja": "エラー発生"
+  },
+  "處理中": {
+    "en": "Working",
+    "ja": "処理中"
+  },
+  "運作中": {
+    "en": "Running",
+    "ja": "動作中"
+  },
+  "模式：{0}｜{1}": {
+    "en": "Mode: {0} · {1}",
+    "ja": "モード：{0}・{1}"
+  },
+  "螢幕與裝置": {
+    "en": "Displays & devices",
+    "ja": "ディスプレイとデバイス"
+  },
+  "目前可用": {
+    "en": "Available now",
+    "ja": "現在利用可能"
+  },
+  "狀態未知；請重新整理或啟動背景服務": {
+    "en": "Status unknown; refresh or start the service",
+    "ja": "状態不明。更新するかサービスを起動してください"
+  },
+  "主螢幕": {
+    "en": "Main display",
+    "ja": "メイン"
+  },
+  "未知螢幕": {
+    "en": "Unknown display",
+    "ja": "不明なディスプレイ"
+  },
+  "種類：": {
+    "en": "Type: ",
+    "ja": "種類："
+  },
+  "📱 {0} — 偵測到 Sidecar 目標": {
+    "en": "📱 {0} — Sidecar target detected",
+    "ja": "📱 {0} — Sidecar 対象を検出"
+  },
+  "📱 {0} — 僅偵測到 USB": {
+    "en": "📱 {0} — USB only",
+    "ja": "📱 {0} — USB のみ検出"
+  },
+  "未偵測到可用螢幕": {
+    "en": "No available displays detected",
+    "ja": "利用可能なディスプレイは未検出"
+  },
+  "裝置清單不完整；請查看診斷": {
+    "en": "Device list incomplete; check diagnostics",
+    "ja": "デバイス一覧は不完全です。診断を確認してください"
+  },
+  "⚠ 部分查詢失敗，未列出不代表離線": {
+    "en": "⚠ Some queries failed; missing devices may still be online",
+    "ja": "⚠ 一部の取得に失敗。未表示でも接続中の場合があります"
+  },
+  "已配對至 PadPilot": {
+    "en": "Paired with PadPilot",
+    "ja": "PadPilot とペアリング済み"
+  },
+  "自動偵測中；不會儲存推定配對": {
+    "en": "Auto-detecting; inferred pairings are not saved",
+    "ja": "自動検出中。推定したペアリングは保存しません"
+  },
+  "尚未配對；請使用配對精靈": {
+    "en": "Not paired; use the pairing wizard",
+    "ja": "未ペアリング。ペアリング画面をご利用ください"
+  },
+  "偵測到 Sidecar 目標": {
+    "en": "Sidecar target detected",
+    "ja": "Sidecar 対象を検出"
+  },
+  "僅偵測到 USB": {
+    "en": "USB only",
+    "ja": "USB のみ検出"
+  },
+  "｜目前控制目標": {
+    "en": " · Current target",
+    "ja": "・現在の操作対象"
+  },
+  "設為控制目標…": {
+    "en": "Set as target…",
+    "ja": "操作対象に指定…"
+  },
+  "虛擬備援": {
+    "en": "Virtual fallback",
+    "ja": "仮想の予備"
+  },
+  "已配置": {
+    "en": "Configured",
+    "ja": "構成済み"
+  },
+  "未配置": {
+    "en": "Not configured",
+    "ja": "未構成"
+  },
+  "iPad 控制": {
+    "en": "iPad controls",
+    "ja": "iPad 操作"
+  },
+  "自動偵測目標：": {
+    "en": "Auto-detected target: ",
+    "ja": "自動検出した対象："
+  },
+  "目前目標：": {
+    "en": "Current target: ",
+    "ja": "現在の対象："
+  },
+  "尚無目標": {
+    "en": "No target",
+    "ja": "対象なし"
+  },
+  "請接上唯一 iPad 並等待最新背景狀態": {
+    "en": "Connect one iPad and wait for fresh service status",
+    "ja": "iPad を 1 台接続して最新の状態をお待ちください"
+  },
+  "請先配對並取得最新背景狀態": {
+    "en": "Pair first and wait for fresh service status",
+    "ja": "ペアリングして最新の状態をお待ちください"
+  },
+  "運作模式": {
+    "en": "Operation mode",
+    "ja": "動作モード"
+  },
+  "登入時自動啟動": {
+    "en": "Launch at login",
+    "ja": "ログイン時に自動起動"
+  },
+  "啟動背景服務": {
+    "en": "Start service",
+    "ja": "サービスを起動"
+  },
+  "停止背景服務（保留選單）": {
+    "en": "Stop service (keep menu)",
+    "ja": "サービスを停止（メニューを維持）"
+  },
+  "設定與配對": {
+    "en": "Settings & pairing",
+    "ja": "設定とペアリング"
+  },
+  "重新整理螢幕狀態": {
+    "en": "Refresh display status",
+    "ja": "ディスプレイの状態を更新"
+  },
+  "語言": {
+    "en": "Language",
+    "ja": "言語"
+  },
+  "語言已更新": {
+    "en": "Language updated",
+    "ja": "言語を更新しました"
+  },
+  "Exit": {
+    "en": "Exit",
+    "ja": "終了",
+    "zh-Hant": "結束"
+  },
+  "{0:.1f} 秒": {
+    "en": "{0:.1f} seconds",
+    "ja": "{0:.1f} 秒"
+  },
+  "登入 macOS 時自動執行 PadPilot。": {
+    "en": "Run PadPilot automatically at macOS login.",
+    "ja": "macOS ログイン時に PadPilot を自動実行します。"
+  },
+  "登入 macOS 時不自動執行 PadPilot。": {
+    "en": "Do not run PadPilot automatically at macOS login.",
+    "ja": "macOS ログイン時に PadPilot を自動実行しません。"
+  },
+  "未知（系統查詢逾時或無權限）": {
+    "en": "Unknown (query timed out or permission denied)",
+    "ja": "不明（確認がタイムアウト、または権限なし）"
+  },
+  "未知（未取得目前使用者的登入項目）": {
+    "en": "Unknown (current user's login items unavailable)",
+    "ja": "不明（現在のユーザーのログイン項目を取得できません）"
+  },
+  "未登錄（請到系統設定 → 一般 → 登入項目確認）": {
+    "en": "Not registered (check System Settings > General > Login Items)",
+    "ja": "未登録（システム設定 > 一般 > ログイン項目を確認）"
+  },
+  "未知／受系統限制（請檢查登入項目）": {
+    "en": "Unknown / restricted (check login items)",
+    "ja": "不明／システムの制限（ログイン項目を確認）"
+  },
+  "未知（無法讀取啟動設定）": {
+    "en": "Unknown (cannot read startup settings)",
+    "ja": "不明（起動設定を読み取れません）"
+  },
+  "已設定（登入後啟用）": {
+    "en": "Configured (enabled after login)",
+    "ja": "設定済み（ログイン後に有効）"
+  },
+  "設定異常（執行檔或程式路徑不存在）": {
+    "en": "Configuration issue (program path missing)",
+    "ja": "設定の問題（実行ファイルまたはパスが存在しません）"
+  },
+  "未知（無法讀取系統設定）": {
+    "en": "Unknown (cannot read system settings)",
+    "ja": "不明（システム設定を読み取れません）"
+  },
+  "已設定：{0}": {
+    "en": "Configured: {0}",
+    "ja": "設定済み：{0}"
+  },
+  "已開啟；重新開機後需先解鎖磁碟": {
+    "en": "On; disk unlock required after restart",
+    "ja": "オン。再起動後にディスクのロック解除が必要"
+  },
+  "未知（無法查詢）": {
+    "en": "Unknown (query unavailable)",
+    "ja": "不明（確認できません）"
+  },
+  "PadPilot 登入啟動": {
+    "en": "PadPilot launch at login",
+    "ja": "PadPilot のログイン時起動"
+  },
+  "未回應／尚未啟動": {
+    "en": "Not responding / not started",
+    "ja": "応答なし／未起動"
+  },
+  "BetterDisplay 安裝": {
+    "en": "BetterDisplay installation",
+    "ja": "BetterDisplay のインストール"
+  },
+  "未在標準應用程式位置找到": {
+    "en": "Not found in standard Applications folders",
+    "ja": "標準のアプリケーションフォルダーにありません"
+  },
+  "BetterDisplay 控制介面": {
+    "en": "BetterDisplay control interface",
+    "ja": "BetterDisplay の制御インターフェース"
+  },
+  "macOS 自動登入": {
+    "en": "macOS automatic login",
+    "ja": "macOS 自動ログイン"
+  },
+  "未知（識別查詢失敗）": {
+    "en": "Unknown (display query failed)",
+    "ja": "不明（ディスプレイの取得に失敗）"
+  },
+  "未找到：{0}": {
+    "en": "Not found: {0}",
+    "ja": "見つかりません：{0}"
+  },
+  "Sidecar 配對": {
+    "en": "Sidecar pairing",
+    "ja": "Sidecar ペアリング"
+  },
+  "已設定 UUID": {
+    "en": "UUID configured",
+    "ja": "UUID 設定済み"
+  },
+  "需人工確認": {
+    "en": "Manual confirmation required",
+    "ja": "手動での確認が必要"
+  },
+  "Mac 與 iPad 使用相同 Apple Account、雙重認證、Wi-Fi／藍牙／接力與信任此電腦。": {
+    "en": "Verify the same Apple Account, two-factor authentication, Wi-Fi, Bluetooth, Handoff, and computer trust on Mac and iPad.",
+    "ja": "Mac と iPad の同じ Apple Account、2 ファクタ認証、Wi-Fi、Bluetooth、Handoff、およびコンピューターの信頼を確認してください。"
+  },
+  "若游標跑進 iPad 原生畫面，請在顯示器 → 進階關閉通用控制的跨裝置移動。": {
+    "en": "If the pointer enters the native iPad screen, disable Universal Control cross-device movement in Displays > Advanced.",
+    "ja": "ポインターが iPad の画面に移動する場合、「ディスプレイ > 詳細設定」でユニバーサルコントロールのデバイス間移動をオフにしてください。"
+  },
+  "BetterDisplay 登入啟動": {
+    "en": "BetterDisplay launch at login",
+    "ja": "BetterDisplay のログイン時起動"
+  },
+  "OK: 設定已更新": {
+    "en": "Settings updated",
+    "ja": "設定を更新しました"
+  },
+  "✓ 設定已儲存；背景服務尚未啟動，將於下次啟動時生效。": {
+    "en": "Settings saved. The service is stopped; hardware changes apply when it starts.",
+    "ja": "設定を保存しました。サービスは停止中です。ハードウェア設定は次の起動時に適用されます。"
+  },
+  "無效的配對資料": {
+    "en": "Invalid pairing data",
+    "ja": "無効なペアリング情報"
+  },
+  "配對資料含無效字元或過長": {
+    "en": "Pairing data contains invalid characters or is too long",
+    "ja": "ペアリング情報に無効な文字があるか長すぎます"
+  },
+  "請提供名稱與 Sidecar UUID 或 USB 序號": {
+    "en": "Provide a name and a Sidecar UUID or USB serial",
+    "ja": "名前と Sidecar UUID または USB シリアルを指定してください"
+  },
+  "Sidecar UUID 與 USB 序號對應到不同紀錄，請先確認裝置": {
+    "en": "Sidecar UUID and USB serial match different records. Verify the device first.",
+    "ja": "Sidecar UUID と USB シリアルが別の記録に対応しています。先にデバイスを確認してください"
+  },
+  "更新目前目標需同時選擇套用為控制目標": {
+    "en": "Updating the current target also requires selecting it as the control target",
+    "ja": "現在の対象を更新するには、操作対象としても選択する必要があります"
+  },
+  "Sidecar connection in cooldown. Keeping fallback display available.": {
+    "en": "Sidecar connection in cooldown. Keeping fallback display available.",
+    "zh-Hant": "Sidecar 連線冷卻中，保留備援螢幕。",
+    "ja": "Sidecar 接続のクールダウン中です。予備ディスプレイを維持します。"
+  },
+  "User requested iPad disconnect. Automatic reconnection paused until reset, mode or topology change.": {
+    "en": "User requested iPad disconnect. Automatic reconnection paused until reset, mode or topology change.",
+    "zh-Hant": "已要求中斷 iPad；重設、模式或螢幕配置變更前暫停自動重連。",
+    "ja": "iPad の切断が指定されました。リセット、モード、接続構成の変更まで自動再接続を停止します。"
+  },
+  "User Override active: Use iPad as Secondary (Topology Gen {0}).": {
+    "en": "User Override active: Use iPad as Secondary (Topology Gen {0}).",
+    "zh-Hant": "手動指定 iPad 為副螢幕（配置版本 {0}）。",
+    "ja": "iPad をサブに手動指定中（構成バージョン {0}）。"
+  },
+  "User Override active: Use iPad as Main (Topology Gen {0}).": {
+    "en": "User Override active: Use iPad as Main (Topology Gen {0}).",
+    "zh-Hant": "手動指定 iPad 為主螢幕（配置版本 {0}）。",
+    "ja": "iPad をメインに手動指定中（構成バージョン {0}）。"
+  },
+  "Manual Only mode: automation is paused. Use Menu Bar for manual control.": {
+    "en": "Manual Only mode: automation is paused. Use Menu Bar for manual control.",
+    "zh-Hant": "僅手動模式：自動化已暫停，請從選單列操作。",
+    "ja": "手動モード：自動化を停止しています。メニューバーから操作してください。"
+  },
+  "Prefer iPad mode: attempting to set iPad as Main display.": {
+    "en": "Prefer iPad mode: attempting to set iPad as Main display.",
+    "zh-Hant": "偏好 iPad 模式：正在嘗試將 iPad 設為主螢幕。",
+    "ja": "iPad 優先モード：iPad をメインに設定しています。"
+  },
+  "Prefer iPad mode: configured iPad not detected, using fallback display.": {
+    "en": "Prefer iPad mode: configured iPad not detected, using fallback display.",
+    "zh-Hant": "偏好 iPad 模式：未偵測到指定 iPad，使用備援螢幕。",
+    "ja": "iPad 優先モード：指定した iPad が未検出のため、予備を使用します。"
+  },
+  "Physical display detected ({0}) with active Sidecar. Keeping iPad as Secondary.": {
+    "en": "Physical display detected ({0}) with active Sidecar. Keeping iPad as Secondary.",
+    "zh-Hant": "偵測到實體螢幕（{0}）且 Sidecar 已連線；iPad 保持副螢幕。",
+    "ja": "物理ディスプレイ（{0}）と Sidecar 接続を検出。iPad はサブのままにします。"
+  },
+  "Physical display detected ({0}). Automatic Sidecar not required.": {
+    "en": "Physical display detected ({0}). Automatic Sidecar not required.",
+    "zh-Hant": "偵測到實體螢幕（{0}），無需自動連線 Sidecar。",
+    "ja": "物理ディスプレイ（{0}）を検出。Sidecar の自動接続は不要です。"
+  },
+  "Physical display disconnected. Waiting debounce ({0}s remaining)...": {
+    "en": "Physical display disconnected. Waiting debounce ({0}s remaining)...",
+    "zh-Hant": "實體螢幕已斷開，等待防抖（剩餘 {0} 秒）…",
+    "ja": "物理ディスプレイが切断されました。デバウンス待機中（残り {0} 秒）…"
+  },
+  "Mac mini is headless and configured iPad is detected ({0}). Activating Sidecar Main.": {
+    "en": "Mac mini is headless and configured iPad is detected ({0}). Activating Sidecar Main.",
+    "zh-Hant": "Mac mini 無實體螢幕，已偵測到指定 iPad（{0}）；啟用 Sidecar 主螢幕。",
+    "ja": "Mac mini にディスプレイがなく、指定 iPad（{0}）を検出。Sidecar をメインにします。"
+  },
+  "No physical display or configured iPad detected. Using BetterDisplay Virtual Display fallback.": {
+    "en": "No physical display or configured iPad detected. Using BetterDisplay Virtual Display fallback.",
+    "zh-Hant": "未偵測到實體螢幕或指定 iPad，使用 BetterDisplay 虛擬備援。",
+    "ja": "物理ディスプレイも指定 iPad も未検出のため、BetterDisplay の仮想の予備を使用します。"
+  },
+  "✓ Satisfied": {
+    "en": "✓ Satisfied",
+    "zh-Hant": "✓ 已滿足",
+    "ja": "✓ 条件を満たしています"
+  },
+  "In Progress...": {
+    "en": "In Progress...",
+    "zh-Hant": "處理中…",
+    "ja": "処理中…"
+  },
+  "IDLE": {
+    "en": "IDLE",
+    "zh-Hant": "閒置",
+    "ja": "待機中"
+  },
+  "PHYSICAL": {
+    "en": "PHYSICAL",
+    "zh-Hant": "實體螢幕",
+    "ja": "物理ディスプレイ"
+  },
+  "VIRTUAL": {
+    "en": "VIRTUAL",
+    "zh-Hant": "虛擬螢幕",
+    "ja": "仮想ディスプレイ"
+  },
+  "IPAD_MAIN": {
+    "en": "IPAD_MAIN",
+    "zh-Hant": "iPad 主螢幕",
+    "ja": "iPad メイン"
+  },
+  "IPAD_SECONDARY": {
+    "en": "IPAD_SECONDARY",
+    "zh-Hant": "iPad 副螢幕",
+    "ja": "iPad サブ"
+  },
+  "IPAD_DISCONNECTED": {
+    "en": "IPAD_DISCONNECTED",
+    "zh-Hant": "iPad 已斷線",
+    "ja": "iPad 切断済み"
+  },
+  "NO_CHANGE": {
+    "en": "NO_CHANGE",
+    "zh-Hant": "維持現況",
+    "ja": "変更なし"
+  },
+  "{0}：{1}": {
+    "en": "{0}: {1}",
+    "ja": "{0}：{1}"
+  },
+  "服務狀態：執行中": {
+    "en": "Service status: Running",
+    "ja": "サービス状態：実行中"
+  },
+  "服務狀態：已停止": {
+    "en": "Service status: Stopped",
+    "ja": "サービス状態：停止中"
+  },
+  "服務狀態：無法確認": {
+    "en": "Service status: Unknown",
+    "ja": "サービス状態：確認できません"
+  }
+}

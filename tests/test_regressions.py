@@ -16,7 +16,7 @@ from core.state_engine import StateEngine
 
 class RegressionTests(unittest.TestCase):
     def setUp(self):
-        self.cfg = Config(ipad=IpadConfig(name="Target iPad", sidecar_uuid="TARGET"), retry_interval=0)
+        self.cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name="Target iPad", sidecar_uuid="TARGET"), retry_interval=0)
         self.bd = MagicMock(spec=BetterDisplayCLI)
         self.detector = MagicMock(spec=DisplayDetector)
         self.engine = StateEngine(self.cfg, self.detector, self.bd)

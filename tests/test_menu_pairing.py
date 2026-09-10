@@ -42,6 +42,45 @@ class MenuPairingTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), '')
         load.assert_not_called()
 
+    def test_service_action_uses_process_state_not_snapshot_age(self):
+        from core.i18n import LANGUAGES, set_language, tr
+        from core.autostart import daemon_pids
+        try:
+            for language in LANGUAGES:
+                for stamp in (0, 1000):
+                    for running, label, action in (
+                        (True, '服務狀態：執行中', 'stop'),
+                        (False, '服務狀態：已停止', 'start'),
+                        (None, '服務狀態：無法確認', None),
+                    ):
+                        output = io.StringIO()
+                        with contextlib.redirect_stdout(output):
+                            MENU['render']({'actual': {'timestamp': stamp}}, {'language': language},
+                                           False, now=1000, service_running=running)
+                        text = output.getvalue()
+                        self.assertIn(tr(label), text)
+                        actions = [line for line in text.splitlines()
+                                   if 'param1=start ' in line or 'param1=stop ' in line]
+                        self.assertEqual(len(actions), int(action is not None))
+                        if action:
+                            self.assertIn('param1=' + action + ' ', actions[0])
+            # Real entry point obtains process state, including query failure.
+            main = MENU['main']
+            for pids, expected in (([777], True), ([], False), (RuntimeError('query failed'), None)):
+                probe = MagicMock(side_effect=pids) if isinstance(pids, Exception) else MagicMock(return_value=pids)
+                draw = MagicMock()
+                with patch('pathlib.Path.exists', return_value=False), \
+                     patch.dict(main.__globals__, daemon_pids=probe, load_json=lambda *a: {},
+                                load_status=lambda: {}, render=draw):
+                    main()
+                self.assertIs(draw.call_args.kwargs['service_running'], expected)
+            with patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0, '777\n', '')) as run:
+                self.assertEqual(daemon_pids(), [777])
+                self.assertIn('padpilotd', run.call_args.args[0][-1])
+                self.assertEqual(run.call_args.kwargs['timeout'], 2)
+        finally:
+            set_language('zh-Hant')
+
     def test_other_ipad_does_not_satisfy_current_target(self):
         cfg = Config.from_dict({'ipad': DEVICE})
         bd = MagicMock(spec=BetterDisplayCLI)
@@ -87,7 +126,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertNotIn(' | bash=/tmp/evil', text)
         self.assertIn('設定與配對', text)
         exit_line = text.splitlines()[-1]
-        self.assertTrue(exit_line.startswith('Exit |'))
+        self.assertTrue(exit_line.startswith('結束 |'))
         self.assertIn('param1=exit', exit_line)
         self.assertIn('refresh=true', exit_line)
         self.assertNotIn('quit', text.lower())
@@ -98,7 +137,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertIn('工作 iPad — 狀態未知', text)
         line = next(l for l in text.splitlines() if l.startswith('--設為主螢幕'))
         self.assertNotIn('bash=', line)
-        self.assertIn('Exit', text)
+        self.assertIn('結束', text)
         status = {'configured_ipad': DEVICE, 'actual': {'timestamp': 1000,
                   'sidecar_devices': [], 'discovery_errors': {'sidecar': 'timeout'}}}
         self.assertIn('工作 iPad — 狀態未知', rendered(status, cfg))

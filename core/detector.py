@@ -16,7 +16,7 @@ from typing import Any, List, Optional, Set, Tuple
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config
 from core.logger import get_logger
-from core.models import ActualState, DisplayInfo
+from core.models import ActualState, DisplayInfo, IpadConfig
 
 logger = get_logger("Detector")
 
@@ -201,6 +201,33 @@ class DisplayDetector:
                 return True
         return False
 
+    def resolve_ipad(self, usb_devices, sidecar_list):
+        """Resolve an ephemeral target; never save an inferred USB/Sidecar pairing."""
+        self.auto_detect_error = ""
+        if not self.config.auto_detect_ipad:
+            return self.config.ipad
+        errors = (getattr(self, "usb_error", ""), getattr(self.bd_cli, "sidecar_error", ""))
+        if any(isinstance(error, str) and error for error in errors):
+            self.auto_detect_error = "裝置查詢不完整，暫停自動選取 iPad。"
+            return IpadConfig()
+        ipads = [u for u in usb_devices if u.get("vendor_id") == 1452 and
+                 "ipad" in (u.get("product_name") or u.get("name") or "").casefold()]
+        if len(ipads) != 1 or not ipads[0].get("serial"):
+            self.auto_detect_error = "自動偵測需接上唯一一台可辨識 USB 序號的 iPad。"
+            return IpadConfig()
+        usb = ipads[0]
+        known = [p for p in [self.config.ipad, *self.config.paired_ipads]
+                 if p.usb_serial == usb["serial"] and p.sidecar_uuid]
+        uuids = {p.sidecar_uuid.casefold() for p in known}
+        candidates = [d for d in sidecar_list if not uuids or d.get("uuid", "").casefold() in uuids]
+        if len(uuids) > 1 or len(candidates) != 1 or not candidates[0].get("uuid") or not candidates[0].get("name"):
+            self.auto_detect_error = "Sidecar 候選尚未出現或不唯一；請稍候或指定配對。"
+            return IpadConfig()
+        candidate = candidates[0]
+        # ponytail: unique candidates are a heuristic, not proof of USB/Sidecar identity.
+        # Use explicit pairing when other nearby iPads can be discovered.
+        return IpadConfig(candidate["name"], candidate["uuid"], usb["serial"])
+
     def observe(self, current_generation: int = 0) -> Tuple[ActualState, Tuple[Any, ...]]:
         """Observe the current hardware state and calculate deterministic signature.
         
@@ -221,15 +248,19 @@ class DisplayDetector:
         sidecar_display_online = False
 
         # Configured iPad matching
-        target_sidecar_uuid = self.config.ipad.sidecar_uuid
-        target_usb_serial = self.config.ipad.usb_serial
-        target_name = self.config.ipad.name
+        target = self.resolve_ipad(usb_devices, sidecar_list)
+        target_sidecar_uuid = target.sidecar_uuid
+        target_usb_serial = target.usb_serial
+        target_name = target.name
         # Saved names are user labels. Resolve the current name through the session UUID.
         targets = [d for d in sidecar_list if target_sidecar_uuid and
                    d.get("uuid", "").casefold() == target_sidecar_uuid.casefold()]
         if len(targets) == 1 and targets[0].get("name"):
             target_name = targets[0]["name"]
-        session_connected = self.bd_cli.get_sidecar_connected(target_sidecar_uuid or target_name)
+        session_connected = (self.bd_cli.get_sidecar_connected(target_sidecar_uuid or target_name)
+                             if target_sidecar_uuid or target_name else False)
+        if self.config.auto_detect_ipad and not target_sidecar_uuid:
+            sidecar_available = False
 
         if target_sidecar_uuid:
             sidecar_available = any(d.get("uuid", "").upper() == target_sidecar_uuid.upper() for d in sidecar_list)
@@ -243,7 +274,7 @@ class DisplayDetector:
                     if u.get("serial") == target_usb_serial:
                         ipad_usb_present = True
                         break
-                else:
+                elif not self.config.auto_detect_ipad:
                     # Fallback check on product name
                     p_name = (u.get("product_name") or u.get("name") or "").lower()
                     if "ipad" in p_name:
@@ -290,13 +321,19 @@ class DisplayDetector:
         physical_ids = tuple(sorted(d.display_id for d in physical_displays))
         deterministic_signature = (physical_ids, ipad_usb_present)
 
+        if self.config.auto_detect_ipad:
+            deterministic_signature += (target_sidecar_uuid, target_usb_serial)
+
         actual = ActualState(
+            resolved_ipad=target,
             physical_displays=physical_displays,
             online_displays=[d for d in all_displays if not self.is_display_ignored(d) or
                              d.name == self.config.virtual_display_name],
             sidecar_devices=sidecar_list,
             usb_devices=[u for u in usb_devices if u.get("vendor_id") == 1452],
             discovery_errors={key: error for key, error in (
+                ("auto_detect", getattr(self, "auto_detect_error", "")),
+                ("usb_events", getattr(self, "usb_monitor_error", "")),
                 ("displays", getattr(self, "display_error", "")),
                 ("usb", getattr(self, "usb_error", "")),
                 ("sidecar", getattr(self.bd_cli, "sidecar_error", "")),

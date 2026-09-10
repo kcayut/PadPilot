@@ -106,6 +106,7 @@ class ActualState:
     sidecar_devices: List[dict[str, str]] = field(default_factory=list)
     usb_devices: List[dict[str, Any]] = field(default_factory=list)
     discovery_errors: dict[str, str] = field(default_factory=dict)
+    resolved_ipad: Optional[IpadConfig] = None
     main_display: Optional[DisplayInfo] = None
     virtual_display_exists: bool = False
     virtual_display_connected: bool = False
@@ -124,6 +125,7 @@ class ActualState:
             "sidecar_devices": self.sidecar_devices,
             "usb_devices": self.usb_devices,
             "discovery_errors": self.discovery_errors,
+            "resolved_ipad": self.resolved_ipad.to_dict() if self.resolved_ipad else None,
             "main_display": self.main_display.to_dict() if self.main_display else None,
             "virtual_display_exists": self.virtual_display_exists,
             "virtual_display_connected": self.virtual_display_connected,
