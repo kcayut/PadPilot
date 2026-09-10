@@ -26,6 +26,9 @@ from core.models import pairing_key
 from core.settings import is_virtual_device
 
 ROOT = Path(__file__).resolve().parents[1]
+GITHUB_URL = 'https://github.com/kcayut/PadPilot'
+# Set verified recipient URLs here when donation pages are ready. Empty = disabled.
+DONATION_URLS = {'Buy Me a Coffee': '', 'PayPal': ''}
 
 # macOS System Color Palette & Design Tokens
 BG = '#f2f2f7'            # macOS System Gray 6 (Window Background)
@@ -60,21 +63,24 @@ MODE_DESCS = {
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
 
-DOCS_USAGE_URL = (ROOT / 'README.md').as_uri()
-DOCS_TROUBLESHOOTING_URL = (ROOT / 'docs/TROUBLESHOOTING.md').as_uri()
+def get_documentation_url(path: str, language: str) -> str:
+    source = ROOT / path
+    suffix = {'zh-Hant': '', 'en': '.en', 'ja': '.ja'}.get(language, '.en')
+    return source.with_name(f'{source.stem}{suffix}{source.suffix}').as_uri()
 
 
-def get_troubleshooting_url(label: str) -> str:
+def get_troubleshooting_url(label: str, language: str = 'zh-Hant') -> str:
+    url = get_documentation_url('docs/TROUBLESHOOTING.md', language)
     lbl = (label or '').lower()
     if 'filevault' in lbl or '自動登入' in lbl:
-        return f'{DOCS_TROUBLESHOOTING_URL}#filevault'
+        return f'{url}#filevault'
     if 'betterdisplay' in lbl:
-        return f'{DOCS_TROUBLESHOOTING_URL}#betterdisplay'
+        return f'{url}#betterdisplay'
     if '登入啟動' in lbl or '背景服務' in lbl:
-        return f'{DOCS_TROUBLESHOOTING_URL}#autostart'
+        return f'{url}#autostart'
     if 'sidecar' in lbl:
-        return f'{DOCS_TROUBLESHOOTING_URL}#sidecar-session'
-    return DOCS_TROUBLESHOOTING_URL
+        return f'{url}#sidecar-session'
+    return url
 
 
 def short_id(value: str) -> str:
@@ -292,7 +298,7 @@ class SettingsWindow:
         self.root = root
         self.root._padpilot_app = self
         self.readonly = False
-        valid_tabs = {'paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics'}
+        valid_tabs = {'paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics', 'about'}
         self.current_tab = page if page in valid_tabs else 'paired'
         self.view = {'config': Config(), 'actual': {}, 'identifiers': [], 'fresh': False, 'status': {}}
         self.busy = False
@@ -395,9 +401,6 @@ class SettingsWindow:
                  fg=TEXT_PRIMARY, bg=SIDEBAR_BG).pack(anchor='w')
         tk.Label(header_box, text=tr('智慧顯示器管理系統'), font=('Helvetica Neue', 9),
                  fg=TEXT_SECONDARY, bg=SIDEBAR_BG).pack(anchor='w', pady=(1, 0))
-        self.version_label = tk.Label(header_box, text=f'v{__version__}', font=('Helvetica Neue', 9),
-                                      fg=TEXT_SECONDARY, bg=SIDEBAR_BG)
-        self.version_label.pack(anchor='w', pady=(2, 0))
 
         # Divider
         tk.Frame(self.sidebar, bg=SIDEBAR_BORDER, height=1).pack(fill='x', padx=10, pady=(0, 6))
@@ -413,6 +416,7 @@ class SettingsWindow:
             ('displays', '🖥️', tr('連線螢幕狀態')),
             ('virtual', '◻️', tr('虛擬備援螢幕')),
             ('diagnostics', '🩺', tr('狀態與診斷')),
+            ('about', 'ⓘ', tr('關於')),
         ]
 
         for tab_id, icon, label in self.nav_items:
@@ -471,16 +475,16 @@ class SettingsWindow:
         links_box = tk.Frame(bottom_box, bg=SIDEBAR_BG)
         links_box.pack(fill='x', pady=(8, 0))
 
-        for text, url in [
-            (tr('📖 使用說明'), DOCS_USAGE_URL),
-            (tr('🩺 疑難排解'), DOCS_TROUBLESHOOTING_URL),
+        for text, path in [
+            (tr('📖 使用說明'), 'README.md'),
+            (tr('🩺 疑難排解'), 'docs/TROUBLESHOOTING.md'),
         ]:
             lnk = tk.Label(links_box, text=text, font=('Helvetica Neue', 9),
                            fg=TEXT_SECONDARY, bg=SIDEBAR_BG, cursor='hand2', anchor='w')
             lnk.pack(fill='x', pady=1)
 
-            def make_link_handler(target_url):
-                return lambda e: webbrowser.open(target_url)
+            def make_link_handler(target_path):
+                return lambda e: webbrowser.open(get_documentation_url(target_path, self._display_language))
 
             def make_link_hover(label_widget):
                 def on_enter(e):
@@ -489,7 +493,7 @@ class SettingsWindow:
                     label_widget.configure(fg=TEXT_SECONDARY)
                 return on_enter, on_leave
 
-            lnk.bind('<Button-1>', make_link_handler(url))
+            lnk.bind('<Button-1>', make_link_handler(path))
             on_e, on_l = make_link_hover(lnk)
             lnk.bind('<Enter>', on_e)
             lnk.bind('<Leave>', on_l)
@@ -712,6 +716,7 @@ class SettingsWindow:
             'displays': (tr('目前連線螢幕'), tr('檢視當前上線的實體螢幕、Sidecar 與虛擬備援螢幕')),
             'virtual': (tr('虛擬備援螢幕'), tr('選擇並指定 BetterDisplay 虛擬螢幕作為無頭備援')),
             'diagnostics': (tr('狀態與診斷'), tr('檢視系統即時決策狀態、狀態機轉換與運行日誌')),
+            'about': (tr('關於'), tr('版本、專案連結與贊助')),
         }
         t, st = titles.get(tab_id, ('PadPilot', ''))
         self.title_label.configure(text=t)
@@ -754,6 +759,8 @@ class SettingsWindow:
             self.render_virtual_tab()
         elif self.current_tab == 'diagnostics':
             self.render_diagnostics_tab()
+        elif self.current_tab == 'about':
+            self.render_about_tab()
 
         self.canvas.update_idletasks()
         if hasattr(self, '_update_scrollregion'):
@@ -765,8 +772,47 @@ class SettingsWindow:
             self.canvas.yview_moveto(0)
         self._rendered_content = self._content_signature()
 
+    def render_about_tab(self):
+        card = Card(self.scroll_frame, padx=16, pady=14)
+        card.pack(fill='x', padx=18, pady=(0, 8))
+        tk.Label(card.body, text='PadPilot', font=('Helvetica Neue', 18, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
+        self.version_label = tk.Label(card.body, text=f'v{__version__}', font=('Helvetica Neue', 11),
+                                      fg=TEXT_SECONDARY, bg=CARD_BG)
+        self.version_label.pack(anchor='w', pady=(4, 8))
+        tk.Label(card.body, text=tr('Mac 的 Sidecar 顯示器自動化工具'), font=('Helvetica Neue', 10),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
+        tk.Label(card.body, text='MIT License · © 2026 kcayut', font=('Helvetica Neue', 9),
+                 fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(4, 10))
+        self.github_button = ttk.Button(card.body, text=tr('在 GitHub 查看專案'),
+                                        command=lambda: webbrowser.open(GITHUB_URL), style='Secondary.TButton')
+        self.github_button.pack(anchor='w')
+
+        support = Card(self.scroll_frame, padx=16, pady=14)
+        support.pack(fill='x', padx=18, pady=(0, 8))
+        tk.Label(support.body, text=tr('支持 PadPilot'), font=('Helvetica Neue', 11, 'bold'),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
+        tk.Label(support.body, text=tr('贊助完全自願，不影響任何功能的使用。'),
+                 font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg=CARD_BG,
+                 wraplength=500, justify='left').pack(anchor='w', pady=(6, 8))
+        row = tk.Frame(support.body, bg=CARD_BG)
+        row.pack(anchor='w')
+        self.donation_buttons = {}
+        for name, url in DONATION_URLS.items():
+            button = ttk.Button(row, text=name, style='Secondary.TButton',
+                                command=(lambda target=url: webbrowser.open(target)) if url else None)
+            button.pack(side='left', padx=(0, 8))
+            if not url:
+                button.state(['disabled'])
+            self.donation_buttons[name] = button
+        if not any(DONATION_URLS.values()):
+            tk.Label(support.body, text=tr('贊助連結準備中，感謝你的支持。'), font=('Helvetica Neue', 9),
+                     fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(8, 0))
+
     def _content_signature(self):
         """Compare displayed data, not the daemon's heartbeat metadata."""
+        if self.current_tab == 'about':
+            return json.dumps(['about', self._display_language])
         view = self.view
         actual = {k: v for k, v in view.get('actual', {}).items() if k != 'timestamp'}
         status = view.get('status') or {}
@@ -1653,11 +1699,11 @@ class SettingsWindow:
                             font=('Helvetica Neue', 10), fg=TEXT_PRIMARY, bg=CARD_BG)
             line.pack(side='left', fill='x', expand=True, anchor='nw')
             if status_type == 'fail' or light_color == RED:
-                help_url = get_troubleshooting_url(label)
                 help_link = tk.Label(row, text=tr('說明 ↗'), font=('Helvetica Neue', 9, 'underline'),
                                      fg=BLUE, bg=CARD_BG, cursor='hand2')
                 help_link.pack(side='right', anchor='ne', padx=(4, 0))
-                help_link.bind('<Button-1>', lambda e, u=help_url: webbrowser.open(u))
+                help_link.bind('<Button-1>', lambda e, topic=label: webbrowser.open(
+                    get_troubleshooting_url(topic, self._display_language)))
             row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 50)))
 
     def render_logs_card(self):

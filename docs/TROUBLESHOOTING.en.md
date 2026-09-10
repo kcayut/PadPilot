@@ -1,0 +1,144 @@
+# PadPilot troubleshooting and FAQ
+
+[繁體中文](TROUBLESHOOTING.md) | **English** | [日本語](TROUBLESHOOTING.ja.md) · [Documentation](README.en.md)
+
+This guide covers status warnings, hardware identification, connection failures, and recovery on macOS.
+
+## Contents
+
+- [1. FileVault and headless cold boot](#filevault)
+- [2. Sidecar session prerequisites](#sidecar-session)
+- [3. BetterDisplay permissions and CLI](#betterdisplay)
+- [4. Generic Display placeholders](#generic-display)
+- [5. Connection loss, retries, and cooldown](#cooldown)
+- [6. Launch at login](#autostart)
+- [7. Collecting logs](#logs)
+- [8. Preflight, unsafe paths, and failed handshakes](#safe-startup)
+
+<a id="filevault"></a>
+## 1. FileVault and headless cold boot
+
+> [!WARNING]
+> PadPilot cannot display FileVault unlock or pre-login screens on an iPad.
+
+**Symptom:** After a cold boot or restart, the iPad is blank and does not show the Mac login screen.
+
+**Cause:** PadPilot's LaunchAgent starts after user login and depends on Sidecar in that session. FileVault unlock and pre-login screens are outside its scope. Enabling launch at login does not change this limitation.
+
+**Recovery:**
+
+1. Keep a physical display available to unlock and log in, then verify Sidecar manually.
+2. After login, run `./bin/padpilot-cli status` and confirm a daemon response before testing iPad takeover.
+3. Validate your own cold-boot and recovery procedure before headless use. Different hardware combinations still need testing.
+
+**Installation does not require disabling FileVault or enabling automatic login.** Those settings affect data and account security and do not guarantee a Sidecar connection within seconds. Do not lower system security to pass a check.
+
+<a id="sidecar-session"></a>
+## 2. Sidecar session prerequisites
+
+**Symptom:** USB detects the iPad, but Sidecar attempts repeatedly time out or fail.
+
+Check:
+
+1. The Mac and iPad use the same Apple Account.
+2. Two-factor authentication is enabled for that account.
+3. For USB, use a data cable and accept Trust This Computer on the unlocked iPad.
+4. Wireless Sidecar requires Wi-Fi, Bluetooth, and Handoff. Check the [Apple Sidecar guide](https://support.apple.com/en-us/102597) for full compatibility and wired/wireless requirements.
+
+<a id="betterdisplay"></a>
+## 3. BetterDisplay permissions and CLI
+
+**Symptom:** Diagnostics show an unavailable BetterDisplay control interface or cannot find `betterdisplaycli`.
+
+PadPilot uses that interface for display roles and virtual screens. Without working CLI access and appropriate permissions, it cannot control them.
+
+1. Open BetterDisplay.app.
+2. Follow the [BetterDisplay CLI guide](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI) for your installed version. Setting names and locations can vary.
+3. Verify the required Pro license or active trial and the CLI path configured in PadPilot.
+4. Test:
+
+   ```bash
+   betterdisplaycli get -identifiers
+   ```
+
+   Confirm a successful response containing the expected devices. A CLI response alone does not validate Sidecar pairing or the actual display.
+5. If macOS requests Accessibility or Screen Recording access, verify the app actually requesting it, such as BetterDisplay. Do not grant access indiscriminately to Terminal or other apps. PadPilot's menu reads snapshots and calls the CLI.
+
+<a id="generic-display"></a>
+## 4. Generic Display placeholders
+
+**Symptom:** A headless boot exposes `Generic Display` or `Generic`, causing an incorrect physical-display decision.
+
+Some systems expose a placeholder framebuffer without a real monitor. PadPilot filters those exact known names; this is not a universal hardware-identification rule.
+
+If a real monitor is named exactly `Generic` or `Generic Display`, save its status and separately collect EDID/identification data for investigation:
+
+```bash
+./bin/padpilot-cli status --json
+```
+
+Do not add a real physical monitor to the ignore list. Report its identifiers rather than broadening name-based exclusions.
+
+<a id="cooldown"></a>
+## 5. Connection loss, retries, and cooldown
+
+**Symptom:** The menu shows a warning and a 30-second cooldown.
+
+PadPilot limits connection attempts to three, with three seconds between retries, then applies a 30-second cooldown to reduce repeated connection pressure on macOS and BetterDisplay.
+
+1. Wake and unlock the iPad if needed.
+2. Check the data cable and connectors.
+3. Once the cause is addressed, clear temporary overrides and cooldown when needed:
+
+   ```bash
+   ./bin/padpilot-cli action reset
+   ```
+
+The daemon reevaluates state. Choose Reconnect for a manual connection attempt. Successful submission is not proof that the connection completed.
+
+<a id="autostart"></a>
+## 6. Launch at login
+
+**Symptom:** After restarting and logging in, the menu is missing and the daemon is not running.
+
+1. Check startup and daemon status:
+
+   ```bash
+   ./bin/padpilot-cli autostart status
+   ./bin/padpilot-cli status
+   ```
+
+2. Re-enable launch at login if necessary:
+
+   ```bash
+   ./bin/padpilot-cli autostart enable
+   ```
+
+3. Confirm the generated file is `~/Library/LaunchAgents/com.padpilot.daemon.plist`.
+
+<a id="logs"></a>
+## 7. Collecting logs
+
+If the problem persists, prepare reproduction steps and relevant logs. The GitHub repository is private; submitting an issue requires access.
+
+```bash
+# Open status and diagnostics
+./bin/padpilot-cli open-log
+
+# Read log files
+tail -n 50 ~/Library/Logs/PadPilot/padpilot.log
+cat ~/Library/Logs/PadPilot/launchd.stderr.log
+```
+
+Review and redact personal paths and sensitive information before sharing.
+
+<a id="safe-startup"></a>
+## 8. Preflight, unsafe paths, and failed handshakes
+
+- `FAIL: BetterDisplay CLI`: An installed app does not guarantee a working CLI. Verify CLI support and the saved executable path, then rerun `./scripts/install.sh --check`. Successful help is not license or hardware acceptance evidence.
+- `WARN: Tkinter`: Only the settings window is disabled; the native menu, daemon, and CLI remain usable. Install Tk support for the Python selected during installation, then reopen settings.
+- `Refusing unsafe state directory/file`: Stop and inspect ownership, symlinks, and hard links at the reported path. Do not recursively change permissions, delete, or take over `/tmp` or someone else's directory. Back up confirmed personal data before its owner repairs it.
+- `LaunchAgent belongs to another ...`: The same-name app/service belongs to a different checkout. Use its uninstaller from the original source location, not broad process-name termination.
+- `Daemon handshake failed`: This checkout's service has not been confirmed responsive, so installation is not successful. Inspect `~/Library/Logs/PadPilot/launchd.stderr.log` and `padpilot.log`, resolve the path, permissions, or BetterDisplay issue, and retry. `Rollback incomplete` also means restoration of the old state is unconfirmed; preserve evidence instead of repeatedly reinstalling.
+
+New IPC logs keep command names only. Historical logs, diagnostics, and actual error messages may still contain device information. Redact serials, UUIDs, accounts, and personal paths before sharing.

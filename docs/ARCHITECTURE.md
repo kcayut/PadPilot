@@ -1,15 +1,17 @@
 # 🏛️ PadPilot 系統架構與設計原理 (System Architecture)
 
+**繁體中文** | [English](ARCHITECTURE.en.md) | [日本語](ARCHITECTURE.ja.md) · [文件索引](README.md)
+
 PadPilot 是一套專為無頭 Mac mini + iPad 打造的確定性顯示器狀態管理引擎（Deterministic Display State Manager）。
 
 ---
 
 ## 🧭 核心設計原則
 
-1. **實體螢幕優先 (Physical Display First)**：只要連接 HDMI / DP / USB-C 實體螢幕，系統即刻將主畫面交還給實體螢幕，自動化保持靜默，不擅自干預。
-2. **手動操作絕對優先 (Manual Override Absolute Priority)**：使用者的主觀操作（例如指定「將 iPad 作為副螢幕」）至高無上，自動化絕不隨意推翻。
+1. **實體螢幕優先 (Physical Display First)**：自動模式且沒有有效手動覆寫時，優先使用實體螢幕，不主動建立 Sidecar。其他模式依各自策略評估，不保證立即完成切換。
+2. **手動操作優先 (Manual Override Priority)**：例如「將 iPad 作為副螢幕」會在目前硬體拓撲內優先；切換模式、重設或拓撲改變後重新評估。
 3. **狀態全透明 (Observability)**：背景決策與當前硬體現況原子化寫入快照，原生選單與 GUI 只讀取快照，杜絕重度硬體輪詢。
-4. **極限容錯與自癒 (Fault Tolerance & Self-Healing)**：任何硬體連線失敗均有防抖（Debounce）、重試限制（Retry Limit）與冷卻退避（Cooldown），避免連線風暴或 WindowServer 當機。
+4. **失敗復原 (Failure Recovery)**：防抖、重試限制與冷卻降低反覆連線的風險；不保證第三方服務永不失敗。
 
 ---
 
@@ -32,18 +34,18 @@ Tk settings GUI ─────────────→ shared CLI/config tra
 
 ### 1. 拓撲世代碼 (Topology Generation Tracking)
 - **問題**：使用者手動從 Menu Bar 選擇「Use iPad as Secondary」後，如果背景輪詢發現「現在沒有實體螢幕」，會不會下一秒又把 iPad 強制切成 Main？
-- **解法**：PadPilot 將每次手動覆寫綁定到當前的硬體世代（Generation）。只要實體螢幕 ID 清單與 USB iPad 連線狀態沒有發生實質改變，世代碼保持不變，覆寫永遠生效。只有當使用者拔掉線材、插上新螢幕或硬體拓撲改變時，世代碼推進，手動覆寫自動優雅失效並重新評估。
+- **解法**：PadPilot 將手動覆寫綁定到硬體世代（Generation），一般評估不任意推翻。拓撲改變、模式切換或重設會使覆寫失效；有實體螢幕時，iPad 連線消失也可能清除其主／副螢幕覆寫。
 
 ### 2. 單飛行狀態轉換鎖 (Single-Flight Transition Lock)
 - **問題**：插上 USB 傳輸線時，USB 偵測、螢幕喚醒事件與定時 30 秒輪詢可能在同一瞬間併發觸發。
-- **解法**：狀態機擁有專屬轉換鎖，同一時間只允許一個狀態轉換處於「In Flight」狀態，其餘重複事件被合流（Coalescing）或忽略，徹底杜絕 Sidecar 握手競爭。
+- **解法**：狀態機以共用鎖序列化評估與設定交易；重複喚醒合併處理，避免 PadPilot 自身同時發起狀態轉換。其他應用程式仍可能同時控制顯示器。
 
 ### 3. 螢幕瞬斷防抖與冷卻保護 (Debounce & Cooldown)
 - **4 秒瞬斷防抖 (Debounce)**：許多外接螢幕切換訊號源或休眠喚醒時會短暫掉訊 1~2 秒。PadPilot 在偵測到實體螢幕消失時，會啟動 4 秒防抖計時器；若螢幕在倒數結束前恢復，立即取消轉移動作，避免 iPad 被不必要地喚起。
-- **重試上限與 30 秒冷卻 (Cooldown)**：Sidecar 連線發起後若連續 3 次失敗，系統立刻進入 30 秒 Cooldown，並在 Menu Bar 發出警告圖示，防止連續高頻發起連線導致 macOS WindowServer 崩潰。
+- **重試上限與 30 秒冷卻 (Cooldown)**：Sidecar 連線最多嘗試 3 次，間隔 3 秒；失敗後冷卻 30 秒，選單列顯示警告，降低高頻重試風險。
 
 ### 4. 虛擬螢幕備援 (Headless Virtual Display Fallback)
-- 當無實體螢幕且指定的 iPad 無法連線時，系統自動啟動 BetterDisplay 虛擬顯示器（預設 `PadPilotVirtual`），提供穩定的 Framebuffer 讓 macOS 正常運算圖形，並供 Screen Sharing / VNC / SSH 進行應急救援。
+- 無實體螢幕時，使用已配置的 BetterDisplay 虛擬顯示器（預設 `PadPilotVirtual`）維持桌面備援；iPad 接管後也保留。Screen Sharing／VNC 或 SSH 必須事先自行設定，PadPilot 不啟用遠端存取；SSH 本身不依賴虛擬顯示器。
 
 ### 5. 原子狀態快照 (Atomic Snapshot Architecture)
 - 背景守護行程將觀測到的實際狀態、預期狀態與決策原因寫入暫存檔，並透過 `os.replace` 原子替換至 `~/Library/Application Support/PadPilot/runtime/status.json`。

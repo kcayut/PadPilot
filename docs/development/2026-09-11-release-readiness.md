@@ -1,8 +1,10 @@
 # 0.1.0 Early Preview：P0／P1 驗收
 
+**繁體中文** | [English](2026-09-11-release-readiness.en.md) | [日本語](2026-09-11-release-readiness.ja.md) · [開發紀錄索引](README.md)
+
 日期：2026-09-11。範圍為 GUI 版本、安裝可靠性、本機安全與文件；GitHub 建倉、Actions、remote、分支保護、tag、Release 及公開安全通報管道依要求略過。版本仍為 `0.1.0`，不宣稱 stable。
 
-後續更新：維護者已建立私人 GitHub 倉庫，原始碼與 CI 已首次上傳。已保留原 `origin`、新增獨立 `github` 遠端。`.github/workflows/ci.yml` 分開顯示 macOS/Python 3.10、3.14 軟體測試及 Linux 完整歷史隱私關卡，最新結果見 [GitHub Actions](https://github.com/kcayut/PadPilot/actions/workflows/ci.yml)。本機新增 CI 關卡測試後為 163 項；首輪雲端 3.14 通過，3.10 發現失效連結測試使用 glob 的版本差異，已改為直接檢查連結與指向，交由後續 CI 複驗。歷史隱私關卡如預期回報 tree=0、history=6，未繞過或關閉。
+後續更新：維護者已建立私人 GitHub 倉庫，原始碼與 CI 已上傳；原 `origin` 保留，另設 `github` 遠端。`.github/workflows/ci.yml` 分開執行 macOS/Python 3.10、3.14 軟體測試及 Linux 完整歷史隱私關卡。[首次修正後的 CI](https://github.com/kcayut/PadPilot/actions/runs/34508708985) 兩個 Python 工作均通過，包含原生 App 建置；當時為 163 項測試。3.10 的失效連結測試已改為直接檢查連結與指向。該次隱私報告為 tree=0、history=6；維護者隨後接受這 6 筆低風險歷史路徑，精確例外與新匹配的界線見下方。後續結果以 [GitHub Actions](https://github.com/kcayut/PadPilot/actions/workflows/ci.yml) 為準。
 
 以下「GitHub 略過」描述保留原輪次範圍，不代表倉庫現在仍不存在。目前方案的私人倉庫分支保護由 GitHub 回覆需升級 Pro；未升級或改成公開。公開安全通報、tag／Release 尚未設定。
 
@@ -10,16 +12,16 @@
 
 | 項目 | 狀態 | 結果／剩餘條件 |
 | --- | --- | --- |
-| GUI 版本 | 已實作 | 左上角讀取 `core.__version__`，與 CLI、App 建置共用；三語與 840px 版面檢查。 |
+| GUI 版本 | 已實作 | 「關於」頁讀取 `core.__version__`，與 CLI、App 建置共用；三語與 840px 版面檢查。 |
 | P0-1 安裝路徑 | 已實作 | 唯讀 `--check`、Tk 可選、必要依賴失敗停止、共享 autostart、握手與失敗回復。 |
 | P0-2 本機安全 | fixed | 私人權限、IPC payload 不入日誌、安全 fallback 讀寫／清理、只停止已驗證的自身工作與程序。 |
-| P0-3 本機發布關卡 | 已實作，公開仍未就緒 | 單元／Shell／plist／版本／GUI、ResourceWarning、tree／history 隱私掃描。最低支援版本尚待實跑；GitHub 工作略過。 |
+| P0-3 發布關卡 | 本機與 CI 已實作 | 單元／Shell／plist／版本／GUI、ResourceWarning、tree／history 隱私掃描；Python 3.10／3.14 CI 通過，macOS 14 與實機仍待驗。 |
 | P0-4 實機無頭驗收 | unknown | 下方所有物理情境仍需操作與證據，不以模擬測試代替。 |
-| P1 文件 | 已同步 | 中英 README、安裝、更新／回復、解除安裝、限制、驗收表；Issue 表單已不要求 SwiftBar。 |
+| P1 文件 | 已同步 | 三語 README 與 docs、語言導覽、GUI 對應文件、安裝／更新／回復／解除安裝、限制與驗收表。 |
 
 `scripts/check_release.py --gui` 產生 `build/release-check.json` 與各項檢查日誌；`--scan-only` 只做隱私模式掃描。報告不含匹配值。任何軟體關卡失敗或隱私匹配尚待複核，均回傳非零結束碼；真實硬體與最低版本未驗收時 `stable_ready` 一律為 false。
 
-## 本輪驗證紀錄
+## 最初驗證紀錄
 
 本輪 162 項單元測試全數通過，未出現 ResourceWarning；三語 GUI、840px 版面與焦點／草稿／捲動保留、原生選單契約、Shell、plist、版本一致性及 `git diff --check` 均通過。結果記於本機 `build/release-check.json`；總關卡因歷史隱私待審而回傳 1，並非程式測試失敗。
 
@@ -48,9 +50,11 @@
 
 ## 公開前隱私與發布待辦
 
-目前 tree 未命中所列機密模式；Git 歷史有 6 筆 `private_path` 匹配（兩個 commit，各三個檔案；可能包含同一資料的加入／刪除，不是 6 組憑證）。位置見本機 `build/privacy-scan.json`，涉及早期 README、安裝器與 LaunchAgent 檔案。尚未改寫歷史，也不把歷史清理視為已完成。
+先前 tree 未命中所列機密模式；Git 歷史有 6 筆 `private_path` 匹配，是早期 README、安裝器與 LaunchAgent 中同批路徑的新增／刪除紀錄，不是 6 組憑證。2026-09-11 維護者已審閱並接受本機帳號名稱、專案及日誌位置公開的風險；保留歷史，不進行清理或改寫。
 
-公開前由維護者選擇：審閱並接受仍公開的路徑資訊，或另行授權清理歷史／建立乾淨公開起點。若人工複核發現真正憑證，先撤銷或輪替再處理歷史。此輪沒有建立或改動 remote、tag、Release。`SECURITY.md` 中 GitHub 私密通報流程仍是未啟用的發布前草案，不代表通報管道已開通。
+例外只適用於 `4c7642471fc316991ff8e0ab1ec678e347ce7ed4` 與 `fc53785b1d385d21aac6e8f9d93f4638b0f348ab` 的指定檔案與 `private_path` 類別，列於 `scripts/check_release.py`。報告的 `accepted_history` 保留已審核位置；`tree` 與 `history` 仍代表未豁免匹配。新提交、不同檔案、憑證類別及目前檔案皆不受例外影響。若發現真正憑證，先撤銷或輪替再處理歷史。接受路徑不等於公開倉庫、建立 tag／Release 或通過實機驗收；`SECURITY.md` 的私密通報流程仍未啟用。
+
+三語文件與例外後續驗證：167 項本機測試通過，三語 GUI 文件／診斷說明實際點擊導向、840px 版面與既有狀態保留檢查通過；tree=0、history=0、accepted_history=6。此結果不是實機無頭驗收，也不代表已將本輪修改推送至 GitHub。
 
 本機 App 仍引用外部 Python 與原始碼，只有 ad-hoc 本機簽署；Developer ID、Apple 公證、DMG、內含 Python、自動更新均未納入此輪。
 

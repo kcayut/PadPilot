@@ -1,5 +1,7 @@
 # 🩺 PadPilot 疑難排解與常見問答 (Troubleshooting & FAQ)
 
+**繁體中文** | [English](TROUBLESHOOTING.en.md) | [日本語](TROUBLESHOOTING.ja.md) · [文件索引](README.md)
+
 本手冊收錄 PadPilot 在 macOS 環境下常見的狀態警告、硬體辨識問題、連線異常及其解決方案。
 
 ---
@@ -13,6 +15,7 @@
 - [5. 連線瞬斷、重試與冷卻保護期 (`#cooldown`)](#cooldown)
 - [6. 登入自啟動 LaunchAgent 問題 (`#autostart`)](#autostart)
 - [7. 如何收集除錯日誌回報問題 (`#logs`)](#logs)
+- [8. 預檢、私人路徑或啟動握手失敗 (`#safe-startup`)](#safe-startup)
 
 ---
 
@@ -26,18 +29,14 @@
 Mac mini 冷開機（重開機或關機後開機）時，iPad 螢幕一片漆黑，完全沒有出現 macOS 登入畫面。
 
 ### 原因
-- macOS 的 **FileVault** 是開機全磁碟加密機制。在使用者輸入密碼解鎖磁碟之前，系統處於「Pre-boot 階段」，此時：
-  1. 作業系統核心尚未完全載入。
-  2. 使用者帳號與背景守護行程（LaunchAgent）尚未啟動。
-  3. Apple 的無線/有線 Sidecar 驅動程式與輔助背景程序尚未就緒。
-- 因此，任何軟體層級的 Sidecar 工具都**不可能**在 FileVault 解鎖前驅動 iPad。
+PadPilot 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段中的 Sidecar。FileVault 解鎖與登入前畫面不在 PadPilot 的支援範圍；開啟登入啟動不會改變這個限制。
 
 ### 解決方法
-若您欲實現「Mac mini 不接任何螢幕、出門只帶 iPad，一開機就能直接用」的極致 Headless 情境：
-1. **關閉 FileVault 全磁碟加密**（系統設定 -> 隱私權與安全性 -> FileVault -> 關閉）。
-2. **開啟 macOS 自動登入**（系統設定 -> 使用者與群組 -> 自動登入 -> 選擇您的帳號）。
-3. 這樣 Mac mini 開機時便會自動跳過登入鎖定畫面進入桌面，PadPilot daemon 隨即啟動並在數秒內將 iPad 轉為主顯示器。
-4. *(安全折衷方案)*：若堅持開啟 FileVault，初次開機需盲打帳號密碼解鎖，或在外接實體螢幕/隨身便攜螢幕下輸入密碼進入系統後，再拔除螢幕轉由 iPad 接管。
+1. 保留可用的實體螢幕完成解鎖與登入，再確認 Sidecar 能手動連線。
+2. 登入後執行 `./bin/padpilot-cli status`，確認服務有回應，再測試 iPad 接管。
+3. 無頭使用前，先驗證自己的冷開機與救援流程；不同硬體組合仍為待驗證。
+
+**安裝不要求關閉 FileVault 或開啟自動登入。** 這些設定會影響資料與帳號安全，也不能保證 Sidecar 在數秒內連線；不要為通過檢查而降低系統安全性。
 
 ---
 
@@ -51,7 +50,7 @@ PadPilot 顯示已偵測到 USB iPad，但發起 Sidecar 連線時持續逾時�
 1. **相同 Apple Account**：Mac 與 iPad 必須登入完全相同的 Apple 帳號（Apple ID）。
 2. **雙重認證 (Two-Factor Authentication)**：兩部設備均需開啟 Apple ID 雙重認證。
 3. **信任此電腦**：首次以 USB 傳輸線插上 iPad 時，iPad 螢幕會跳出「信任這部電腦？」，務必點擊「信任」並輸入 iPad 解鎖密碼。
-4. **無線通訊開啟**：即使透過 USB-C 實體線連接，macOS 與 iPad 雙方的 **Wi-Fi 與藍牙亦必須保持開啟狀態**（此為 Apple 原生 Sidecar 底層握手協定的硬性要求）。
+4. **無線條件**：無線 Sidecar 需要 Wi-Fi、藍牙及 Handoff；USB 連線請確認資料線與信任設定。完整相容性及連線條件以 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)為準。
 
 ---
 
@@ -66,13 +65,13 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 
 ### 解決方法
 1. 開啟 **BetterDisplay.app**。
-2. 進入 BetterDisplay「偏好設定 (Settings)」-> 側邊欄切換至「整合 / 進階 (Integration / CLI)」。
-3. 確保 **「Enable Command Line Interface (CLI)」** 已勾選。
+2. 依已安裝版本的 [BetterDisplay CLI 說明](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI)確認控制介面可用；設定名稱與位置可能因版本而異。
+3. 確認具備所需 Pro 授權或有效試用，並確認 PadPilot 使用正確的 CLI 路徑。
 4. 在終端機測試執行：
    ```bash
    betterdisplaycli get -identifiers
    ```
-   若能正常印出顯示器清單 JSON，即代表 CLI 運作正常。
+   確認指令成功且能讀到預期裝置。CLI 有回應不代表 Sidecar 配對與實際顯示已通過驗收。
 5. 若 macOS 系統設定彈出「輔助使用 (Accessibility)」或「螢幕錄製 (Screen Recording)」權限要求，請核對實際提出要求的 App（例如 BetterDisplay）及系統提示，不要一律授權 Terminal 或其他 App。原生選單本身只讀快照並呼叫 CLI。
 
 ---
@@ -88,11 +87,11 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 
 ### 解決方法
 - PadPilot 內建**精確佔位過濾邏輯**，已將已知之佔位名稱排除在實體螢幕外。
-- 若您的實體螢幕剛好名稱也包含 Generic，可透過 CLI 查看 EDID 與識別碼：
+- 若您的實體螢幕剛好也叫 `Generic` 或 `Generic Display`，請保留狀態並另行收集 EDID／識別資料供排查：
   ```bash
   ./bin/padpilot-cli status --json
   ```
-- 亦可在設定中將特定裝置名稱加入 `ignore_list`。
+- 不應把真正的實體螢幕加入忽略清單；請回報其識別資料，避免擴大名稱排除範圍。
 
 ---
 
@@ -109,11 +108,11 @@ PadPilot 內建**保護性退避機制**：
 ### 恢復方式
 1. 檢查 iPad 是否處於睡眠鎖定狀態（點亮 iPad 螢幕）。
 2. 檢查傳輸線是否接觸不良。
-3. 若確認硬體已正常，可直接於 Menu Bar 點選「重新連線」，或執行：
+3. 若確認硬體已正常，需要清除暫時覆寫與冷卻時可執行：
    ```bash
    ./bin/padpilot-cli action reset
    ```
-   即可立刻清除重試計數與冷卻狀態。
+   背景服務會重新評估；需要手動連線時再選「重新連線」。送出成功不等於連線完成。
 
 ---
 
@@ -126,13 +125,14 @@ PadPilot 內建**保護性退避機制**：
 ### 解決方法
 1. 檢查 LaunchAgent 是否已載入：
    ```bash
-   launchctl list | grep padpilot
+   ./bin/padpilot-cli autostart status
+   ./bin/padpilot-cli status
    ```
 2. 若未載入，透過 CLI 重新啟用自啟：
    ```bash
    ./bin/padpilot-cli autostart enable
    ```
-3. 確認 plist 檔案已正產生成於：
+3. 確認 plist 檔案已正確產生於：
    `~/Library/LaunchAgents/com.padpilot.daemon.plist`
 
 ---

@@ -1,6 +1,8 @@
 # PadPilot 安裝指南
 
-目前架構是 **Swift／AppKit 原生選單列＋Python 核心＋Tk 設定視窗**，不需要 SwiftBar。沒有 pip 或 Swift 套件依賴。
+**繁體中文** | [English](INSTALLATION.en.md) | [日本語](INSTALLATION.ja.md) · [文件索引](README.md)
+
+PadPilot 提供 **Swift／AppKit 原生選單列＋Python 核心＋Tk 設定視窗**。安裝腳本會一併編譯、安裝及啟動 `~/Applications/PadPilot.app`；沒有額外 pip 或 Swift 套件依賴。
 
 ## 準備環境
 
@@ -39,7 +41,7 @@ xcrun --find swiftc
 1. 驗證 macOS 14+、Python 3.10+、Tk 是否可用、Swift 編譯器、BetterDisplay app 和 CLI 回應。若 BetterDisplay 缺失可詢問透過 Homebrew 安裝；拒絕、安裝失敗或 CLI 不可用就停止，不印出完成。
 2. 編譯並本機簽署 App，安裝至 `~/Applications/PadPilot.app`。
 3. 透過既有 CLI 停止舊服務，關閉舊原生選單，保留設定與配對。
-4. 將指向此專案的舊 PadPilot SwiftBar 外掛連結移到垃圾桶。檢查預設及已儲存的自訂外掛目錄；自行複製或修改的外掛只提示，不擅自刪除。SwiftBar 與其他外掛都保留。
+4. 清理屬於此專案的舊版整合連結；移除項目放入垃圾桶，不更動其他應用程式。
 5. 按原本登入啟動偏好，呼叫共享的 `padpilot-cli autostart enable`，再啟動 Python 服務與原生選單。首次安裝預設開啟登入啟動。必須收到此專案 daemon 的結構化 socket 回應才成功；失敗會嘗試回復原 LaunchAgent 與設定，若回復也失敗則明確報錯，不假裝完成。獨立啟動失敗會終止本次建立的子程序。
 6. 若 `~/bin` 存在且名稱未被占用，建立 CLI 快捷連結。
 
@@ -52,7 +54,7 @@ open -a BetterDisplay
 open "$HOME/Applications/PadPilot.app"
 ```
 
-選單「設定與配對」開啟原本的 Tk 視窗，可搜尋、儲存配對並指定控制目標；刪除配對仍有確認步驟。也能使用：
+選單「設定與配對」開啟設定視窗，可搜尋、儲存配對並指定控制目標；刪除配對需確認。也能使用：
 
 ```bash
 ./bin/padpilot-cli pair --interactive
@@ -64,7 +66,7 @@ open "$HOME/Applications/PadPilot.app"
 
 ## 更新與回復
 
-先保留原始碼備份，儲存並關閉設定視窗。更新原始碼後再跑「預檢 → 安裝 → status」三步，原生二進位也會重新編譯。GUI 左上角顯示 `v0.1.0`，與 CLI／App 版本共用 `core.__version__`。
+先保留原始碼備份，儲存並關閉設定視窗。更新原始碼後再跑「預檢 → 安裝 → status」三步，原生二進位也會重新編譯。GUI「關於」顯示 `v0.1.0`，與 CLI／App 版本共用 `core.__version__`；此頁另有 GitHub 連結與尚未開放的贊助入口。
 
 安裝器保留設定，舊 App 移到垃圾桶；它不會自動下載更新、建立 Git tag 或發布。若需降回相容舊版，回復原始碼後重新安裝。App 引用原始碼，僅取回垃圾桶中的 App 不能完整回復程式版本。
 
@@ -94,7 +96,7 @@ python3 scripts/check_gui_layout.py
 python3 scripts/check_release.py --gui
 ```
 
-本機發布檢查另含 Shell、plist、版本一致性、ResourceWarning 與目前原始碼／Git 歷史的隱私模式掃描；輸出在 `build/release-check.json`、`build/privacy-scan.json`，匹配值不寫進掃描報告。若隱私仍待人工檢視，結束碼為 1，即使程式測試全數通過。無桌面工作階段時不要加 `--gui`，GUI 會標為未驗證。這不取代實機測試，詳見[發布驗收表](development/2026-09-11-release-readiness.md)。
+本機發布檢查另含 Shell、plist、版本一致性、ResourceWarning 與目前原始碼／Git 歷史的隱私模式掃描；輸出在 `build/release-check.json`、`build/privacy-scan.json`，匹配值不寫進掃描報告。已審核的歷史例外獨立列出；新匹配仍使結束碼為 1，即使程式測試全數通過。無桌面工作階段時不要加 `--gui`，GUI 會標為未驗證。這不取代實機測試，詳見[發布驗收表](development/2026-09-11-release-readiness.md)。
 
 ## 解除安裝
 
@@ -103,4 +105,4 @@ python3 scripts/check_release.py --gui
 ./scripts/uninstall.sh --purge
 ```
 
-標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者移到垃圾桶，可復原。原始碼、BetterDisplay、SwiftBar、其他外掛及虛擬螢幕均不刪除。
+標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者移到垃圾桶，可復原。原始碼、BetterDisplay、其他應用程式及虛擬螢幕均不刪除。

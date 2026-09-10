@@ -21,6 +21,19 @@ PATTERNS = {
     'device_serial': re.compile(r'\b(?:00008[0-9a-fA-F]{19,35}|00008[0-9a-fA-F]{3}-[0-9a-fA-F]{16})\b'),
 }
 
+# Maintainer accepted these historical local paths on 2026-09-11.
+# Exact immutable commit + file + category only; never exempt current files.
+ACCEPTED_HISTORY = {
+    ('private_path', commit, path)
+    for commit, paths in {
+        '4c7642471fc316991ff8e0ab1ec678e347ce7ed4': (
+            'README.md', 'launchd/com.padpilot.daemon.plist', 'scripts/install.sh'),
+        'fc53785b1d385d21aac6e8f9d93f4638b0f348ab': (
+            'README.md', 'launchd/com.padpilot.daemon.plist.in', 'scripts/install.sh'),
+    }.items()
+    for path in paths
+}
+
 
 def privacy_kinds(text):
     return [kind for kind, pattern in PATTERNS.items() if pattern.search(text)]
@@ -58,11 +71,13 @@ def scan_privacy():
             for kind in privacy_kinds(line[1:]):
                 history.add((kind, commit, path))
     return {'scanner': 'targeted text patterns; review findings manually; values are never included',
-            'tree': tree, 'history': [dict(kind=k, commit=c, path=p) for k, c, p in sorted(history)]}
+            'tree': tree,
+            'history': [dict(kind=k, commit=c, path=p) for k, c, p in sorted(history - ACCEPTED_HISTORY)],
+            'accepted_history': [dict(kind=k, commit=c, path=p) for k, c, p in sorted(history & ACCEPTED_HISTORY)]}
 
 
 def check_versions():
-    for name in ('README.md', 'README.en.md'):
+    for name in ('README.md', 'README.en.md', 'README.ja.md'):
         assert f'version-{__version__}-' in (ROOT / name).read_text(), f'{name}: version mismatch'
         assert 'early%20preview' in (ROOT / name).read_text(), f'{name}: Early Preview warning missing'
     assert f'## [{__version__}]' in (ROOT / 'CHANGELOG.md').read_text(), 'CHANGELOG version mismatch'
@@ -92,7 +107,8 @@ def main():
     output.mkdir(exist_ok=True)
     privacy = scan_privacy()
     (output / 'privacy-scan.json').write_text(json.dumps(privacy, indent=2), encoding='utf-8')
-    print(f'Privacy review: tree={len(privacy["tree"])}, history={len(privacy["history"])}; see build/privacy-scan.json (values redacted)')
+    print(f'Privacy review: tree={len(privacy["tree"])}, history={len(privacy["history"])}, '
+          f'accepted_history={len(privacy.get("accepted_history", []))}; see build/privacy-scan.json (values redacted)')
     if args.scan_only:
         return 1 if privacy['tree'] or privacy['history'] else 0
     report = {'version': __version__, 'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -123,7 +139,8 @@ def main():
         print(f'FAIL: versions: {error}')
     if args.gui:
         report['gui'] = 'pass' if all(report['checks'][k] == 'pass' for k in ('gui_layout', 'gui_languages')) else 'fail'
-    report['privacy'] = 'review_required' if privacy['tree'] or privacy['history'] else 'no_pattern_matches'
+    report['privacy'] = ('review_required' if privacy['tree'] or privacy['history'] else
+                         'accepted_history_only' if privacy.get('accepted_history') else 'no_pattern_matches')
     (output / 'release-check.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print('Stable gate remains closed until physical acceptance and the supported-version matrix are verified.')
     if args.software_only:

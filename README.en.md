@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">繁體中文</a> | <b>English</b>
+  <a href="README.md">繁體中文</a> | <b>English</b> | <a href="README.ja.md">日本語</a>
 </p>
 
 <p align="center">
@@ -59,7 +59,7 @@ Defaults are a **4-second** physical display disconnect debounce, up to **3** Si
 | iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
 | Python | Python 3.10+. The graphical settings window also requires an importable `tkinter` module in that Python environment. The installer does not install Python or Tk. |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
-| Apple Command Line Tools | Builds the Swift/AppKit menu app; install using `xcode-select --install`. No SwiftBar, pip packages, or Swift packages are required. |
+| Apple Command Line Tools | Builds the Swift/AppKit menu app; install using `xcode-select --install`. |
 | Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
 
 See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's MIT license does not cover third-party software licenses.
@@ -87,8 +87,6 @@ A CLI response does not verify the Pro license, Sidecar pairing, permissions, or
 open -a BetterDisplay
 open "$HOME/Applications/PadPilot.app"
 ```
-
-SwiftBar and its Plugin Folder are no longer needed. An upgrade moves only this checkout’s legacy PadPilot plugin symlinks to Trash; SwiftBar and other plugins are left alone.
 
 The app currently references the local Python installation and checkout. **Keep both in place** and reinstall after moving them. This is a locally built app, not yet a notarized standalone distribution with bundled Python.
 
@@ -142,7 +140,7 @@ The menu bar uses **18 × 18 pt, Retina-ready monochrome icons** that adapt to m
 
 The icons represent Sidecar, physical display, virtual fallback, paused, warning, and working, respectively. Assets are included in the repository; developers can rebuild them with `swift scripts/build_menu_icons.swift` after changing the design.
 
-On first configuration, PadPilot selects a language from your macOS preferences, defaulting to English on non-Chinese/Japanese systems. Change it through the menu bar's Language menu, the GUI language selector, or `set-language`. Device names, identifiers, and raw logs retain their original text.
+On first configuration, PadPilot selects a language from your macOS preferences, defaulting to English on non-Chinese/Japanese systems. Change it through the menu bar's Language menu, the GUI language selector, or `set-language`. GUI usage, troubleshooting, and diagnostic help links open local documents in the selected language. Device names, identifiers, and raw logs retain their original text.
 
 ## Common commands
 
@@ -179,7 +177,7 @@ Run these from the project directory. If installation created `~/bin/padpilot-cl
 ./bin/padpilot-cli --help
 ```
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `./bin/padpilot-cli status`. This also rebuilds the native app. The GUI sidebar, CLI `--version`, and app share one version source. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `./bin/padpilot-cli status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 ## Limitations and troubleshooting
 
@@ -190,7 +188,7 @@ Keep a backup of the prior source, save and close settings, then update the sour
 
 Configuration and runtime state normally live in `~/Library/Application Support/PadPilot/`; logs are in `~/Library/Logs/PadPilot/`. When reporting a problem, include versions, connection type, reproduction steps, and relevant logs. Redact device serials, UUIDs, accounts, and personal paths first.
 
-Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix](docs/development/2026-09-11-release-readiness.md) for tested environments and hardware scenarios still marked `unknown`.
+Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix](docs/development/2026-09-11-release-readiness.en.md) for tested environments and hardware scenarios still marked `unknown`.
 
 ## Uninstall
 
@@ -202,14 +200,15 @@ By default, this stops the service and menu, moves this checkout’s app, Launch
 
 ## Documentation and contributing
 
-- [Installation guide](docs/INSTALLATION.md)
-- [Troubleshooting and FAQ](docs/TROUBLESHOOTING.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Development notes](docs/development/) — historical validation and design discussions
+- [Installation guide](docs/INSTALLATION.en.md)
+- [Troubleshooting and FAQ](docs/TROUBLESHOOTING.en.md)
+- [Architecture](docs/ARCHITECTURE.en.md)
+- [Documentation index and languages](docs/README.en.md)
+- [Development notes](docs/development/README.en.md) — maintainer history, not installation instructions
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
-Supporting guides are primarily in Traditional Chinese. Issues, translation improvements, hardware compatibility reports, and pull requests are welcome. After code changes, run `python3 -m unittest discover -s tests -v`; for GUI changes, also follow the layout checks in the contributing guide. Automated tests do not substitute for physical cold-boot or hotplug validation.
+The README and all guides under `docs/` are available in Traditional Chinese, English, and Japanese. Issues, translation improvements, hardware compatibility reports, and pull requests are welcome. After code changes, run `python3 -m unittest discover -s tests -v`; for GUI changes, also follow the layout checks in the contributing guide. Automated tests do not substitute for physical cold-boot or hotplug validation.
 
 ## License and acknowledgments
 

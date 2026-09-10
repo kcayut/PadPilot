@@ -1648,6 +1648,34 @@
     "en": "Service status: Unknown",
     "ja": "サービス状態：確認できません"
   },
+  "關於": {
+    "en": "About",
+    "ja": "このアプリについて"
+  },
+  "版本、專案連結與贊助": {
+    "en": "Version, project links & support",
+    "ja": "バージョン・プロジェクト・支援"
+  },
+  "Mac 的 Sidecar 顯示器自動化工具": {
+    "en": "Sidecar display automation for Mac",
+    "ja": "Mac の Sidecar ディスプレイ自動化ツール"
+  },
+  "在 GitHub 查看專案": {
+    "en": "View project on GitHub",
+    "ja": "GitHub でプロジェクトを見る"
+  },
+  "支持 PadPilot": {
+    "en": "Support PadPilot",
+    "ja": "PadPilot を支援"
+  },
+  "贊助完全自願，不影響任何功能的使用。": {
+    "en": "Donations are optional. All features remain available without donating.",
+    "ja": "寄付は任意です。寄付の有無にかかわらず、すべての機能を利用できます。"
+  },
+  "贊助連結準備中，感謝你的支持。": {
+    "en": "Donation links are coming soon. Thank you for your support.",
+    "ja": "寄付リンクは準備中です。応援ありがとうございます。"
+  },
   "Tkinter 不可用：設定視窗已停用": {
     "en": "Tkinter unavailable: settings window disabled",
     "ja": "Tkinter が利用できないため設定画面は無効です"

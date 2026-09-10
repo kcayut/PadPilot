@@ -59,15 +59,17 @@ open build/PadPilot.app
 python3 scripts/check_release.py --scan-only
 ```
 
-會掃描目前非忽略文字檔與所有本機分支的歷史差異；`build/privacy-scan.json` 僅列類型與位置，不列出匹配值。這是有限模式掃描，不是「完全沒有機密」的保證，仍需人工複核。不要直接公開原始掃描日誌或改寫共享歷史。
+會掃描目前非忽略文字檔與所有本機分支的歷史差異；`build/privacy-scan.json` 僅列類型與位置，不列出匹配值。維護者已接受的 6 筆歷史路徑，依完整 commit、檔案與類型列於 `scripts/check_release.py`，報告保留於 `accepted_history`。例外不適用於目前檔案、新提交、其他檔案或憑證。這是有限模式掃描，不是「完全沒有機密」的保證，仍需人工複核。不要直接公開原始掃描日誌或改寫共享歷史。
 
 有桌面工作階段時，可執行 `python3 scripts/check_release.py --gui` 一次跑完單元、Shell、plist、版本、GUI 與隱私關卡；歷史仍有待審匹配時會以非零結束，報告可區分軟體測試成功與公開尚未就緒。最低 Python／macOS 與真實無頭情境需另行驗證，不能由目前機器推定。
 
-GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整歷史隱私檢查分開顯示。`--software-only` 只決定軟體測試結果，仍保留隱私待審資訊，不是發布許可；獨立的 `Release privacy gate` 不會忽略歷史匹配。GUI 真實版面與物理硬體仍是本機手動發布關卡。CI 不安裝 BetterDisplay、不啟動 PadPilot，不建立 tag／Release。
+GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整歷史隱私檢查分開顯示。`--software-only` 只決定軟體測試結果，仍保留隱私待審資訊，不是發布許可；獨立的 `Release privacy gate` 會阻擋未審核匹配。GUI 真實版面與物理硬體仍是本機手動發布關卡。CI 不安裝 BetterDisplay、不啟動 PadPilot，不建立 tag／Release。
 
 ---
 
 ## 📐 程式碼風格與架構原則
+
+「關於」頁的贊助收款網址由維護者在 `core/gui.py` 的 `DONATION_URLS` 填入；空字串代表尚未開放，按鈕停用且不開啟外部網站。僅填入已確認屬於專案維護者的 HTTPS 收款連結；這是外部連結入口，不在 App 內收集付款資料或串接付款 API。
 
 1. **零重量外部套件依賴**：`core/` 模組原則上僅依賴 Python 標準庫以及系統自帶的 `ctypes`、`subprocess`、`tkinter`。
 2. **非侵入式與狀態自癒**：任何背景操作失敗時，必須遵循 Cooldown 與 Fallback 機制，不可引發無窮迴圈或癱瘓系統顯示器。

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b>繁體中文</b> | <a href="README.en.md">English</a>
+  <b>繁體中文</b> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
 </p>
 
 <p align="center">
@@ -59,7 +59,7 @@ PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器
 | iPad | 支援 Sidecar 的 iPad，與 Mac 登入相同 Apple Account 並啟用雙重認證。 |
 | Python | Python 3.10+；圖形設定視窗另外需要此 Python 環境可匯入 `tkinter`。安裝腳本不會安裝 Python／Tk。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | 提供 Sidecar 與顯示器控制。請選擇相容於 macOS 的版本，並確認 CLI 可用；命令列控制依上游授權需要 Pro 或有效試用。 |
-| Apple Command Line Tools | 編譯 Swift／AppKit 原生選單列；首次安裝執行 `xcode-select --install`。不需要 SwiftBar、pip 套件或 Swift 套件。 |
+| Apple Command Line Tools | 編譯 Swift／AppKit 原生選單列；首次安裝執行 `xcode-select --install`。 |
 | 連線 | 初次設定建議使用可傳輸資料的 USB 線，並在 iPad 上信任 Mac。無線 Sidecar 另需 Wi-Fi、藍牙與 Handoff。 |
 
 裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的 MIT 授權不包含第三方軟體授權。
@@ -87,8 +87,6 @@ CLI 可回應不代表 Pro 授權、Sidecar 配對、權限或實際顯示已驗
 open -a BetterDisplay
 open "$HOME/Applications/PadPilot.app"
 ```
-
-不再需要 SwiftBar 或設定 Plugin Folder。升級時只將指向此專案的舊 PadPilot 外掛連結移到垃圾桶；SwiftBar 與其他外掛不受影響。
 
 App 目前引用本機 Python 與專案路徑，**請保留 Python 環境與專案資料夾**；搬移後需重新安裝。這是本機編譯版本，尚非內含 Python、經公證的獨立發行包。
 
@@ -142,7 +140,7 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 圖示依序表示 Sidecar、實體螢幕、虛擬備援、暫停、警告與處理中。圖檔隨專案提供；修改設計時可執行 `swift scripts/build_menu_icons.swift` 重建。
 
-首次建立設定會依 macOS 語言選擇介面，非中文／日文系統預設為 English。之後可從選單列的 Language 選單、GUI 右上角的語言選單，或 `set-language` 指令切換。裝置名稱、識別碼與原始日誌保留原文。
+首次建立設定會依 macOS 語言選擇介面，非中文／日文系統預設為 English。之後可從選單列的 Language 選單、GUI 右上角的語言選單，或 `set-language` 指令切換。GUI 的使用說明、疑難排解與診斷說明連結會開啟對應語言的本機文件；裝置名稱、識別碼與原始日誌保留原文。
 
 ## 常用指令
 
@@ -179,7 +177,7 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 ./bin/padpilot-cli --help
 ```
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`./bin/padpilot-cli status`，同時重建原生 App。GUI 左上角、CLI `--version` 與 App 使用同一版本來源。若需降回相容舊版，回復原始碼後重新安裝；安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`./bin/padpilot-cli status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。若需降回相容舊版，回復原始碼後重新安裝；安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 ## 限制與疑難排解
 
@@ -205,7 +203,8 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 - [完整安裝手冊](docs/INSTALLATION.md)
 - [疑難排解與常見問答](docs/TROUBLESHOOTING.md)
 - [系統架構](docs/ARCHITECTURE.md)
-- [開發紀錄](docs/development/)（歷史驗證與設計討論）
+- [文件索引與語言版本](docs/README.md)
+- [開發紀錄](docs/development/README.md)（供維護者追溯歷史，不是安裝步驟）
 - [更新紀錄](CHANGELOG.md)
 - [貢獻指南](CONTRIBUTING.md)與[安全政策](SECURITY.md)
 
