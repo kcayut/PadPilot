@@ -57,11 +57,11 @@ GUI の使用説明、トラブルシューティング、診断ヘルプは、�
 
 | 項目 | 条件 |
 | --- | --- |
-| Mac | macOS 14 以降を対象とし、主な用途は Apple Silicon Mac mini です。他機種・OS の組み合わせは網羅的に検証していません。 |
+| Mac | Apple Silicon（arm64）、macOS 14 以降。Intel Mac は非対応です。実機構成ごとの検証が必要です。 |
 | iPad | Sidecar 対応機種で、Mac と同じ Apple Account を使用し、2 ファクタ認証が有効なこと。 |
-| Python | バックグラウンドコア用の Python 3.10 以降。検出後、既存環境の使用、パス指定、導入を選べます。 |
+| Python | リリースには CPython を同梱。外部 Python は Apple Silicon 用 3.10 以降が必要です。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Sidecar と画面を制御します。macOS と互換性のある版を使用し、CLI が動作することを確認してください。CLI 制御には提供元の条件に従った Pro または有効な試用が必要です。 |
-| Apple Command Line Tools | Swift/AppKit メニューと SwiftUI ネイティブ設定画面のビルドに使用します。`xcode-select --install` で導入します。 |
+| Apple Command Line Tools | ソースビルドとリリース作成時のみ必要です。リリースの利用には不要です。 |
 | 接続 | 初回はデータ転送対応 USB ケーブルを推奨し、iPad で Mac を信頼します。ワイヤレス Sidecar には Wi-Fi、Bluetooth、Handoff も必要です。 |
 
 対応機種と接続条件は [Apple の Sidecar ガイド](https://support.apple.com/en-us/102597)を参照してください。BetterDisplay の機能とライセンスは[提供元の説明](https://github.com/waydabber/BetterDisplay#key-features)に従います。PadPilot のライセンスに第三者ソフトウェアのライセンスは含まれません。
@@ -70,47 +70,36 @@ GUI の使用説明、トラブルシューティング、診断ヘルプは、�
 
 ### 1. インストール
 
-まず macOS の「画面ミラーリング」で Sidecar を手動利用できることを確認し、次のブロック全体をターミナルに貼り付けます。
+まず macOS の「画面ミラーリング」で Sidecar を手動利用できることを確認してください。[GitHub Releases](https://github.com/kcayut/PadPilot/releases) から Apple Silicon 用 `.dmg` をダウンロードし、**PadPilot.app を Applications にドラッグ**して、インストールしたアプリを開きます。Swift と CPython を同梱しており、別の Python、Homebrew、Apple のビルドツールは不要です。GUI、CLI、daemon、USB 検出、ログイン時起動は同じコアを使用します。
+
+現在は **ad-hoc 署名のみの開発プレビューで、Developer ID 署名と Apple の公証はありません**。開発元や悪意あるソフトウェアを確認できないという警告が出る場合があります。取得元を確認してから、[Apple の手順](https://support.apple.com/en-us/102445)に従い「システム設定 → プライバシーとセキュリティ → このまま開く」を使用してください。破損の警告では再ダウンロードして `SHA256SUMS` を確認し、すべてを誤警告と決めつけないでください。
+
+Python を選びたい場合は[リリース用インストーラー](https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh)を保存して実行するか、ソースのフォルダーで次を実行します。
 
 ```bash
-(
-  set -e
-  installer="$(mktemp -t padpilot-install)"
-  trap 'rm -f "$installer"' EXIT
-  curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
-    --output "$installer"
-  /bin/bash "$installer"
-)
+bash scripts/install.sh --release
 ```
 
-**このダウンロード方法は、[kcayut/PadPilot](https://github.com/kcayut/PadPilot) が公開され、今回のインストールスクリプトが `main` に公開された後に利用できます。** 非公開リポジトリや未公開のスクリプトは 404 になり、ダウンロードに失敗するとインストーラーは実行しません。取得済みのソースがある場合は、プロジェクトフォルダーで `./scripts/install.sh` を実行できます。
+公開済みの最新リリース（プレリリースを含む）を取得し、同梱 CPython または自分の Apple Silicon Python 3.10 以降を選べます。`--tag v0.1.0-dev.1`、`--bundled`、`--python /absolute/path/python3` も指定できます。管理者が tag を push してリリースを公開するまでは明確に停止します。ダウンロードを検証して設定を保持したままインストールし、完了後にアプリを開きます。
 
-Python、BetterDisplay、Apple のビルドツールを先に検出し、既存のものを使用するか、パスを指定するか、不足する依存関係をインストールするかを選べます。Homebrew を使う前に確認し、Homebrew 自体がない場合も導入前に同意を求めます。Apple Command Line Tools は macOS のインストール画面で完了させ、同じコマンドを再実行してください。
+BetterDisplay **アプリのインストールと起動が必要**で、`betterdisplaycli` だけでは不十分です。独立した CLI は任意です。アプリ内蔵の制御機能を使い、Applications、ユーザーの Applications、macOS に登録された任意の場所を検出します。手動指定のパスが優先されます。
 
-導入・削除の前に変更を保存し、PadPilot の設定・診断画面を閉じてください。開いたままの場合は停止し、再実行を案内します。
+導入、更新、Python の切り替え前に設定を保存して PadPilot を終了してください。設定とペアリングはアプリ外に保存します。ソース版からの移行や導入先の変更では旧版を先に削除し、設定を残します。詳細は[インストールガイド](docs/INSTALLATION.ja.md)を参照してください。開発者は引き続き `bash scripts/install.sh` でローカルビルドできますが、この場合はソースと選択した Python を保持する必要があります。
 
-ソースは `~/Applications/PadPilot-source` に保存します。再実行時は同じフォルダーを使用して導入を再開し、ソースの上書きや自動更新はしません。アプリは `~/Applications/PadPilot.app` に配置し、ペアリング、動作モード、ログイン時起動の設定を保持します。初回はログイン時起動が有効です。daemon の応答を確認して初めて成功とし、起動失敗時は以前のアプリとサービス状態の復元を試みます。
-
-```bash
-"$HOME/bin/padpilot-cli" status
-open "$HOME/Applications/PadPilot.app"
-```
-
-CLI ショートカットは導入時に選んだ Python を使用します。`~/bin/padpilot-cli` が他のプログラムに使われている場合は `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` を使用してください。**Python 環境とソースフォルダーを残してください。** 現在のアプリはローカルビルドでソースを参照します。読み取り専用の確認、パス指定、非対話オプションは[インストールガイド](docs/INSTALLATION.ja.md)を参照してください。BetterDisplay CLI の応答だけでは、ライセンス、Sidecar ペアリング、実際の画面表示は検証できません。
+以下の CLI 例は `/Applications/PadPilot.app` を使用します。別の場所に導入した場合は実際のパスに置き換えてください。
 
 ### 2. iPad を指定
 
 対話型ウィザードで操作対象を選びます。
 
 ```bash
-"$HOME/bin/padpilot-cli" pair --interactive
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" pair --interactive
 ```
 
 設定画面でもデバイス検索、ペアリング保存、操作対象の選択ができます。
 
 ```bash
-"$HOME/bin/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
 ```
 
 PadPilot のペアリングはデバイスの対応関係を記録するもので、Apple Account や「このコンピュータを信頼」の設定に代わるものではありません。複数台を保存できますが、同時に管理する操作対象は 1 台です。
@@ -120,8 +109,8 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 モニターなしで使う場合、BetterDisplay に `PadPilotVirtual` という仮想画面があるか、設定画面で既存の仮想画面を選んでください。自動作成に対応しないバージョンでは、BetterDisplay で一度手動作成します。
 
 ```bash
-"$HOME/bin/padpilot-cli" status
-"$HOME/bin/padpilot-cli" open-log
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" open-log
 ```
 
 `open-log` は状態・診断画面を開き、`open-log --raw` は生ログを開きます。リモート復旧が必要なら Screen Sharing/VNC または SSH を事前に設定してください。PadPilot はリモートアクセスを有効にせず、SSH 自体は仮想ディスプレイを必要としません。
@@ -157,36 +146,38 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 
 ```bash
 # 状態と設定
-"$HOME/bin/padpilot-cli" status --json
-"$HOME/bin/padpilot-cli" gui
-"$HOME/bin/padpilot-cli" set-language ja        # zh-Hant または en も使用可能
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status --json
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-language ja        # zh-Hant または en も使用可能
 
 # 動作モード：いずれかを選択
-"$HOME/bin/padpilot-cli" set-mode automatic
-"$HOME/bin/padpilot-cli" set-mode manual_only
-"$HOME/bin/padpilot-cli" set-mode prefer_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode automatic
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode manual_only
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode prefer_ipad
 
 # 手動操作：必要に応じて実行
-"$HOME/bin/padpilot-cli" action use_ipad_secondary
-"$HOME/bin/padpilot-cli" action use_ipad_main
-"$HOME/bin/padpilot-cli" action disconnect_ipad
-"$HOME/bin/padpilot-cli" action reconnect_sidecar
-"$HOME/bin/padpilot-cli" action refresh
-"$HOME/bin/padpilot-cli" action reset           # 一時指定とクールダウンを解除
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_secondary
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_main
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action disconnect_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reconnect_sidecar
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action refresh
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reset           # 一時指定とクールダウンを解除
 
 # サービスとログイン時起動
-"$HOME/bin/padpilot-cli" stop
-"$HOME/bin/padpilot-cli" start
-"$HOME/bin/padpilot-cli" exit                  # サービスを停止し、メニューを閉じる
-"$HOME/bin/padpilot-cli" autostart status
-"$HOME/bin/padpilot-cli" autostart toggle
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" stop
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" start
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" exit                  # サービスを停止し、メニューを閉じる
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart toggle
 
 # バージョンとヘルプ
-"$HOME/bin/padpilot-cli" --version
-"$HOME/bin/padpilot-cli" --help
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --version
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --help
 ```
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+リリースの更新：PadPilot を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
+
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 ## 制限とトラブルシューティング
 
@@ -201,7 +192,13 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 
 ## アンインストール
 
-ターミナルに貼り付けて、削除する項目を選択します。
+リリース版では設定を保存して画面を閉じ、次を実行します。アプリとログイン時起動の項目をゴミ箱へ移し、設定・ペアリング・ログは保持します。`--purge` を追加するとこれらもゴミ箱へ移します。
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+**ソース版**：ターミナルに貼り付けて、削除する項目を選択します。
 
 ```bash
 /bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"

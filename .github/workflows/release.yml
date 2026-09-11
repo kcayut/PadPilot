@@ -1,0 +1,74 @@
+name: Apple Silicon development release
+
+"on":
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish as a prerelease
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Validate tag and architecture
+        run: |
+          python -c 'import sys; sys.path.insert(0, "scripts"); from build_release import release_version; import os; release_version(os.environ["RELEASE_TAG"])'
+          test "$(uname -m)" = arm64
+          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
+      - name: Build source app and run release checks
+        run: |
+          python scripts/build_app.py
+          if ! python scripts/check_release.py; then
+            cat build/release-*.log
+            exit 1
+          fi
+      - name: Package and verify relocated app
+        run: python scripts/build_release.py --tag "$RELEASE_TAG"
+      - name: Publish complete development prerelease
+        run: |
+          directory="dist/$RELEASE_TAG"
+          cat > "$RUNNER_TEMP/padpilot-release-notes.md" <<'NOTES'
+          Apple Silicon · macOS 14+ · Development preview
+
+          Download the DMG and drag PadPilot.app into Applications. Swift and CPython are included; no local compiler or Python installation is required. BetterDisplay must be installed and running; its separate CLI is optional.
+
+          This build uses ad-hoc signing and is not notarized. macOS may require Privacy & Security → Open Anyway after you verify the source. Do not assume every damaged-app warning is harmless. See the README for installation, Python selection, and troubleshooting.
+
+          Software and relocation checks run automatically. Sidecar, USB hotplug, and cold-boot acceptance on your hardware remain unknown.
+
+          繁體中文：下載 DMG，將 PadPilot.app 拖入「應用程式」後開啟。Swift 與 CPython 已內建，BetterDisplay App 仍須安裝並執行，獨立 CLI 可省略。本版只有 ad-hoc 簽章，未經 Apple 公證；可能遇到開發者驗證警告，請先確認來源並參閱 README。實機 Sidecar、USB 插拔與冷開機尚待驗收。
+
+          日本語：DMG を開き、PadPilot.app をアプリケーションにドラッグして起動してください。Swift と CPython を同梱しています。BetterDisplay アプリの導入と起動は必要で、独立した CLI は任意です。ad-hoc 署名のみで Apple 公証はありません。開発元の確認警告が出る場合は取得元と README を確認してください。実機での Sidecar、USB 抜き差し、コールドブートは未検証です。
+          NOTES
+          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > "$RUNNER_TEMP/padpilot-draft" 2>/dev/null; then
+            test "$(cat "$RUNNER_TEMP/padpilot-draft")" = true || { echo 'Published releases are immutable; push a new tag.'; exit 1; }
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease --title "PadPilot ${RELEASE_TAG#v} (Development)" --notes-file "$RUNNER_TEMP/padpilot-release-notes.md"
+          fi
+          gh release upload "$RELEASE_TAG" "$directory"/*.dmg "$directory"/*.zip "$directory/SHA256SUMS" "$directory/build-info.json" --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

@@ -22,13 +22,12 @@ from core.autostart import (daemon_pids, get_launch_agent_plist_path, job_loaded
 from core.config import APP_SUPPORT_DIR, FALLBACK_CONFIG_FILE, load_config, save_config
 from core.settings import apply_change
 from core.storage import atomic_write, private_directory, state_file_exists
+from core.runtime import app_runtime, bundled_app
 
 
-def owned_app(app):
+def owned_app(app, root=None):
     try:
-        info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-        runtime = json.loads((app / 'Contents/Resources/runtime.json').read_text())
-        return info.get('CFBundleIdentifier') == 'com.padpilot.app' and Path(runtime['project_root']).resolve() == ROOT
+        return app_runtime(app)[0] == (root or ROOT)
     except (OSError, ValueError, KeyError):
         return False
 
@@ -44,18 +43,33 @@ def trash(path):
     return destination
 
 
-def stop_menu_apps():
-    for app in (Path.home() / 'Applications/PadPilot.app', ROOT / 'build/PadPilot.app'):
-        if not owned_app(app):
+def stop_menu_apps(apps=None):
+    explicit = apps is not None
+    for app in apps if explicit else (bundled_app() or Path.home() / 'Applications/PadPilot.app', ROOT / 'build/PadPilot.app'):
+        if not owned_app(app, app_runtime(app)[0] if explicit else ROOT):
             continue
-        pattern = '^' + re.escape(str(app / 'Contents/MacOS/PadPilot')) + r'( |$)'
+        # CLI wrappers may be running this very installer/uninstaller.
+        executable = str(app / 'Contents/MacOS/PadPilot')
+        pattern = '^' + re.escape(executable) + r'( |$)'
         for attempt in range(30):
             result = subprocess.run(['pgrep', '-f', pattern], capture_output=True, text=True, check=False)
             if result.returncode == 1:
                 break
             if result.returncode != 0:
                 raise RuntimeError('Unable to verify running PadPilot app')
+            menu_pids = []
             for pid in map(int, result.stdout.split()):
+                command = subprocess.run(['ps', '-ww', '-p', str(pid), '-o', 'args='],
+                                         capture_output=True, text=True, timeout=2)
+                if command.returncode:
+                    continue
+                if any(command.stdout.strip().startswith(executable + ' ' + flag)
+                       for flag in ('--cli', '--bundled-cli', '--runtime-info', '--locate-betterdisplay')):
+                    continue
+                menu_pids.append(pid)
+            if not menu_pids:
+                break
+            for pid in menu_pids:
                 try:
                     os.kill(pid, signal.SIGTERM)
                 except ProcessLookupError:
@@ -101,7 +115,9 @@ def ensure_settings_closed():
 def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=False, betterdisplay_path=None):
     remove_config = remove_config or purge
     remove_logs = remove_logs or purge
-    app = Path.home() / 'Applications/PadPilot.app'
+    app = bundled_app() or Path.home() / 'Applications/PadPilot.app'
+    if bundled_app() and not uninstall:
+        raise RuntimeError('Use install_release.sh to update a bundled app')
     if (app.exists() or app.is_symlink()) and (app.is_symlink() or not owned_app(app)):
         raise RuntimeError(f'Refusing to replace/remove an app from another checkout: {app}')
     plist = get_launch_agent_plist_path()
@@ -196,7 +212,8 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
             print('保留已停用的登入自動啟動設定。 / Launch at login remains disabled.')
         return
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
-    subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+    subprocess.run([sys.executable] + (['-I', '-B'] if bundled_app() else [])
+                   + [str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
     stop_menu_apps()
     if uninstall:
         if plist.exists():

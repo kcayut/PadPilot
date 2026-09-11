@@ -29,15 +29,19 @@ def build_icon(directory, output):
     subprocess.run(['/usr/bin/iconutil', '-c', 'icns', str(iconset), '-o', str(output)], check=True)
 
 
-def build(output):
+def build(output, *, python_home=None, version=None, revision=None):
     if sys.platform != 'darwin':
         raise RuntimeError('PadPilot.app requires macOS.')
+    if python_home is not None and platform.machine() != 'arm64':
+        raise RuntimeError('Release apps support Apple Silicon only.')
+    version = version or __version__
     output = output.resolve()
     if output.suffix != '.app':
         raise ValueError('Output must end in .app')
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='padpilot-build-', dir=output.parent) as directory:
-        app = Path(directory) / 'PadPilot.app'
+        # Build in an ordinary folder; expose an app bundle only when its contents are complete.
+        app = Path(directory) / 'payload'
         contents = app / 'Contents'
         resources = contents / 'Resources'
         resources.mkdir(parents=True)
@@ -53,23 +57,63 @@ def build(output):
             'CFBundleIdentifier': 'com.padpilot.app', 'CFBundleName': 'PadPilot',
             'CFBundleDisplayName': 'PadPilot', 'CFBundleExecutable': 'PadPilot',
             'CFBundleIconFile': 'PadPilot.icns',
-            'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': __version__,
-            'CFBundleVersion': __version__, 'LSMinimumSystemVersion': '14.0',
+            'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': version.split('-')[0],
+            'CFBundleVersion': version.split('-')[0], 'LSMinimumSystemVersion': '14.0',
             'LSUIElement': True, 'NSHighResolutionCapable': True,
             'CFBundleURLTypes': [{'CFBundleURLName': 'com.padpilot.settings',
                                   'CFBundleURLSchemes': ['padpilot']}],
         }))
-        (resources / 'runtime.json').write_text(json.dumps({
-            'python': sys.executable, 'project_root': str(ROOT),
-        }, indent=2), encoding='utf-8')
+        metadata = {'python': sys.executable, 'project_root': str(ROOT), 'locator': 1}
+        if python_home is not None:
+            shutil.copytree(python_home, resources / 'Python', symlinks=True)
+            source = resources / 'PadPilot'
+            for name in ('bin', 'core', 'scripts'):
+                shutil.copytree(ROOT / name, source / name,
+                                ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+            for name in ('LICENSE', 'NOTICE'):
+                shutil.copy2(ROOT / name, source / name)
+            (source / 'core/__init__.py').write_text(
+                f'"""PadPilot release metadata."""\n__version__ = {version!r}\n__revision__ = {revision or "unknown"!r}\n')
+            metadata = {'bundled': True, 'python': 'Python/bin/python3', 'project_root': 'PadPilot', 'locator': 1}
+        (resources / 'runtime.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
         # The terminal shortcut must use the same Python as the app and launchd.
         launcher = resources / 'padpilot-cli'
-        launcher.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' '
-                            + shlex.quote(str(ROOT / 'bin/padpilot-cli')) + ' "$@"\n', encoding='utf-8')
+        if python_home is None:
+            launcher.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' '
+                                + shlex.quote(str(ROOT / 'bin/padpilot-cli')) + ' "$@"\n', encoding='utf-8')
+        else:
+            launcher.write_text('''#!/bin/sh
+set -eu
+entry="$0"
+while [ -L "$entry" ]; do
+    base="$(cd -P "$(dirname "$entry")" && pwd)"
+    link="$(readlink "$entry")"
+    case "$link" in /*) entry="$link" ;; *) entry="$base/$link" ;; esac
+done
+resources="$(cd -P "$(dirname "$entry")" && pwd)"
+mode=--cli
+if [ "${1:-}" = --bundled-cli ]; then mode=--bundled-cli; shift; fi
+exec "$resources/../MacOS/PadPilot" "$mode" "$@"
+''', encoding='utf-8')
         launcher.chmod(0o755)
         shutil.copytree(ROOT / 'assets' / 'menu-icons', resources / 'menu-icons')
         shutil.copy2(ROOT / 'LICENSE', resources / 'LICENSE')
         shutil.copy2(ROOT / 'NOTICE', resources / 'NOTICE')
+        if python_home is not None:
+            # Sign nested Mach-O code before sealing the app; no Developer ID or notarization.
+            magic = (b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf')
+            for binary in sorted((resources / 'Python').rglob('*')):
+                if binary.is_symlink() or not binary.is_file():
+                    continue
+                with binary.open('rb') as stream:
+                    is_macho = stream.read(4) in magic
+                if is_macho:
+                    result = subprocess.run(['codesign', '--force', '--sign', '-', str(binary)], capture_output=True, text=True)
+                    if result.returncode:
+                        raise RuntimeError(f'Cannot sign {binary.name}: {result.stderr.strip()}')
+        ready = Path(directory) / 'PadPilot.app'
+        app.rename(ready)
+        app = ready
         subprocess.run(['codesign', '--force', '--sign', '-', str(app)], check=True)
         # Validate ownership before replacing only our generated output.
         if output.exists():

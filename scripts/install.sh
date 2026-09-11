@@ -3,6 +3,10 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+if [[ "${1:-}" == --release ]]; then
+    shift
+    exec /bin/bash "$SCRIPT_DIR/install_release.sh" "$@"
+fi
 CHECK_ONLY=0
 ASSUME_YES=0
 INSTALL_DEPS=0
@@ -13,6 +17,7 @@ BREW_BIN=""
 usage() {
     cat <<'HELP'
 Usage: bash scripts/install.sh [options]
+  --release [options]      下載已編譯版本 / use the prebuilt release installer
   --check                 唯讀檢查 / read-only dependency check
   --yes, -y               沿用現有依賴並安裝 PadPilot / accept existing dependencies
   --install-deps          同意安裝缺少的依賴 / allow missing dependency installation

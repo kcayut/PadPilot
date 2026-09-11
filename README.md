@@ -57,11 +57,11 @@ GUI 的「使用說明」、「疑難排解」與診斷說明會在 GitHub 開�
 
 | 項目 | 說明 |
 | --- | --- |
-| Mac | 專案目標為 macOS 14+，主要使用情境是 Apple Silicon Mac mini；其他機型與版本組合尚未全面驗證。 |
+| Mac | Apple Silicon（arm64）、macOS 14+；不支援 Intel Mac。硬體組合仍需實機驗證。 |
 | iPad | 支援 Sidecar 的 iPad，與 Mac 登入相同 Apple Account 並啟用雙重認證。 |
-| Python | Python 3.10+，供背景核心使用。安裝器會偵測，並提供沿用、手動路徑或安裝選項。 |
+| Python | Release 已內建 CPython；自行選用時需 Apple Silicon Python 3.10+。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | 提供 Sidecar 與顯示器控制。請選擇相容於 macOS 的版本，並確認 CLI 可用；命令列控制依上游授權需要 Pro 或有效試用。 |
-| Apple Command Line Tools | 編譯 Swift／AppKit 選單列與 SwiftUI 原生設定視窗；首次安裝執行 `xcode-select --install`。 |
+| Apple Command Line Tools | 只有原始碼安裝／建置發行包需要；Release 使用者不需要。 |
 | 連線 | 初次設定建議使用可傳輸資料的 USB 線，並在 iPad 上信任 Mac。無線 Sidecar 另需 Wi-Fi、藍牙與 Handoff。 |
 
 裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的授權不包含第三方軟體授權。
@@ -70,47 +70,36 @@ GUI 的「使用說明」、「疑難排解」與診斷說明會在 GitHub 開�
 
 ### 1. 安裝
 
-先確認可以在 macOS「螢幕鏡像輸出」中手動使用 Sidecar，再複製整段至「終端機」：
+先確認 macOS「螢幕鏡像輸出」可以手動使用 Sidecar。從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 Apple Silicon 的 `.dmg`，打開後將 **PadPilot.app 拖入 Applications**，再從「應用程式」開啟。Swift 與 CPython 已封裝，無需另裝 Python、Homebrew 或 Apple 編譯工具；全部原生 GUI、CLI、背景服務、USB 偵測與登入啟動功能均使用同一套核心。
+
+目前是**開發預覽版，只有 ad-hoc 簽章，沒有 Developer ID 簽章或 Apple 公證**。macOS 可能顯示無法驗證開發者或無法檢查惡意軟體；確認下載來源後，可依 [Apple 說明](https://support.apple.com/en-us/102445) 到「系統設定 → 隱私權與安全性 → 仍要打開」。若顯示損毀，先重新下載並核對 `SHA256SUMS`，不要一律視為誤報。
+
+想自行選擇 Python，可下載並執行[發行版安裝腳本](https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh)，或在原始碼目錄執行：
 
 ```bash
-(
-  set -e
-  installer="$(mktemp -t padpilot-install)"
-  trap 'rm -f "$installer"' EXIT
-  curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
-    --output "$installer"
-  /bin/bash "$installer"
-)
+bash scripts/install.sh --release
 ```
 
-**下載入口須待 [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 公開，且本次安裝腳本已發布至 `main` 後才能使用。** 私人倉庫或尚未發布的腳本會回傳 404；下載失敗不會執行安裝器。已有原始碼者可直接在專案目錄執行 `./scripts/install.sh`。
+腳本預設取得最新已發布版本（包含預覽版），讓你選擇內建 CPython 或自己的 Apple Silicon Python 3.10+；也支援 `--tag v0.1.0-dev.1`、`--bundled`、`--python /absolute/path/python3`。發行包必須先由維護者推送 tag 產生，尚未發布時會明確停止。腳本驗證下載、安裝並保留設定，完成後請自行開啟 App。
 
-安裝器先偵測 Python、BetterDisplay 與 Apple 編譯工具，再讓你選擇沿用、手動指定路徑或安裝缺少的依賴。透過 Homebrew 安裝前會詢問；沒有 Homebrew 時也會先徵求同意。Apple Command Line Tools 由 macOS 的安裝視窗處理，完成後重跑同一段指令即可。
+BetterDisplay **App 必須安裝並執行**；只裝 `betterdisplaycli` 不夠。獨立 CLI 是可選項，PadPilot 能使用 BetterDisplay App 內建的控制介面，並搜尋 Applications、使用者 Applications 與 macOS 登記的自訂安裝位置。手動指定路徑仍優先。
 
-安裝或解除安裝前，請先儲存並關閉 PadPilot 的設定／診斷視窗；若視窗仍開啟，安裝器會停止並提示重跑。
+安裝、更新或切換 Python 前，請儲存設定並離開 PadPilot。設定與配對保存在 App 外；若由原始碼安裝遷移或更換安裝位置，先用舊版本解除安裝並保留設定。詳細選項見[安裝指南](docs/INSTALLATION.md)。開發者仍可使用 `bash scripts/install.sh` 本機編譯；此模式需保留原始碼與選定的 Python。
 
-來源保存在 `~/Applications/PadPilot-source`；重跑會沿用此資料夾、繼續安裝，不覆蓋原始碼或自動更新。App 安裝至 `~/Applications/PadPilot.app`，保留既有配對、模式與登入啟動偏好。首次安裝預設啟用登入啟動；收到背景服務的握手回應後才報告成功，啟動失敗會嘗試還原舊 App 與服務狀態。
-
-```bash
-"$HOME/bin/padpilot-cli" status
-open "$HOME/Applications/PadPilot.app"
-```
-
-CLI 快捷入口會使用安裝時選定的 Python。若 `~/bin/padpilot-cli` 已被其他程式占用，請使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留 Python 環境與原始碼資料夾**；這版仍是本機編譯、引用原始碼的 App。依賴檢查、手動路徑及非互動選項見[完整安裝指南](docs/INSTALLATION.md)。BetterDisplay CLI 回應不等於授權、Sidecar 配對或實際顯示已通過驗證。
+以下 CLI 指令以 `/Applications/PadPilot.app` 為例；自訂安裝位置請替換為實際路徑。
 
 ### 2. 指定 iPad
 
 在終端機執行互動式配對，選取要控制的 iPad：
 
 ```bash
-"$HOME/bin/padpilot-cli" pair --interactive
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" pair --interactive
 ```
 
 也可開啟圖形設定視窗，搜尋裝置、儲存配對並選定控制目標：
 
 ```bash
-"$HOME/bin/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
 ```
 
 PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任這部電腦」設定。雖然可以儲存多台 iPad，目前一次管理一台控制目標。
@@ -120,8 +109,8 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 若要使用無實體螢幕情境，請確認 BetterDisplay 中存在名為 `PadPilotVirtual` 的虛擬螢幕，或在 PadPilot 設定中選擇既有的虛擬螢幕。若版本不支援自動建立，請先在 BetterDisplay 中手動建立一次。
 
 ```bash
-"$HOME/bin/padpilot-cli" status
-"$HOME/bin/padpilot-cli" open-log
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" open-log
 ```
 
 `open-log` 會開啟狀態與診斷視窗；`open-log --raw` 可開啟原始日誌。遠端救援需自行事先設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你啟用遠端存取，SSH 本身也不依賴虛擬螢幕。
@@ -157,36 +146,38 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 ```bash
 # 狀態與設定
-"$HOME/bin/padpilot-cli" status --json
-"$HOME/bin/padpilot-cli" gui
-"$HOME/bin/padpilot-cli" set-language zh-Hant   # 亦可使用 en 或 ja
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status --json
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-language zh-Hant   # 亦可使用 en 或 ja
 
 # 運作模式：擇一設定
-"$HOME/bin/padpilot-cli" set-mode automatic
-"$HOME/bin/padpilot-cli" set-mode manual_only
-"$HOME/bin/padpilot-cli" set-mode prefer_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode automatic
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode manual_only
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode prefer_ipad
 
 # 手動操作：依需要選擇
-"$HOME/bin/padpilot-cli" action use_ipad_secondary
-"$HOME/bin/padpilot-cli" action use_ipad_main
-"$HOME/bin/padpilot-cli" action disconnect_ipad
-"$HOME/bin/padpilot-cli" action reconnect_sidecar
-"$HOME/bin/padpilot-cli" action refresh
-"$HOME/bin/padpilot-cli" action reset           # 清除暫時覆寫與冷卻狀態
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_secondary
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_main
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action disconnect_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reconnect_sidecar
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action refresh
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reset           # 清除暫時覆寫與冷卻狀態
 
 # 背景服務與登入自動啟動
-"$HOME/bin/padpilot-cli" stop
-"$HOME/bin/padpilot-cli" start
-"$HOME/bin/padpilot-cli" exit                  # 停止服務並隱藏 PadPilot 選單
-"$HOME/bin/padpilot-cli" autostart status
-"$HOME/bin/padpilot-cli" autostart toggle
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" stop
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" start
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" exit                  # 停止服務並隱藏 PadPilot 選單
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart toggle
 
 # 版本與完整指令說明
-"$HOME/bin/padpilot-cli" --version
-"$HOME/bin/padpilot-cli" --help
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --version
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --help
 ```
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
+
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 ## 限制與疑難排解
 
@@ -201,7 +192,13 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 ## 解除安裝
 
-複製至終端機，即可逐項選擇要移除的內容：
+Release 版本先儲存並關閉設定視窗，再執行下列指令。App 與登入啟動項目移至垃圾桶，預設保留設定、配對與日誌；加 `--purge` 也會將這些資料移至垃圾桶。
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+**原始碼安裝**：複製至終端機，即可逐項選擇要移除的內容：
 
 ```bash
 /bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"

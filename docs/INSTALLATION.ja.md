@@ -2,6 +2,75 @@
 
 [繁體中文](INSTALLATION.md) | [English](INSTALLATION.en.md) | **日本語** · [ドキュメント](README.ja.md)
 
+## ビルド済みアプリを取得（推奨）
+
+Apple Silicon、macOS 14 以降に対応し、Intel 版は提供しません。[GitHub Releases](https://github.com/kcayut/PadPilot/releases) の `.dmg` を開き、`PadPilot.app` を Applications にドラッグして起動します。ZIP、`SHA256SUMS`、`build-info.json` も提供します。Swift、CPython、標準ライブラリ、PadPilot のコアを同梱し、利用者によるビルドや pip パッケージの導入は不要です。
+
+インストール済みのアプリをダブルクリックすると、操作画面とメニューバーのアイコンが同時に開きます。画面を閉じてもアイコンは残り、再度ダブルクリックすると画面を開き直せます。ログイン時やバックグラウンドでの起動では、メニューバーのアイコンのみ表示します。
+
+**開発版は ad-hoc 署名のみで、Developer ID 署名と Apple の公証はありません。** 開発元や悪意あるソフトウェアを確認できない警告では、取得元を確認した上で [Apple の手順](https://support.apple.com/en-us/102445)に従い「プライバシーとセキュリティ → このまま開く」を利用してください。破損の警告では再取得して SHA-256 を確認します。Gatekeeper 全体を無効にしたり、すべてを誤警告と判断したりしないでください。
+
+BetterDisplay アプリのインストール、起動、制御に必要なライセンスは引き続き必要です。独立した `betterdisplaycli` は任意で、アプリ内蔵 CLI で制御できます。`/Applications`、`~/Applications`、LaunchServices 登録先を検出します。詳細設定で App／CLI のパスを手動指定することもできます。
+
+### スクリプトでの導入と Python 選択
+
+設定を保存して画面を閉じてから、公式スクリプトを取得して実行します。既存の Python は不要です。
+
+```bash
+(
+  set -e
+  installer="$(mktemp -t padpilot-release-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
+```
+
+プレリリースを含む最新の公開版を選び、SHA-256 を照合し、DMG を読み取り専用でマウントして同梱 Python を使用します。既定の配置先は `/Applications/PadPilot.app` です。書き込めない場合は `--target "$HOME/Applications/PadPilot.app"` を指定してください。sudo は不要です。まだ公開版がなければ停止し、ソース版へ自動変更しません。
+
+- `--bundled`：同梱 CPython を使います。Python 指定なしの `--yes` も同じです。
+- `--python /absolute/path/python3`：自分の Apple Silicon CPython 3.10 以降を使い、版、アーキテクチャ、必須モジュールを検証します。
+- `--tag v0.1.0-dev.1`：公開済みの版を指定します。
+
+完了はファイルと CLI の検査成功を意味し、サービスはアプリを開いてから起動します。設定、ペアリング、ログイン起動の設定を保持し、旧アプリはゴミ箱に移します。失敗時は復元を試みます。スクリプト更新では Python を再選択し、ドラッグでの置き換えでは現在の選択を保持します。ソース版からの移行や配置先の変更では旧版を先に削除して設定を残し、他の導入元のサービスを引き継がないようにしてください。
+
+### 導入後の Python 切り替えと復旧
+
+GUI、CLI、daemon、ログイン起動は共通の選択を使用し、`~/Library/Application Support/PadPilot/python-runtime.json` に保存します。アプリの署名は変更しません。PadPilot を終了してから実行してください。
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime external --python /absolute/path/python3
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime bundled
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" runtime status
+```
+
+最初の二つのうち、外部または同梱のどちらかを選びます。外部 Python が削除された場合も `--bundled-cli` で復旧できます。他の PadPilot.app 内の Python は選択しないでください。
+
+リリース版の削除は次のとおりです。設定とログは保持し、`--purge` を追加するとこれらもゴミ箱へ移します。
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+### 管理者：tag の push で自動公開
+
+以下は GitHub の remote 名を `github` としています。GitHub から直接 clone した場合は通常 `origin` です。`git remote -v` で確認して置き換えてください。Gitea への push では GitHub Actions は起動しません。
+
+```bash
+git tag v0.1.0-dev.1
+git push github v0.1.0-dev.1
+```
+
+まず公開する変更を commit します。`vX.Y.Z`、`vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N` に対応します。**ローカルで tag を作るだけでは起動せず、GitHub への push が必要です。** ARM runner がソフトウェア検査、ビルド、パッケージ化、移動後の動作検査を実行し、全添付ファイルの転送後に prerelease として自動公開します。Apple 証明書や手動承認は不要です。公開済み版は上書きせず、新しい tag を使用します。失敗した下書きは再実行できます。実機での受け入れ結果は引き続き unknown です。
+
+ローカルで同じ成果物を作るには、Python 3.12 以降と Apple のビルドツールで `python3 scripts/build_release.py --tag v0.1.0-dev.1` を実行します。出力先は `dist/<tag>/` です。CPython の取得元と SHA-256 は `scripts/python-runtime.json` に固定し、ライセンス文書を同梱します。完全な tag と build commit は成果物に記録されます。
+
+## ソース版の導入（開発用）
+
+以下はローカルでビルドするソース版専用の手順です。
+
 PadPilot は **Swift/AppKit メニュー、SwiftUI ネイティブ設定画面、Python コア**で構成されます。インストーラーは `~/Applications/PadPilot.app` のビルド・インストール・起動も行います。追加の pip パッケージや Swift パッケージは不要です。
 
 導入・削除の前に変更を保存し、PadPilot の設定・診断画面を閉じてください。開いたままの場合は停止し、再実行を案内します。

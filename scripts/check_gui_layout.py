@@ -70,7 +70,10 @@ def run_check(mode='layout', output=None):
         main = root / 'main.swift'
         main.write_text('''import AppKit
 import Foundation
-struct Runtime: Decodable { let python: String; let project_root: String }
+struct Runtime: Decodable {
+    let python: String; let project_root: String
+    var cliArguments: [String] { [project_root + "/bin/padpilot-cli"] }
+}
 let application = NSApplication.shared
 application.setActivationPolicy(.regular)
 Task { @MainActor in

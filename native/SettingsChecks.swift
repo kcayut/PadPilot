@@ -74,7 +74,8 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
             try require(state["language"] as? String == language, "Language selection was lost")
             try require(state["pages"] as? [String] == pages, "The native window must expose all seven pages")
             try require(window.isVisible && !window.isMiniaturized, "Settings window is not visible")
-            try require(window.title == strings["PadPilot — 螢幕與配對管理"], "Window title was not localized")
+            try require(window.title == "PadPilot", "Window title must be PadPilot")
+            try require(!views(content).contains { $0 is NSSplitView }, "Sidebar must remain fixed")
             try require(abs(content.bounds.width - 840) < 2, "840px content width was not respected")
             try require(content.fittingSize.width <= content.bounds.width + 2, "Native content exceeds minimum width: \(page)")
             var nodes = elements(content)
@@ -82,6 +83,8 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                 let title = strings[page == "paired" ? "設定" : "進階選項"] ?? ""
                 let disclosure = nodes.first { $0.label == title && ($0.role == "AXDisclosureTriangle" || $0.role == "AXButton") }
                 guard let disclosure else { throw NSError(domain: "Missing native disclosure: \(page)", code: 8) }
+                try require(disclosure.frame.height >= 26 && disclosure.frame.width >= 60,
+                            "Disclosure needs a framed, easily clickable button: \(page)/\(disclosure.role)/\(disclosure.frame)")
                 if page == "paired" { try require(!nodes.contains { $0.label.contains("▼") }, "Paired settings duplicated the native disclosure arrow in its title") }
                 let pressed = disclosure.press(); try require(pressed, "Native disclosure failed: \(page)")
                 await settle(); nodes = elements(content)

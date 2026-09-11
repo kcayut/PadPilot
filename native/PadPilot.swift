@@ -5,6 +5,51 @@ import Darwin
 struct Runtime: Decodable {
     let python: String
     let project_root: String
+    var bundled: Bool? = nil
+
+    static func load(bundle: URL = Bundle.main.bundleURL, useBundled: Bool = false) throws -> Runtime {
+        let resources = bundle.appendingPathComponent("Contents/Resources")
+        let metadata = try JSONDecoder().decode(Runtime.self, from: Data(contentsOf: resources.appendingPathComponent("runtime.json")))
+        if metadata.bundled != true { return metadata }
+        guard metadata.python == "Python/bin/python3", metadata.project_root == "PadPilot" else {
+            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid bundled runtime"])
+        }
+        var python = resources.appendingPathComponent(metadata.python).standardizedFileURL.path
+        if !useBundled {
+            let support = padpilotHomeDirectory().appendingPathComponent("Library/Application Support/PadPilot")
+            var directory = stat()
+            if lstat(support.path, &directory) == 0 {
+                guard (directory.st_mode & S_IFMT) == S_IFDIR, directory.st_uid == getuid() else {
+                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference directory"])
+                }
+            } else if errno != ENOENT { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            let path = support.appendingPathComponent("python-runtime.json")
+            let fd = Darwin.open(path.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+            if fd >= 0 {
+                let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+                defer { try? handle.close() }
+                var info = stat()
+                guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
+                      info.st_uid == getuid(), info.st_nlink == 1, info.st_size < 16384 else {
+                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference file"])
+                }
+                guard let value = try JSONSerialization.jsonObject(with: handle.readDataToEndOfFile()) as? [String: String],
+                      Set(value.keys).isSubset(of: ["python"]), value["python"] == nil || value["python"]!.hasPrefix("/") else {
+                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid Python preference"])
+                }
+                if let selected = value["python"] { python = selected }
+            } else if errno != ENOENT { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        }
+        guard FileManager.default.isExecutableFile(atPath: python) else {
+            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Selected Python is unavailable. Exit PadPilot and run the app's Contents/Resources/padpilot-cli --bundled-cli runtime bundled. / 選定的 Python 已不存在；請離開 PadPilot，使用內建 CLI 切回封裝版本。"])
+        }
+        return Runtime(python: python, project_root: resources.appendingPathComponent("PadPilot").path, bundled: true)
+    }
+
+    var cliArguments: [String] {
+        (bundled == true ? ["-I", "-B"] : []) + [project_root + "/bin/padpilot-cli"]
+    }
 }
 
 struct SettingsRequest {
@@ -126,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pendingSettings: [SettingsRequest] = []
     private var ready = false
     private var awaitingSettingsRequest = false
-    private let support = FileManager.default.homeDirectoryForCurrentUser
+    private let support = padpilotHomeDirectory()
         .appendingPathComponent("Library/Application Support/PadPilot")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -138,8 +183,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.setAccessibilityLabel("PadPilot")
         setIcon("working")
         do {
-            let resources = Bundle.main.resourceURL!
-            runtime = try JSONDecoder().decode(Runtime.self, from: Data(contentsOf: resources.appendingPathComponent("runtime.json")))
+            runtime = try Runtime.load()
+            if runtime.bundled == true && (Bundle.main.bundleURL.path.hasPrefix("/Volumes/") || Bundle.main.bundleURL.path.contains("/AppTranslocation/")) {
+                throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                    "Drag PadPilot to Applications, then open that copy. / 請先將 PadPilot 拖入「應用程式」，再開啟安裝的版本。 / PadPilot をアプリケーションに移動してから開いてください。"])
+            }
             guard FileManager.default.isExecutableFile(atPath: runtime.python),
                   FileManager.default.fileExists(atPath: runtime.project_root + "/bin/padpilot-cli") else {
                 throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
@@ -170,13 +218,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     .first(where: { application in
                         guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier,
                               let bundle = application.bundleURL,
-                              let data = try? Data(contentsOf: bundle.appendingPathComponent("Contents/Resources/runtime.json")),
-                              let other = try? JSONDecoder().decode(Runtime.self, from: data) else { return false }
+                              let other = try? Runtime.load(bundle: bundle) else { return false }
                         return other.project_root == self.runtime.project_root
                     }),
                    let bundle = existing.bundleURL {
                     let requests = pendingSettings
-                    if !requests.isEmpty || CommandLine.arguments.contains("--settings") {
+                    if !requests.isEmpty || !CommandLine.arguments.contains("--menu-only") {
                         guard Bundle(url: bundle)?.object(forInfoDictionaryKey: "CFBundleURLTypes") != nil else {
                             showError("Close the previous PadPilot app, then reopen Settings. / 請先關閉舊版 PadPilot，再重新開啟設定。")
                             NSApp.terminate(nil); return
@@ -195,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         }
                         return
                     }
-                } else if CommandLine.arguments.contains("--settings") || !pendingSettings.isEmpty {
+                } else if !CommandLine.arguments.contains("--menu-only") || !pendingSettings.isEmpty {
                     showError("Another PadPilot checkout is running. Close it before opening these settings. / 請先關閉另一份 PadPilot，再開啟這份設定。")
                 }
                 NSApp.terminate(nil); return
@@ -209,6 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 beginPolling()
                 return
             }
+            if !CommandLine.arguments.contains("--menu-only") { showSettings() }
             // Explicitly opening the app resumes the service once. Stopping it from
             // the menu leaves it stopped; polling never starts or scans hardware.
             runCLI(["start", "--no-menu"], timeout: 75) { result in
@@ -235,11 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if let window = settingsController?.window, window.isVisible || window.isMiniaturized {
-            window.deminiaturize(nil)
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        if ready { showSettings() }
         return false
     }
 
@@ -248,6 +292,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settingsController == nil { settingsController = SettingsWindowController(runtime: runtime) }
         settingsController?.show(page: page == "wizard" ? "search" : page, delete: delete, select: select)
     }
+
+    #if MENU_TESTING
+    var checkMenuVisible: Bool { statusItem?.isVisible == true && statusItem.menu != nil }
+    #endif
 
     private func setIcon(_ name: String) {
         statusItem.button?.image = menuIcon(name)
@@ -370,11 +418,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func runCLI(_ arguments: [String], timeout: Double?, completion: @escaping (Result<Data, Error>) -> Void) {
         let python = runtime.python
         let root = runtime.project_root
+        let cliArguments = runtime.cliArguments
         DispatchQueue.global(qos: .utility).async {
             let process = Process()
             let pipe = Pipe()
             process.executableURL = URL(fileURLWithPath: python)
-            process.arguments = [root + "/bin/padpilot-cli"] + arguments
+            process.arguments = cliArguments + arguments
             process.currentDirectoryURL = URL(fileURLWithPath: root)
             process.standardInput = FileHandle.nullDevice
             process.standardOutput = pipe
@@ -417,6 +466,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 @main
 struct PadPilot {
     static func main() {
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        if arguments.first == "--locate-betterdisplay" {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "pro.betterdisplay.BetterDisplay") {
+                print(url.path); exit(0)
+            }
+            exit(1)
+        }
+        if ["--cli", "--bundled-cli", "--runtime-info"].contains(arguments.first ?? "") {
+            do {
+                let runtime = try Runtime.load(useBundled: arguments.first == "--bundled-cli")
+                if arguments.first == "--runtime-info" {
+                    let data = try JSONSerialization.data(withJSONObject: ["python": runtime.python, "project_root": runtime.project_root, "bundled": runtime.bundled == true], options: [.sortedKeys])
+                    FileHandle.standardOutput.write(data); print(); return
+                }
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: runtime.python)
+                process.arguments = runtime.cliArguments + Array(arguments.dropFirst())
+                process.currentDirectoryURL = URL(fileURLWithPath: runtime.project_root)
+                process.standardInput = FileHandle.standardInput
+                process.standardOutput = FileHandle.standardOutput
+                process.standardError = FileHandle.standardError
+                try process.run(); process.waitUntilExit(); exit(process.terminationStatus)
+            } catch {
+                FileHandle.standardError.write(Data(("PadPilot: \(error.localizedDescription)\n").utf8)); exit(1)
+            }
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

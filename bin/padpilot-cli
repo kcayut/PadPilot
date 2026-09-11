@@ -419,6 +419,32 @@ def main() -> None:
     parser.add_argument("-v", "--version", action="version", version=f"PadPilot {__version__}")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
+    p_runtime = subparsers.add_parser('runtime', help='Select Python for a release app; exit PadPilot before changing it')
+    p_runtime.add_argument('mode', choices=['status', 'bundled', 'external'], nargs='?', default='status')
+    p_runtime.add_argument('--python', help='Absolute path to an Apple Silicon CPython 3.10+ executable')
+    def runtime_command(args):
+        from core.runtime import set_python, read_preference
+        if args.mode == 'status':
+            print(json.dumps({'python': sys.executable, 'preference': read_preference()}, ensure_ascii=False))
+            return
+        if (args.mode == 'external') != bool(args.python):
+            raise ValueError('Only external mode requires --python PATH')
+        set_python(args.python)
+        print('Python selection saved. Reopen PadPilot. / Python 選擇已儲存，請重新開啟 PadPilot。')
+    p_runtime.set_defaults(func=runtime_command)
+
+    p_uninstall = subparsers.add_parser('uninstall', help='Remove this release app and its LaunchAgent; preserve user data by default')
+    p_uninstall.add_argument('--yes', action='store_true', required=True)
+    p_uninstall.add_argument('--purge', action='store_true', help='Also move settings and logs to Trash')
+    def uninstall_command(args):
+        from core.runtime import bundled_app
+        if bundled_app() is None:
+            raise RuntimeError('Use scripts/uninstall.sh for a source installation')
+        sys.path.insert(0, str(PROJECT_ROOT / 'scripts'))
+        from manage_app import manage
+        manage(uninstall=True, purge=args.purge)
+    p_uninstall.set_defaults(func=uninstall_command)
+
     p_gui = subparsers.add_parser("gui", help="Open graphical settings and pairing management window")
     p_gui.add_argument("page", nargs="?", default="paired", help="Initial tab")
     p_gui.add_argument("--page", dest="page_option", help="Initial tab (alias)")

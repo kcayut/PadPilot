@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import plistlib
 import runpy
 import subprocess
@@ -35,6 +36,7 @@ class NativeAppTests(unittest.TestCase):
             agents = home / 'Library/LaunchAgents'
             plist = agents / 'com.padpilot.daemon.plist'
             app = home / 'Applications/PadPilot.app'
+            open_menu = ['open', '-g', '-a', str(app), 'padpilot://menu', '--args', '--menu-only']
             python = str(home / 'Python runtime/python3')
             cli = [python, str(source / 'bin/padpilot-cli')]
             commands = []
@@ -46,7 +48,7 @@ class NativeAppTests(unittest.TestCase):
                 elif command == cli + ['exit']:
                     pass  # No prior daemon exists in this isolated user's home.
                 elif command[0] not in ('xcrun', 'codesign'):
-                    self.assertIn(command, (['launchctl', 'load', str(plist)], ['open', '-g', str(app)]))
+                    self.assertIn(command, (['launchctl', 'load', str(plist)], open_menu))
                 return subprocess.CompletedProcess(command, 0)
 
             with contextlib.ExitStack() as stack:
@@ -83,11 +85,11 @@ class NativeAppTests(unittest.TestCase):
             self.assertIs(installed['KeepAlive'], True)
             self.assertEqual(installed['ProgramArguments'], [python, str(source / 'bin/padpilotd')])
             runtime = json.loads((app / 'Contents/Resources/runtime.json').read_text())
-            self.assertEqual(runtime, {'python': python, 'project_root': str(source)})
+            self.assertEqual(runtime, {'python': python, 'project_root': str(source), 'locator': 1})
             self.assertEqual([command for command in commands if command[:2] == cli],
                              [cli + ['exit'], cli + ['start']])
             self.assertEqual(commands.count(['launchctl', 'load', str(plist)]), 1)
-            self.assertEqual(commands[-1], ['open', '-g', str(app)])
+            self.assertEqual(commands[-1], open_menu)
             self.assertEqual((home / 'bin/padpilot-cli').resolve(), app / 'Contents/Resources/padpilot-cli')
 
     def test_install_failure_restores_app_and_previous_service_state(self):
@@ -198,6 +200,46 @@ class NativeAppTests(unittest.TestCase):
             finally:
                 set_language('zh-Hant')
 
+    @unittest.skipUnless(sys.platform == 'darwin', 'AppKit requires macOS')
+    def test_native_launch_and_reopen(self):
+        from check_gui_layout import fixtures
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contents = root / 'LaunchChecks.app/Contents'
+            (contents / 'MacOS').mkdir(parents=True)
+            (contents / 'Resources').mkdir()
+            (root / 'bin').mkdir()
+            (contents / 'Info.plist').write_bytes(plistlib.dumps({
+                'CFBundleIdentifier': 'com.padpilot.launch-checks', 'CFBundleExecutable': 'LaunchChecks',
+                'CFBundlePackageType': 'APPL', 'LSUIElement': True,
+            }))
+            (contents / 'Resources/runtime.json').write_text(json.dumps({'python': sys.executable, 'project_root': str(root)}))
+            (root / 'gui.json').write_text(json.dumps(fixtures()['zh-Hant']))
+            (root / 'bin/padpilot-cli').write_text('''import json, sys
+from pathlib import Path
+root = Path(__file__).resolve().parents[1]
+with (Path.home() / "commands.jsonl").open("a") as log:
+    log.write(json.dumps(sys.argv[1:]) + "\\n")
+if sys.argv[1] == "gui-data": print((root / "gui.json").read_text())
+elif sys.argv[1] == "menu-json": print(json.dumps({"schema_version": 1, "hidden": False, "icon": "ipad", "items": []}))
+elif sys.argv[1:] == ["start", "--no-menu"]: print("{}")
+else: sys.exit(1)
+''')
+            binary = contents / 'MacOS/LaunchChecks'
+            subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
+                            '-module-cache-path', str(ROOT / 'build/swift-cache'),
+                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'),
+                            str(ROOT / 'tests/native_launch.swift'), '-o', str(binary)], check=True, capture_output=True)
+            for arguments in ([], ['--menu-only']):
+                home = root / ('background' if arguments else 'foreground')
+                home.mkdir()
+                result = subprocess.run([str(binary), *arguments], env={**os.environ, 'HOME': str(home)},
+                                        capture_output=True, text=True, timeout=25)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                commands = [json.loads(line) for line in (home / 'commands.jsonl').read_text().splitlines()]
+                self.assertEqual(commands.count(['start', '--no-menu']), 1)
+                self.assertTrue(all(command[0] in {'start', 'gui-data', 'menu-json'} for command in commands))
+
     def test_app_ownership_requires_matching_bundle_and_source(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / 'PadPilot.app'
@@ -205,7 +247,7 @@ class NativeAppTests(unittest.TestCase):
             (contents / 'Resources').mkdir(parents=True)
             (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
             runtime = contents / 'Resources/runtime.json'
-            runtime.write_text(json.dumps({'project_root': str(ROOT)}))
+            runtime.write_text(json.dumps({'project_root': str(ROOT), 'python': sys.executable}))
             self.assertTrue(manage_app.owned_app(app))
             runtime.write_text(json.dumps({'project_root': '/another/checkout'}))
             self.assertFalse(manage_app.owned_app(app))

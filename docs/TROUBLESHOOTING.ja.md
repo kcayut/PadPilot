@@ -2,6 +2,8 @@
 
 [繁體中文](TROUBLESHOOTING.md) | [English](TROUBLESHOOTING.en.md) | **日本語** · [ドキュメント](README.ja.md)
 
+リリース版の Gatekeeper 警告、Python の切り替え・復旧、ソース版からの移行は[ビルド済み版の導入手順](INSTALLATION.ja.md)を参照してください。BetterDisplay アプリの導入と起動は必要で、独立した CLI は任意です。
+
 macOS 上での状態警告、デバイス認識、接続エラーと対処方法をまとめています。
 
 ## 目次

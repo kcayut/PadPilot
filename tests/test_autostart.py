@@ -129,7 +129,8 @@ class TestPadPilotAutostart(unittest.TestCase):
             with patch.object(startup, 'PROJECT_ROOT', root), patch('pathlib.Path.home', return_value=root), \
                  patch('subprocess.run', return_value=MagicMock(returncode=0)) as run:
                 self.assertTrue(open_menu_app())
-                self.assertEqual(run.call_args.args[0], ['open', '-g', str(root / 'build/PadPilot.app')])
+                self.assertEqual(run.call_args.args[0], ['open', '-g', '-a', str(root / 'build/PadPilot.app'),
+                                                       'padpilot://menu', '--args', '--menu-only'])
                 (app / 'runtime.json').write_text(json.dumps({'project_root': '/different/checkout'}))
                 run.reset_mock()
                 self.assertFalse(open_menu_app())

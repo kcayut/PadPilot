@@ -57,11 +57,11 @@ Defaults are a **4-second** physical display disconnect debounce, up to **3** Si
 
 | Component | Requirement |
 | --- | --- |
-| Mac | The project targets macOS 14+, primarily on Apple Silicon Mac mini. Other model and OS combinations are not comprehensively validated. |
+| Mac | Apple Silicon (arm64), macOS 14+. Intel Macs are not supported; hardware combinations still need validation. |
 | iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
-| Python | Python 3.10+ for the background core. The installer detects dependencies and offers reuse, a custom path, or installation. |
+| Python | CPython is bundled in releases; external Python must be Apple Silicon 3.10+. |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
-| Apple Command Line Tools | Builds the Swift/AppKit menu and native SwiftUI settings window; install using `xcode-select --install`. |
+| Apple Command Line Tools | Required only to build from source or package releases, not to run a release. |
 | Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
 
 See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's license does not cover third-party software licenses.
@@ -70,47 +70,36 @@ See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device c
 
 ### 1. Install
 
-First verify that Sidecar works manually through macOS Screen Mirroring, then paste this entire block into Terminal:
+First verify Sidecar works manually through macOS Screen Mirroring. Download the Apple Silicon `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), drag **PadPilot.app into Applications**, then open the installed app. Swift and CPython are included. No separate Python, Homebrew, or Apple build tools are required; the native GUI, CLI, daemon, USB detection, and launch-at-login features share the same core.
+
+This is a **development preview with ad-hoc signing, without Developer ID signing or Apple notarization**. macOS may warn that the developer cannot be verified or that it cannot check for malicious software. After verifying the download source, follow [Apple’s instructions](https://support.apple.com/en-us/102445) for System Settings → Privacy & Security → Open Anyway. For a damaged-app warning, download again and verify `SHA256SUMS`; do not assume every warning is harmless.
+
+To choose Python yourself, download and run the [release installer](https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh), or run this from a source checkout:
 
 ```bash
-(
-  set -e
-  installer="$(mktemp -t padpilot-install)"
-  trap 'rm -f "$installer"' EXIT
-  curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
-    --output "$installer"
-  /bin/bash "$installer"
-)
+bash scripts/install.sh --release
 ```
 
-**This download entry point requires [kcayut/PadPilot](https://github.com/kcayut/PadPilot) to be public and these installation scripts to be published on `main`.** Private repositories or unpublished scripts return 404; failed downloads never run the installer. With an existing source copy, run `./scripts/install.sh` from its project directory.
+The script finds the newest published release, including prereleases, and lets you choose bundled CPython or your own Apple Silicon Python 3.10+. Options include `--tag v0.1.0-dev.1`, `--bundled`, and `--python /absolute/path/python3`. A maintainer must first push a tag to produce a release; the installer stops clearly if none is available. It verifies the download and installs while preserving settings. Open the installed app afterward.
 
-The installer detects Python, BetterDisplay, and Apple's build tools, then offers to reuse a detected dependency, enter a path, or install what is missing. Homebrew installation requires consent, including installing Homebrew itself if absent. Apple Command Line Tools use the macOS installation dialog; finish it and rerun the same command.
+The BetterDisplay **app must be installed and running**; `betterdisplaycli` alone is insufficient. The separate CLI is optional: PadPilot can use the app’s built-in interface and discover Applications, user Applications, and custom locations registered with macOS. A manually selected path takes priority.
 
-Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.
+Save settings and quit PadPilot before installing, updating, or changing Python. Pairings and settings live outside the app. When migrating from a source installation or changing installation locations, uninstall the old copy first and keep settings. See the [installation guide](docs/INSTALLATION.en.md). Developers can still build locally with `bash scripts/install.sh`; source mode requires keeping the source and selected Python in place.
 
-Source is kept in `~/Applications/PadPilot-source`. Rerunning reuses that folder and resumes installation; it does not overwrite source or download updates. The app is installed in `~/Applications/PadPilot.app`, preserving pairings, mode, and login preferences. A first install enables launch at login. Success requires a daemon handshake; failed startup attempts to restore the previous app and service state.
-
-```bash
-"$HOME/bin/padpilot-cli" status
-open "$HOME/Applications/PadPilot.app"
-```
-
-The CLI shortcut uses the Python selected during installation. If another program owns `~/bin/padpilot-cli`, use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` instead. **Keep the Python environment and source folder in place**; this remains a locally built app that references its source. See the [installation guide](docs/INSTALLATION.en.md) for read-only checks, custom paths, and noninteractive options. A BetterDisplay CLI response does not verify licensing, Sidecar pairing, or an actual working display.
+The CLI examples below assume `/Applications/PadPilot.app`; substitute your actual location if different.
 
 ### 2. Select your iPad
 
 Run the interactive pairing wizard in Terminal and select the iPad to control:
 
 ```bash
-"$HOME/bin/padpilot-cli" pair --interactive
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" pair --interactive
 ```
 
 Alternatively, open the settings window to discover devices, save pairings, and select the control target:
 
 ```bash
-"$HOME/bin/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
 ```
 
 PadPilot pairing records device identities; it does not replace Apple Account or “Trust This Computer” requirements. Multiple pairings can be saved, but only one iPad is managed as the active target at a time.
@@ -122,8 +111,8 @@ PadPilot pairing records device identities; it does not replace Apple Account or
 For headless use, confirm that a virtual screen named `PadPilotVirtual` exists in BetterDisplay, or select an existing virtual screen in PadPilot's settings. If your version does not support automatic creation, create it once in BetterDisplay.
 
 ```bash
-"$HOME/bin/padpilot-cli" status
-"$HOME/bin/padpilot-cli" open-log
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" open-log
 ```
 
 `open-log` opens the status and diagnostics window; `open-log --raw` opens the raw log. Configure Screen Sharing/VNC or SSH beforehand if you need remote recovery. PadPilot does not enable remote access, and SSH itself does not require a virtual display.
@@ -157,36 +146,38 @@ Run these from any directory. If `~/bin` is on your PATH, you can also use `padp
 
 ```bash
 # Status and settings
-"$HOME/bin/padpilot-cli" status --json
-"$HOME/bin/padpilot-cli" gui
-"$HOME/bin/padpilot-cli" set-language en        # Also accepts zh-Hant or ja
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status --json
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-language en        # Also accepts zh-Hant or ja
 
 # Operating modes: choose one
-"$HOME/bin/padpilot-cli" set-mode automatic
-"$HOME/bin/padpilot-cli" set-mode manual_only
-"$HOME/bin/padpilot-cli" set-mode prefer_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode automatic
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode manual_only
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode prefer_ipad
 
 # Manual actions: choose as needed
-"$HOME/bin/padpilot-cli" action use_ipad_secondary
-"$HOME/bin/padpilot-cli" action use_ipad_main
-"$HOME/bin/padpilot-cli" action disconnect_ipad
-"$HOME/bin/padpilot-cli" action reconnect_sidecar
-"$HOME/bin/padpilot-cli" action refresh
-"$HOME/bin/padpilot-cli" action reset           # Clear temporary override and cooldown
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_secondary
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_main
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action disconnect_ipad
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reconnect_sidecar
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action refresh
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reset           # Clear temporary override and cooldown
 
 # Background service and launch at login
-"$HOME/bin/padpilot-cli" stop
-"$HOME/bin/padpilot-cli" start
-"$HOME/bin/padpilot-cli" exit                  # Stop service and hide the PadPilot menu
-"$HOME/bin/padpilot-cli" autostart status
-"$HOME/bin/padpilot-cli" autostart toggle
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" stop
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" start
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" exit                  # Stop service and hide the PadPilot menu
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart status
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart toggle
 
 # Version and complete command help
-"$HOME/bin/padpilot-cli" --version
-"$HOME/bin/padpilot-cli" --help
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --version
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --help
 ```
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"$HOME/bin/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Release updates: quit PadPilot, then replace the app at the same location or rerun the release installer. Settings are preserved; choose Python when using the installer. Before changing locations, uninstall the old copy while keeping settings. The following rebuild instructions apply only to source installations.
+
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 ## Limitations and troubleshooting
 
@@ -201,7 +192,13 @@ Private directories use `0700`; configuration, status, sockets, and logs use `06
 
 ## Uninstall
 
-Paste this into Terminal to choose what to remove:
+For a release app, save and close settings, then run the command below. The app and launch-at-login entry move to Trash; settings, pairings, and logs remain unless you also pass `--purge`.
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+**Source installation**: Paste this into Terminal to choose what to remove:
 
 ```bash
 /bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"

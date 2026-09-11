@@ -20,6 +20,7 @@ from typing import Optional, Tuple
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.logger import get_logger
 from core.storage import atomic_write, private_directory, private_file
+from core.runtime import bundled_app
 
 logger = get_logger("Autostart")
 
@@ -47,7 +48,7 @@ def generate_plist_content(
 
     return plistlib.dumps({
         "Label": "com.padpilot.daemon",
-        "ProgramArguments": [py, str(daemon_bin)],
+        "ProgramArguments": [py] + (['-I', '-B'] if bundled_app(root) else []) + [str(daemon_bin)],
         "RunAtLoad": True, "KeepAlive": True, "Umask": 0o077,
         "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
         "StandardOutPath": str(stdout_log), "StandardErrorPath": str(stderr_log),
@@ -111,8 +112,9 @@ def validate_plist(path: Path) -> None:
     private_file(path, harden=False)
     value = plistlib.loads(path.read_bytes())
     args = value.get("ProgramArguments")
-    if (value.get("Label") != "com.padpilot.daemon" or not isinstance(args, list) or len(args) != 2
-            or args[1] != str(PROJECT_ROOT / "bin/padpilotd")
+    if (value.get("Label") != "com.padpilot.daemon" or not isinstance(args, list) or len(args) not in (2, 4)
+            or (len(args) == 4 and args[1:3] != ['-I', '-B'])
+            or args[-1] != str(PROJECT_ROOT / "bin/padpilotd")
             or not isinstance(args[0], str)
             or not re.fullmatch(r"(?:python(?:[0-9.]+)?|pypy[0-9]*)", Path(args[0]).name.lower())):
         raise RuntimeError(f"LaunchAgent belongs to another program or checkout: {path}")
@@ -156,7 +158,7 @@ def stop_daemon(plist_path: Optional[Path] = None) -> None:
 
 
 def start_standalone() -> None:
-    process = subprocess.Popen([sys.executable, str(PROJECT_ROOT / "bin/padpilotd")],
+    process = subprocess.Popen([sys.executable] + (['-I', '-B'] if bundled_app(PROJECT_ROOT) else []) + [str(PROJECT_ROOT / "bin/padpilotd")],
                                start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         wait_for_daemon()
@@ -295,6 +297,9 @@ def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
 
 def find_menu_app(*, settings=False) -> Optional[Path]:
     """Resolve only an app built for this checkout."""
+    app = bundled_app(PROJECT_ROOT)
+    if app:
+        return app
     for app in (Path.home() / "Applications" / "PadPilot.app", PROJECT_ROOT / "build" / "PadPilot.app"):
         try:
             with (app / "Contents" / "Resources" / "runtime.json").open() as stream:
@@ -319,6 +324,8 @@ def open_menu_app() -> bool:
     if app is None:
         return False
     try:
-        return subprocess.run(["open", "-g", str(app)], capture_output=True, timeout=5).returncode == 0
+        # A URL delivery avoids the foreground reopen event if the app is already running.
+        return subprocess.run(["open", "-g", "-a", str(app), "padpilot://menu", "--args", "--menu-only"],
+                              capture_output=True, timeout=5).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False

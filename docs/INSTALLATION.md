@@ -2,6 +2,75 @@
 
 **繁體中文** | [English](INSTALLATION.en.md) | [日本語](INSTALLATION.ja.md) · [文件索引](README.md)
 
+## 下載已編譯版本（建議）
+
+支援 Apple Silicon、macOS 14+，不提供 Intel 版本。從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，將 `PadPilot.app` 拖入 Applications 後開啟。也提供 `.zip`、`SHA256SUMS` 與 `build-info.json`；App 內含 Swift 執行檔、CPython、標準函式庫與 PadPilot 核心，使用者無需編譯或安裝 pip 套件。
+
+雙擊已安裝的 App 會直接開啟控制 GUI 與選單列圖示。關閉視窗後，選單列仍會保留；再次雙擊可重開 GUI。登入或背景啟動只顯示選單列。
+
+**開發預覽版沒有 Developer ID 簽章與 Apple 公證，只有 ad-hoc 簽章。** 遇到無法驗證開發者／無法檢查惡意軟體時，確認來源後依 [Apple 說明](https://support.apple.com/en-us/102445) 使用「隱私權與安全性 → 仍要打開」。若顯示損毀，請重新下載並核對 SHA-256；不要關閉整體 Gatekeeper，也不要把所有損毀警告視為誤報。
+
+BetterDisplay App 仍須安裝、執行並具備控制功能所需授權。獨立 `betterdisplaycli` 可選；App 內建 CLI 已足夠。自動偵測涵蓋 `/Applications`、`~/Applications` 與 LaunchServices 登記的位置；也可在進階選項手動指定 App／CLI。
+
+### 腳本安裝與 Python 選擇
+
+先儲存並關閉 PadPilot 設定視窗。下載官方腳本後執行，無需先安裝 Python：
+
+```bash
+(
+  set -e
+  installer="$(mktemp -t padpilot-release-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
+```
+
+腳本包含預覽版在內選取最新公開發行包，核對 SHA-256，唯讀掛載 DMG，再使用包內 Python 安裝。預設目的地為 `/Applications/PadPilot.app`；若沒有寫入權限，可加 `--target "$HOME/Applications/PadPilot.app"`，不需要 sudo。首次發行尚未公開時會停止，不會改用原始碼版本。
+
+- `--bundled`：使用內建 CPython；`--yes` 未指定 Python 時也採此選項。
+- `--python /absolute/path/python3`：選擇自己的 Apple Silicon CPython 3.10+，會先驗證版本、架構及必要模組。
+- `--tag v0.1.0-dev.1`：指定已存在的發行版本，而非最新版本。
+
+安裝完成代表檔案與 CLI 檢查通過；開啟 App 後才啟動背景服務。設定、配對與登入啟動偏好會保留，舊 App 會放入垃圾桶；安裝失敗會嘗試復原。腳本更新時會再次選擇 Python；直接覆蓋 App 則沿用現有選擇。移轉原始碼安裝或變更 App 位置前，請用舊版本解除安裝並保留設定，避免接管另一份安裝的服務。
+
+### 安裝後切換或復原 Python
+
+GUI、CLI、daemon 與登入啟動均使用同一選擇，記錄在 `~/Library/Application Support/PadPilot/python-runtime.json`，不修改 App 簽章。先離開 PadPilot，再執行：
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime external --python /absolute/path/python3
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime bundled
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" runtime status
+```
+
+兩個切換指令擇一；第一個選外部 Python，第二個切回內建。外部 Python 被刪除時也可使用 `--bundled-cli` 復原。不要把外部 Python 指向另一份 PadPilot.app 內的 Python。
+
+Release 解除安裝（預設保留設定與日誌；加 `--purge` 則一併移到垃圾桶）：
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+### 維護者：推送 tag 自動發行
+
+以下假設 GitHub 遠端名為 `github`；若直接從 GitHub clone，通常是 `origin`，請以 `git remote -v` 確認。推送到 Gitea 不會觸發 GitHub Actions。
+
+```bash
+git tag v0.1.0-dev.1
+git push github v0.1.0-dev.1
+```
+
+先將程式變更提交到要發行的 commit。支援 `vX.Y.Z` 或 `vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N`。**本機打 tag 不會觸發，推送至 GitHub 才會觸發。** workflow 在 ARM runner 執行軟體檢查、編譯、封裝與搬移測試，完成所有附件後自動公開為 prerelease，不需要 Apple 憑證或人工核准。已公開版本不覆寫，修正請推新 tag；失敗的草稿可重跑。獨立硬體驗收仍標記 unknown。
+
+本機建立相同產物：`python3 scripts/build_release.py --tag v0.1.0-dev.1`，需 Python 3.12+ 與 Apple 編譯工具；輸出在 `dist/<tag>/`。CPython 來源與 SHA-256 固定在 `scripts/python-runtime.json`，授權文件隨 Python 一起保留。版本完整 tag 與建置 commit 記在產物中。
+
+## 原始碼安裝（開發用）
+
+以下步驟只適用於本機編譯的原始碼版本。
+
 PadPilot 提供 **Swift／AppKit 選單列＋SwiftUI 原生設定視窗＋Python 核心**。安裝腳本會一併編譯、安裝及啟動 `~/Applications/PadPilot.app`；沒有額外 pip 或 Swift 套件依賴。
 
 安裝或解除安裝前，請先儲存並關閉 PadPilot 的設定／診斷視窗；若視窗仍開啟，安裝器會停止並提示重跑。

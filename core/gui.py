@@ -205,8 +205,10 @@ def device_status(device: dict, view: dict) -> str:
 
 
 def send_change(action: str, payload: dict) -> str:
+    from core.runtime import bundled_app
     result = subprocess.run(
-        [sys.executable, str(ROOT / 'bin/padpilot-cli'), 'change-settings', action],
+        [sys.executable] + (['-I', '-B'] if bundled_app(ROOT) else [])
+        + [str(ROOT / 'bin/padpilot-cli'), 'change-settings', action],
         input=json.dumps(payload, ensure_ascii=False),
         text=True,
         capture_output=True,

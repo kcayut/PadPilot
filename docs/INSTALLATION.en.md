@@ -2,6 +2,75 @@
 
 [繁體中文](INSTALLATION.md) | **English** | [日本語](INSTALLATION.ja.md) · [Documentation](README.en.md)
 
+## Download a prebuilt app (recommended)
+
+Releases support Apple Silicon and macOS 14+, with no Intel build. Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), drag `PadPilot.app` into Applications, and open it. ZIP, `SHA256SUMS`, and `build-info.json` are also provided. Swift, CPython, its standard library, and PadPilot’s core are bundled; no user-side compiler or pip packages are needed.
+
+Double-click the installed app to open its control window and menu bar icon together. Closing the window keeps the menu bar icon available; double-click again to reopen the window. Login and background startup show only the menu bar icon.
+
+**Development releases use ad-hoc signing without Developer ID signing or Apple notarization.** For developer-verification or malware-check warnings, verify the source and follow [Apple’s instructions](https://support.apple.com/en-us/102445) for Privacy & Security → Open Anyway. For a damaged-app warning, download again and check SHA-256. Do not disable Gatekeeper globally or assume every warning is harmless.
+
+The BetterDisplay app must still be installed and running with the required control license. The separate `betterdisplaycli` is optional; the app’s built-in CLI is sufficient. Discovery covers `/Applications`, `~/Applications`, and locations registered with LaunchServices. Advanced settings also accept a custom app or CLI path.
+
+### Script installation and Python selection
+
+Save and close PadPilot settings. Download the official installer and run it; no existing Python is needed:
+
+```bash
+(
+  set -e
+  installer="$(mktemp -t padpilot-release-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
+```
+
+The installer selects the newest published release including prereleases, checks SHA-256, mounts the DMG read-only, and runs its bundled Python. The default destination is `/Applications/PadPilot.app`. If it is not writable, use `--target "$HOME/Applications/PadPilot.app"`; sudo is unnecessary. It stops if no release exists, without switching to source installation.
+
+- `--bundled`: use bundled CPython; `--yes` without a Python option also selects this.
+- `--python /absolute/path/python3`: use Apple Silicon CPython 3.10+ after version, architecture, and required-module validation.
+- `--tag v0.1.0-dev.1`: select an existing release explicitly.
+
+Completion means installation and CLI checks passed; opening the app starts its service. Settings, pairings, and login preferences are preserved; the previous app moves to Trash and failed installation attempts restoration. Script updates ask for Python again, while drag-and-replace retains the current choice. Before migrating a source installation or changing app locations, uninstall the old copy and keep settings so its service is not taken over by another installation.
+
+### Change or recover Python afterward
+
+The GUI, CLI, daemon, and launch-at-login entry share the choice stored in `~/Library/Application Support/PadPilot/python-runtime.json`, outside the sealed app. Quit PadPilot first:
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime external --python /absolute/path/python3
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli runtime bundled
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" runtime status
+```
+
+Choose one of the first two commands: external Python or bundled Python. `--bundled-cli` also recovers from a deleted external Python. Do not select Python inside another PadPilot.app.
+
+Uninstall a release, keeping settings and logs by default; add `--purge` to move those to Trash too:
+
+```bash
+"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
+```
+
+### Maintainers: automatic tag releases
+
+These commands assume the GitHub remote is named `github`. A direct GitHub clone usually names it `origin`; check `git remote -v` and substitute the correct name. Pushing to Gitea does not trigger GitHub Actions.
+
+```bash
+git tag v0.1.0-dev.1
+git push github v0.1.0-dev.1
+```
+
+Commit the intended changes first. Tags support `vX.Y.Z` and `vX.Y.Z-dev.N` / `alpha.N` / `beta.N` / `rc.N`. **Push the tag to GitHub; a local tag alone does not trigger a build.** The ARM workflow runs software checks, compilation, packaging, and relocation tests, then automatically publishes a prerelease after all assets are uploaded. No Apple certificate or manual approval is needed. Published releases are not overwritten; use a new tag for fixes. Failed drafts can be rerun. Physical-device acceptance remains unknown.
+
+For the same local artifacts, run `python3 scripts/build_release.py --tag v0.1.0-dev.1` using Python 3.12+ and Apple build tools. Output is `dist/<tag>/`. CPython’s upstream URL and SHA-256 are pinned in `scripts/python-runtime.json`; its licenses remain included. The full tag and build commit are recorded in the artifacts.
+
+## Source installation (development)
+
+The remaining steps apply only to a locally compiled source installation.
+
 PadPilot provides a **Swift/AppKit menu, native SwiftUI settings window, and Python core**. The installer builds, installs, and starts `~/Applications/PadPilot.app`. No additional pip or Swift packages are needed.
 
 Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.

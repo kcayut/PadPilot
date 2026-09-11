@@ -2,6 +2,8 @@
 
 [繁體中文](TROUBLESHOOTING.md) | **English** | [日本語](TROUBLESHOOTING.ja.md) · [Documentation](README.en.md)
 
+For release Gatekeeper warnings, Python selection or recovery, and source-install migration, see the [prebuilt installation instructions](INSTALLATION.en.md). The BetterDisplay app must be installed and running; its separate CLI is optional.
+
 This guide covers status warnings, hardware identification, connection failures, and recovery on macOS.
 
 ## Contents

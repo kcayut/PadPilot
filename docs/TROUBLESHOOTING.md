@@ -2,6 +2,8 @@
 
 **繁體中文** | [English](TROUBLESHOOTING.en.md) | [日本語](TROUBLESHOOTING.ja.md) · [文件索引](README.md)
 
+發行版的 Gatekeeper 警告、Python 切換／遺失復原，以及原始碼版移轉方式，請先參閱[已編譯版本安裝說明](INSTALLATION.md)。BetterDisplay App 必須安裝並執行，獨立 CLI 可省略。
+
 本手冊收錄 PadPilot 在 macOS 環境下常見的狀態警告、硬體辨識問題、連線異常及其解決方案。
 
 ---

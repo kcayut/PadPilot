@@ -3,6 +3,14 @@ import SwiftUI
 import Foundation
 import Darwin
 
+// Match Python's Path.home() for CLI launches and isolated release checks.
+func padpilotHomeDirectory() -> URL {
+    if let home = ProcessInfo.processInfo.environment["HOME"], home.hasPrefix("/") {
+        return URL(fileURLWithPath: home, isDirectory: true)
+    }
+    return FileManager.default.homeDirectoryForCurrentUser
+}
+
 private typealias SettingsObject = [String: Any]
 private typealias SettingsState<Value> = SwiftUI.State<Value>
 private let settingsLogPattern = try! NSRegularExpression(pattern: "(?m)^(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})\\s+\\[([A-Z]+)\\]\\s+\\[(.*?)\\]\\s+(.*)$")
@@ -200,7 +208,7 @@ private final class SettingsModel: ObservableObject {
         for key in ["system_checks", "authenticated_checks"] where next[key] == nil { next[key] = data[key] }
         data = next
         if let logs = next["logs"] as? String { logText = logs }
-        window?.title = tr("PadPilot — 螢幕與配對管理")
+        window?.title = "PadPilot"
         notice = next.text("config_error", next.text("notice"))
         if notice.isEmpty {
             let errors = actual.object("discovery_errors").values.compactMap { $0 as? String }
@@ -373,7 +381,7 @@ private final class SettingsModel: ObservableObject {
         DispatchQueue.global(qos: .utility).async {
             let process = Process(), output = Pipe(), errors = Pipe(), stdin = Pipe()
             process.executableURL = URL(fileURLWithPath: runtime.python)
-            process.arguments = [runtime.project_root + "/bin/padpilot-cli"] + arguments
+            process.arguments = runtime.cliArguments + arguments
             process.currentDirectoryURL = URL(fileURLWithPath: runtime.project_root)
             process.standardOutput = output; process.standardError = errors
             process.standardInput = input == nil ? FileHandle.nullDevice : stdin
@@ -472,7 +480,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
     @objc private func showAbout() { model.page = "about" }
     private func lockSettings() throws {
-        let directory = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/PadPilot/runtime")
+        let directory = padpilotHomeDirectory().appendingPathComponent("Library/Application Support/PadPilot/runtime")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
         guard attributes[.type] as? FileAttributeType == .typeDirectory,
@@ -544,12 +552,26 @@ private struct SettingsCard<Content: View>: View {
     }
 }
 
+private struct SettingsDisclosureStyle: DisclosureGroupStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { configuration.isExpanded.toggle() } label: {
+                HStack {
+                    Image(systemName: configuration.isExpanded ? "chevron.down" : "chevron.right")
+                        .accessibilityHidden(true)
+                    configuration.label
+                }.frame(minWidth: 72, minHeight: 24).contentShape(Rectangle())
+            }.buttonStyle(.bordered).controlSize(.large)
+            if configuration.isExpanded { configuration.content }
+        }
+    }
+}
+
 private struct SettingsRootView: View {
     @ObservedObject var model: SettingsModel
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             VStack(spacing: 12) {
-                Label("PadPilot", systemImage: "ipad").font(.title2.bold()).padding(.top, 18)
                 List(selection: $model.page) {
                     ForEach(settingsPages, id: \.0) { page in
                         Label(model.tr(page.1), systemImage: page.2).tag(page.0)
@@ -562,8 +584,9 @@ private struct SettingsRootView: View {
                     Button(model.tr("📖 使用說明")) { model.openLink("help") }.buttonStyle(.link).font(.body)
                     Button(model.tr("🩺 疑難排解")) { model.openLink("troubleshooting") }.buttonStyle(.link).font(.body)
                 }.font(.caption).frame(maxWidth: .infinity, alignment: .leading).padding(14)
-            }.navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
-        } detail: {
+            }.frame(width: 200).background(.regularMaterial)
+            Divider()
+            GeometryReader { geometry in
             VStack(spacing: 0) {
                 HStack(alignment: .center) {
                     Text(model.title).font(settingsFont(.title2).bold())
@@ -595,8 +618,12 @@ private struct SettingsRootView: View {
                     Spacer()
                     if model.busy { ProgressView().controlSize(.small) }
                 }.padding(12).frame(minHeight: 38)
-            }.font(settingsFont(.body))
+            }.font(settingsFont(.body)).frame(width: geometry.size.width, height: geometry.size.height)
+            }
         }.frame(minWidth: 840, minHeight: 500)
+            .disclosureGroupStyle(SettingsDisclosureStyle())
+            .pickerStyle(.menu)
+            .menuStyle(.borderedButton)
     }
 }
 

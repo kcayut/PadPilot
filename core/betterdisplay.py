@@ -49,9 +49,9 @@ class BetterDisplayCLI:
         if which_path:
             return which_path
 
-        # Check inside BetterDisplay.app bundle
-        for app_bundle_bin in ("/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay",
-                               os.path.expanduser("~/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay")):
+        # Use the same app discovery as startup and diagnostics.
+        app = cls.resolve_app_path()
+        for app_bundle_bin in ([str(Path(app) / 'Contents/MacOS/BetterDisplay')] if app else []):
             if os.path.isfile(app_bundle_bin) and os.access(app_bundle_bin, os.X_OK):
                 return app_bundle_bin
 
@@ -74,7 +74,24 @@ class BetterDisplayCLI:
             candidates.extend(p for p in (path, *path.parents) if p.suffix == '.app')
         candidates.extend((Path('/Applications/BetterDisplay.app'),
                            Path.home() / 'Applications/BetterDisplay.app'))
-        return next((str(p) for p in candidates if p.is_dir()), None)
+        found = next((str(p) for p in candidates if p.is_dir()), None)
+        if found:
+            return found
+        # LaunchServices also knows renamed apps and nonstandard installation folders.
+        from core.runtime import bundled_app, ROOT
+        app = bundled_app() or ROOT / 'build/PadPilot.app'
+        helper = app / 'Contents/MacOS/PadPilot'
+        try:
+            metadata = json.loads((app / 'Contents/Resources/runtime.json').read_text())
+            if helper.is_file() and metadata.get('locator') == 1:
+                result = subprocess.run([str(helper), '--locate-betterdisplay'], capture_output=True,
+                                        text=True, timeout=5)
+                found = Path(result.stdout.strip())
+                if result.returncode == 0 and found.is_absolute() and found.is_dir():
+                    return str(found)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
+        return None
 
     def is_available(self) -> bool:
         return self.cli_path is not None and os.path.isfile(self.cli_path) and os.access(self.cli_path, os.X_OK)
