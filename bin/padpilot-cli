@@ -321,7 +321,10 @@ def cmd_open_log(args: argparse.Namespace) -> None:
 
 
 def cmd_open_betterdisplay(args: argparse.Namespace) -> None:
-    subprocess.run(["open", "-a", "BetterDisplay"], check=True)
+    app = BetterDisplayCLI.resolve_app_path(load_config().betterdisplaycli_path)
+    if not app:
+        raise RuntimeError('BetterDisplay app not found; rerun the installer to select its path.')
+    subprocess.run(["open", "-a", app], check=True)
 
 
 def cmd_stop(args: argparse.Namespace) -> None:

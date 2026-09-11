@@ -3,6 +3,7 @@
 import copy
 import sys
 import tkinter as tk
+from tkinter import font
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -47,6 +48,10 @@ def main():
                     if tab == 'paired':
                         app.expanded_profiles.add(cfg.ipad.sidecar_uuid)
                         app.render_current_tab()
+                    if tab == 'diagnostics':
+                        app.view['system_checks'] = [('macOS 自動登入', '已停用'),
+                                                     ('FileVault', '已開啟；重新開機後需先解鎖磁碟')]
+                        app._render_diagnostic_section('system_checks')
                     root.update()
                     assert app.scroll_frame.winfo_children()
                     for w in descendants(app.scroll_frame):
@@ -57,6 +62,17 @@ def main():
                             right = w.winfo_rootx() + w.winfo_reqwidth()
                             if right > root.winfo_rootx() + root.winfo_width() + 2:
                                 raise AssertionError((language, tab, w.cget('text'), 'overflows window'))
+                    if tab == 'diagnostics':
+                        notes = [w for w in descendants(app.diagnostic_hosts['system_checks'])
+                                 if w.winfo_class() == 'Label' and w.cget('text') == tr(
+                                     '用於開機自動連接螢幕；本檢查僅讀取狀態，不會修改設定或讀取密碼。')]
+                        assert len(notes) == 2
+                        for note in notes:
+                            assert font.Font(root=root, font=note.cget('font')).actual('size') == 9
+                            line = next(w for w in note.master.winfo_children() if w.winfo_class() == 'Label'
+                                        and (w.cget('text').startswith('FileVault') or
+                                             w.cget('text').startswith(tr('macOS 自動登入'))))
+                            assert note.winfo_rootx() >= line.winfo_rootx() + line.winfo_width()
                     if tab == 'settings':
                         picker = app.header_language_picker
                         assert picker.get() == LANGUAGES[language]
@@ -101,6 +117,12 @@ def main():
                     open_document.assert_called_with(get_troubleshooting_url('BetterDisplay 控制介面', language))
                 def dismiss():
                     dialogs = [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)]
+                    dialog = dialogs[0]
+                    for widget in descendants(dialog):
+                        if widget.winfo_class() == 'Label':
+                            size = font.Font(root=root, font=widget.cget('font')).actual('size')
+                            assert size in (12, 14, 16)
+                            assert widget.winfo_rootx() + widget.winfo_reqwidth() <= dialog.winfo_rootx() + dialog.winfo_width()
                     buttons = [w for w in descendants(dialogs[0]) if w.winfo_class() == 'TButton']
                     assert {w.cget('text') for w in buttons} == {tr('是'), tr('否')}
                     next(w for w in buttons if w.cget('text') == tr('否')).invoke()

@@ -34,6 +34,8 @@ class MenuPairingTests(unittest.TestCase):
                            ('⏸️', 'paused'), ('⚠️', 'warning')]:
             status = {'icon': icon, 'actual': {'timestamp': 1000, 'sidecar_devices': []}}
             self.assertEqual(rendered(status, {})['icon'], name)
+            header = next(row for row in rendered(status, {})['items'] if row['title'] == 'PadPilot')
+            self.assertEqual(header['icon'], name)
             data = (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes()
             self.assertEqual(struct.unpack('>II', data[16:24]), (36, 36))
         self.assertEqual(rendered({}, {})['icon'], 'warning')
@@ -139,6 +141,15 @@ class MenuPairingTests(unittest.TestCase):
         status = {'configured_ipad': DEVICE, 'actual': {'timestamp': 1000,
                   'sidecar_devices': [], 'discovery_errors': {'sidecar': 'timeout'}}}
         self.assertTrue(any('工作 iPad — 狀態未知' in r['title'] for r in rendered(status, cfg)['items']))
+        rows = rendered(status, cfg)['items']
+        available = next(i for i, row in enumerate(rows) if row['title'] == '目前可用')
+        paired = next(i for i, row in enumerate(rows) if row['title'] == '已配對至 PadPilot')
+        self.assertFalse(any('⚠' in row['title'] or '異常' in row['title'] or '失敗' in row['title']
+                             for row in rows[available:paired]))
+        error = next(i for i, row in enumerate(rows) if row['title'] == '偵測異常')
+        self.assertGreater(error, paired)
+        self.assertEqual(rows[error]['depth'], 2)
+        self.assertEqual((rows[error + 1]['title'], rows[error + 1]['depth']), ('sidecar: timeout', 3))
         status['actual']['discovery_errors'] = {}
         self.assertTrue(any('工作 iPad — 未偵測到' in r['title'] for r in rendered(status, cfg)['items']))
         for running in (False, None):

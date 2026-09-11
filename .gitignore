@@ -60,6 +60,7 @@ menu-hidden
 # Environment variables
 .env
 .env.*
+.padpilot-install.json
 
 # Generated LaunchAgent plist (only .plist.in is tracked in repository)
 launchd/com.padpilot.daemon.plist

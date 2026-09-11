@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg" alt="Platform: macOS 14+">
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
@@ -27,6 +27,8 @@ Use the menu bar, graphical settings window, or command line to control connecti
 > [!IMPORTANT]
 > **Early preview.** Test with a physical monitor or a working remote connection available.
 > PadPilot operates after user login. **It cannot make an iPad show FileVault unlock or pre-login screens.** Disabling FileVault is not required for installation; headless cold boots and different hardware combinations still require real-device validation.
+
+GUI help, troubleshooting, and diagnostic links open the matching version of the documentation on GitHub in the interface language. Private repository documents require a GitHub account with access. These links stay pinned to that version when newer versions are published.
 
 ## Features
 
@@ -57,51 +59,58 @@ Defaults are a **4-second** physical display disconnect debounce, up to **3** Si
 | --- | --- |
 | Mac | The project targets macOS 14+, primarily on Apple Silicon Mac mini. Other model and OS combinations are not comprehensively validated. |
 | iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
-| Python | Python 3.10+. The graphical settings window also requires an importable `tkinter` module in that Python environment. The installer does not install Python or Tk. |
+| Python | Python 3.10+. The graphical settings window also requires an importable `tkinter` module in that Python environment. The installer detects dependencies and offers reuse, a custom path, or installation. |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
 | Apple Command Line Tools | Builds the Swift/AppKit menu app; install using `xcode-select --install`. |
 | Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
 
-See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's MIT license does not cover third-party software licenses.
+See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's license does not cover third-party software licenses.
 
 ## Quick start
 
 ### 1. Install
 
-First verify that Sidecar works manually through macOS Screen Mirroring, then set up PadPilot.
+First verify that Sidecar works manually through macOS Screen Mirroring, then paste this entire block into Terminal:
 
 ```bash
-# After obtaining the source, run from the PadPilot project directory:
-./scripts/install.sh --check
-./scripts/install.sh
-./bin/padpilot-cli status
+(
+  set -e
+  installer="$(mktemp -t padpilot-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
 ```
 
-The [kcayut/PadPilot repository](https://github.com/kcayut/PadPilot) is currently private and requires access; no formal Release is available yet. `--check` only inspects dependencies: no installation, user-state writes, service startup, or display changes. Missing Tk is a warning: daemon, CLI, and native menu remain usable, while settings-window actions are disabled. Install matching Tk support for the same Python to use the GUI.
+**This download entry point requires [kcayut/PadPilot](https://github.com/kcayut/PadPilot) to be public and these installation scripts to be published on `main`.** Private repositories or unpublished scripts return 404; failed downloads never run the installer. With an existing source copy, run `./scripts/install.sh` from its project directory.
 
-The installer validates macOS, Python version, the Swift compiler, BetterDisplay app, and a CLI response. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). Missing required dependencies or failed CLI checks stop installation. It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login. Installation succeeds only after a daemon handshake; failed startup attempts to restore the previous app, LaunchAgent, and pre-install service running state and explicitly reports any rollback failure.
+The installer detects Python/Tk, BetterDisplay, and Apple's build tools, then offers to reuse a detected dependency, enter a path, or install what is missing. Homebrew installation requires consent, including installing Homebrew itself if absent. Apple Command Line Tools use the macOS installation dialog; finish it and rerun the same command.
 
-A CLI response does not verify the Pro license, Sidecar pairing, permissions, or an actual working display. Complete pairing and physical validation below.
+Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.
+
+Source is kept in `~/Applications/PadPilot-source`. Rerunning reuses that folder and resumes installation; it does not overwrite source or download updates. The app is installed in `~/Applications/PadPilot.app`, preserving pairings, mode, and login preferences. A first install enables launch at login. Success requires a daemon handshake; failed startup attempts to restore the previous app and service state.
 
 ```bash
-open -a BetterDisplay
+"$HOME/bin/padpilot-cli" status
 open "$HOME/Applications/PadPilot.app"
 ```
 
-The app currently references the local Python installation and checkout. **Keep both in place** and reinstall after moving them. This is a locally built app, not yet a notarized standalone distribution with bundled Python.
+The CLI shortcut uses the Python selected during installation. If another program owns `~/bin/padpilot-cli`, use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` instead. **Keep the Python environment and source folder in place**; this remains a locally built app that references its source. See the [installation guide](docs/INSTALLATION.en.md) for read-only checks, custom paths, installation without the settings GUI, and noninteractive options. A BetterDisplay CLI response does not verify licensing, Sidecar pairing, or an actual working display.
 
 ### 2. Select your iPad
 
-From the project directory, run the interactive pairing wizard and select the iPad to control:
+Run the interactive pairing wizard in Terminal and select the iPad to control:
 
 ```bash
-./bin/padpilot-cli pair --interactive
+"$HOME/bin/padpilot-cli" pair --interactive
 ```
 
 Alternatively, open the settings window to discover devices, save pairings, and select the control target:
 
 ```bash
-./bin/padpilot-cli gui
+"$HOME/bin/padpilot-cli" gui
 ```
 
 PadPilot pairing records device identities; it does not replace Apple Account or “Trust This Computer” requirements. Multiple pairings can be saved, but only one iPad is managed as the active target at a time.
@@ -113,8 +122,8 @@ PadPilot pairing records device identities; it does not replace Apple Account or
 For headless use, confirm that a virtual screen named `PadPilotVirtual` exists in BetterDisplay, or select an existing virtual screen in PadPilot's settings. If your version does not support automatic creation, create it once in BetterDisplay.
 
 ```bash
-./bin/padpilot-cli status
-./bin/padpilot-cli open-log
+"$HOME/bin/padpilot-cli" status
+"$HOME/bin/padpilot-cli" open-log
 ```
 
 `open-log` opens the status and diagnostics window; `open-log --raw` opens the raw log. Configure Screen Sharing/VNC or SSH beforehand if you need remote recovery. PadPilot does not enable remote access, and SSH itself does not require a virtual display.
@@ -144,40 +153,40 @@ On first configuration, PadPilot selects a language from your macOS preferences,
 
 ## Common commands
 
-Run these from the project directory. If installation created `~/bin/padpilot-cli` and `~/bin` is on your PATH, you can also use `padpilot-cli` directly.
+Run these from any directory. If `~/bin` is on your PATH, you can also use `padpilot-cli` directly. Installation, update, and development scripts still run from the source directory.
 
 ```bash
 # Status and settings
-./bin/padpilot-cli status --json
-./bin/padpilot-cli gui
-./bin/padpilot-cli set-language en        # Also accepts zh-Hant or ja
+"$HOME/bin/padpilot-cli" status --json
+"$HOME/bin/padpilot-cli" gui
+"$HOME/bin/padpilot-cli" set-language en        # Also accepts zh-Hant or ja
 
 # Operating modes: choose one
-./bin/padpilot-cli set-mode automatic
-./bin/padpilot-cli set-mode manual_only
-./bin/padpilot-cli set-mode prefer_ipad
+"$HOME/bin/padpilot-cli" set-mode automatic
+"$HOME/bin/padpilot-cli" set-mode manual_only
+"$HOME/bin/padpilot-cli" set-mode prefer_ipad
 
 # Manual actions: choose as needed
-./bin/padpilot-cli action use_ipad_secondary
-./bin/padpilot-cli action use_ipad_main
-./bin/padpilot-cli action disconnect_ipad
-./bin/padpilot-cli action reconnect_sidecar
-./bin/padpilot-cli action refresh
-./bin/padpilot-cli action reset           # Clear temporary override and cooldown
+"$HOME/bin/padpilot-cli" action use_ipad_secondary
+"$HOME/bin/padpilot-cli" action use_ipad_main
+"$HOME/bin/padpilot-cli" action disconnect_ipad
+"$HOME/bin/padpilot-cli" action reconnect_sidecar
+"$HOME/bin/padpilot-cli" action refresh
+"$HOME/bin/padpilot-cli" action reset           # Clear temporary override and cooldown
 
 # Background service and launch at login
-./bin/padpilot-cli stop
-./bin/padpilot-cli start
-./bin/padpilot-cli exit                  # Stop service and hide the PadPilot menu
-./bin/padpilot-cli autostart status
-./bin/padpilot-cli autostart toggle
+"$HOME/bin/padpilot-cli" stop
+"$HOME/bin/padpilot-cli" start
+"$HOME/bin/padpilot-cli" exit                  # Stop service and hide the PadPilot menu
+"$HOME/bin/padpilot-cli" autostart status
+"$HOME/bin/padpilot-cli" autostart toggle
 
 # Version and complete command help
-./bin/padpilot-cli --version
-./bin/padpilot-cli --help
+"$HOME/bin/padpilot-cli" --version
+"$HOME/bin/padpilot-cli" --help
 ```
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `./bin/padpilot-cli status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"$HOME/bin/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 ## Limitations and troubleshooting
 
@@ -192,11 +201,15 @@ Private directories use `0700`; configuration, status, sockets, and logs use `06
 
 ## Uninstall
 
+Paste this into Terminal to choose what to remove:
+
 ```bash
-./scripts/uninstall.sh
+/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-By default, this stops the service and menu, moves this checkout’s app, LaunchAgent, and CLI shortcut to Trash, and clears status snapshots. Configuration, logs, source, BetterDisplay, and virtual displays are preserved. Use `./scripts/uninstall.sh --purge` to also move configuration (including any `/tmp/PadPilot/config.json` fallback) and logs to Trash; these removals are recoverable.
+The uninstaller presents a removal summary for confirmation, then stops this checkout's service and menu and moves its app, LaunchAgent, and CLI entry to Trash. Configuration/pairings, logs, downloaded source, and third-party dependencies newly installed by the installer are separate choices, all kept by default. Existing Python, BetterDisplay, Homebrew, Apple tools, and virtual displays are not removed along with PadPilot.
+
+For noninteractive app-only removal, add `--yes`. To also remove settings and logs, add `--yes --purge`; source and third-party dependencies still remain. With a manually obtained source copy, run `./scripts/uninstall.sh` from its directory. See [uninstall options](docs/INSTALLATION.en.md#uninstall).
 
 ## Documentation and contributing
 
@@ -212,6 +225,12 @@ The README and all guides under `docs/` are available in Traditional Chinese, En
 
 ## License and acknowledgments
 
-Licensed under the [MIT License](LICENSE). Copyright (c) 2026 kcayut.
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Author: **kcayut**. Copyright (c) 2026 kcayut.
+
+- Noncommercial use, modification, and distribution are permitted. Commercial uses outside the license's permitted purposes require separate authorization from the author.
+- When distributing source code, binaries, or modified versions, include the license terms or their official URL and preserve every `Required Notice:` author and project attribution in [NOTICE](NOTICE). Built apps include `LICENSE` and `NOTICE`.
+- The license also expressly permits use by charitable organizations, educational institutions, public research organizations, public safety or health organizations, environmental protection organizations, and government institutions, regardless of funding. The full license governs these permissions.
+
+This is a source-available noncommercial license, not an OSI open-source license. The change applies to versions provided with this license; it does not revoke rights to versions previously obtained under MIT.
 
 Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) for display control. PadPilot is an independent project, not affiliated with or endorsed by Apple or BetterDisplay.

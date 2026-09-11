@@ -109,7 +109,8 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     if service_running is not False and icon_name != 'warning' and (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'):
         icon_name = 'working'
     separator()
-    item(f'{icon} PadPilot')
+    item('PadPilot')
+    items[-1]['icon'] = icon_name
     item(tr('主螢幕：{0}', main.get('name') or tr('未偵測到')) + ('' if fresh else tr('（尚無最新狀態）')))
     if is_out_of_sync:
         state = tr('同步狀態重新讀取中…')
@@ -158,9 +159,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
             item(tr('📱 {0} — 僅偵測到 USB', usb.get('product_name') or usb.get('name')), 1)
             device_details({'usb_serial': usb.get('serial')})
         if not visible and not sidecars:
-            item(tr('未偵測到可用螢幕') if not errors else tr('裝置清單不完整；請查看診斷'), 1)
-        if errors:
-            item(tr('⚠ 部分查詢失敗，未列出不代表離線'), 1)
+            item(tr('未偵測到可用螢幕'), 1)
     separator(1)
     item(tr('已配對至 PadPilot'), 1)
     if not paired:
@@ -177,6 +176,10 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
                  tr('狀態未知') if errors else tr('未偵測到'))
         item(tr('{0} — {1}', p.get('name') or tr('未命名 iPad'), state) + (tr('｜目前控制目標') if active else ''), 1, checked=active)
         device_details(p)
+        if fresh and errors:
+            item(tr('偵測異常'), 2)
+            for source, error in errors.items():
+                item(f'{source}: {error}', 3)
         key = pairing_key(p)
         item(tr('設為控制目標…'), 2, ('gui', 'wizard', '--select', key), enabled=not active)
         item(tr('刪除配對'), 2, ('gui', 'wizard', '--delete', key))

@@ -18,6 +18,57 @@ def descendants(widget):
         yield from descendants(child)
 
 
+def check_scrolling(app, root):
+    precise = bool(root.tk.call('info', 'commands', 'tk::PreciseScrollDeltas'))
+    app.select_tab('diagnostics')
+    root.update()
+    target = next(w for w in descendants(app.diagnostic_hosts['system_checks'])
+                  if w.winfo_class() == 'Label')
+    app.canvas.yview_moveto(0.25)
+    for event, delta in ([('<TouchpadScroll>', 0xffff), ('<TouchpadScroll>', 1)]
+                         if precise else []) + [('<MouseWheel>', -120), ('<MouseWheel>', 120)]:
+        before = app.canvas.yview()[0]
+        target.event_generate(event, delta=delta)
+        root.update()
+        after = app.canvas.yview()[0]
+        down = delta in (0xffff, -120)
+        assert after > before if down else after < before, (event, delta, before, after)
+    before = app.canvas.yview()
+    if precise:
+        target.event_generate('<TouchpadScroll>', delta=10 << 16)
+        root.update()
+        assert app.canvas.yview() == before, 'Horizontal gestures must not scroll vertically'
+    # Native log scrolling and popup events must leave the main page in place.
+    app.log_text.configure(state='normal')
+    app.log_text.delete('1.0', 'end')
+    app.log_text.insert('end', '\n'.join(f'Line {i}' for i in range(200)))
+    app.log_text.configure(state='disabled')
+    app.log_text.yview_moveto(0.25)
+    root.update()
+    old_log = app.log_text.yview()
+    event, delta = ('<TouchpadScroll>', 0xffec) if precise else ('<MouseWheel>', -120)
+    app.log_text.event_generate(event, delta=delta)
+    root.update()
+    assert app.log_text.yview()[0] > old_log[0]
+    assert app.canvas.yview() == before
+    popup = tk.Toplevel(root)
+    try:
+        label = tk.Label(popup, text='Scroll isolation')
+        label.pack()
+        root.update()
+        label.event_generate(event, delta=delta)
+        root.update()
+        assert app.canvas.yview() == before
+    finally:
+        popup.destroy()
+    app.select_tab('displays')
+    root.update()
+    assert app.scroll_frame.winfo_reqheight() <= app.canvas.winfo_height()
+    app.canvas.event_generate(event, delta=delta)
+    root.update()
+    assert app.canvas.yview() == (0.0, 1.0)
+
+
 def main():
     cfg = Config.from_dict({'auto_detect_ipad': False, 'ipad': {'name': 'iPad pro m2',
         'sidecar_uuid': '11111111-1111-4111-8111-111111111111', 'usb_serial': 'USB123'}})
@@ -131,6 +182,33 @@ def main():
             root.update()
             assert app.log_text.winfo_exists()
             assert app.diagnostic_hosts['decision'].winfo_children() == decision
+            # Refresh real diagnostic rows through collection and rendering.
+            from core.gui import GREEN, RED, ORANGE
+            app.task = lambda work, complete: complete(work())
+            refreshed_log = app.log_text
+            with patch('core.gui.read_view', return_value=view), \
+                 patch('core.diagnostics.read_plist', return_value={'autoLoginUser': 'testuser'}), \
+                 patch('core.diagnostics.is_daemon_running', return_value=True), \
+                 patch('core.diagnostics.BetterDisplayCLI.resolve_cli_path', return_value='/mock/cli'), \
+                 patch('core.diagnostics.command') as query:
+                for login, vault, login_color, vault_color in [
+                    ('Automatic login user: testuser', 'FileVault is Off.', GREEN, GREEN),
+                    ('Automatic login is OFF.', 'FileVault is On.', RED, RED),
+                    (None, None, ORANGE, ORANGE),
+                ]:
+                    query.side_effect = [login, vault]
+                    app.refresh_diagnostic('system_checks')
+                    root.update()
+                    host = app.diagnostic_hosts['system_checks']
+                    for label, color in [('macOS 自動登入', login_color), ('FileVault', vault_color)]:
+                        line = next(w for w in descendants(host) if w.winfo_class() == 'Label'
+                                    and w.cget('text').startswith(label + '：'))
+                        dot = next(w for w in line.master.winfo_children() if w.cget('text') == '●')
+                        assert dot.cget('fg') == color
+                        if label == 'macOS 自動登入' and login == 'Automatic login is OFF.':
+                            assert line.cget('text') == 'macOS 自動登入：已停用'
+                    assert app.log_text is refreshed_log
+                    assert app.diagnostic_hosts['decision'].winfo_children() == decision
             app.select_tab('settings')
             root.update()
             from unittest.mock import MagicMock
@@ -149,7 +227,13 @@ def main():
             assert all(not w.winfo_ismapped() for w in toggles)
             advanced.invoke()
             root.update()
+            from core.gui import GREEN_BG, GREEN_FG, TEXT_SECONDARY
             for button in toggles:
+                enabled = button.cget('text') == '停用'
+                badge = next(w for w in button.master.winfo_children() if w.winfo_class() == 'Label'
+                             and w.cget('text').strip() == ('已啟用' if enabled else '已停用'))
+                assert (badge.cget('bg'), badge.cget('fg')) == (
+                    (GREEN_BG, GREEN_FG) if enabled else ('#f2f2f7', TEXT_SECONDARY))
                 assert button.winfo_rootx() + button.winfo_width() <= root.winfo_rootx() + root.winfo_width()
                 button.invoke()
             assert app.change.call_args_list[0].args == ('set_usb_event_wakeup', {'enabled': False})
@@ -171,7 +255,8 @@ def main():
             controls = [w for w in descendants(app.scroll_frame)
                         if w.winfo_class() == 'TButton' and w.cget('text') in names]
             assert len(controls) == 4 and all(w.instate(['disabled']) for w in controls)
-            print('PASS: 840px layout; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently; USB/discovery toggles dispatch correctly; designated pairing controls work with discovery enabled; other pairings stay disabled.')
+            check_scrolling(app, root)
+            print('PASS: 840px layout; touchpad and mouse scrolling, native log scrolling, popup isolation and short pages; heartbeat preserves widgets/focus/drafts/scroll; freshness and errors update; diagnostics and logs refresh independently; USB/discovery toggles dispatch correctly; designated pairing controls work with discovery enabled; other pairings stay disabled.')
     finally:
         root.destroy()
 

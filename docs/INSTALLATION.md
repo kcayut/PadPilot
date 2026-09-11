@@ -4,48 +4,74 @@
 
 PadPilot 提供 **Swift／AppKit 原生選單列＋Python 核心＋Tk 設定視窗**。安裝腳本會一併編譯、安裝及啟動 `~/Applications/PadPilot.app`；沒有額外 pip 或 Swift 套件依賴。
 
+安裝或解除安裝前，請先儲存並關閉 PadPilot 的設定／診斷視窗；若視窗仍開啟，安裝器會停止並提示重跑。
+
 ## 準備環境
 
 - macOS 14+，目前以 Apple Silicon 為主要驗證環境。
-- Python 3.10+；設定視窗另外需要同一個 Python 能匯入 `tkinter`。安裝器不代裝 Python／Tk；沒有 pip 套件需要安裝。
+- Python 3.10+；設定視窗需要同一個 Python 能匯入 `tkinter`。沒有額外 pip 套件。
 - Apple Command Line Tools，供本機編譯 App；完整 Xcode 不是必要條件。
-- [BetterDisplay](https://github.com/waydabber/BetterDisplay) 與可用的 CLI 控制能力。授權條件請以 BetterDisplay 說明為準。
+- [BetterDisplay](https://github.com/waydabber/BetterDisplay) 與可用的 CLI 控制能力。授權條件以 BetterDisplay 說明為準。
 - 支援 Sidecar 的 iPad，先確認 macOS「螢幕鏡像輸出」可以手動連線。
 
+不必先逐項手動安裝：安裝器會先偵測，再詢問沿用、指定路徑或安裝。Sidecar 需要已登入的使用者工作階段；FileVault 解鎖前無法由 PadPilot 接管，參閱[疑難排解](TROUBLESHOOTING.md#filevault)。
+
+## 複製貼上安裝
+
+在「終端機」貼上整段：
+
 ```bash
-xcode-select --install
-python3 --version
-python3 -c "import tkinter"
-xcrun --find swiftc
+(
+  set -e
+  installer="$(mktemp -t padpilot-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
 ```
 
-若缺少 Tk，安裝器會警告，daemon／CLI／原生選單仍可安裝，但設定視窗入口停用。請為正在使用的 Python 安裝對應 Tk 支援，不要混用不同 Python 的套件。Sidecar 需要使用者已登入；FileVault 登入前無法由 PadPilot 接管。參閱[疑難排解](TROUBLESHOOTING.md#filevault)。
+**公開發布條件：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 必須設為公開，且本次腳本已推送至 `main`。尚未公開或腳本不存在會回傳 404；可先使用有權限取得的原始碼與下方本機安裝方式。這段指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
 
-## 安裝或從舊版升級
+下載不需先有 Git 或 Python。原始碼固定存於 `~/Applications/PadPilot-source`，不會覆蓋同名的非管理資料夾；重跑會沿用這份原始碼繼續安裝，不下載更新。`.padpilot-install.json` 記錄受管理的來源與本次新增依賴，供解除安裝辨識；請保留它。
 
-在專案目錄執行：
+## 依賴選擇與本機安裝
+
+已有原始碼時，在其專案目錄執行 `./scripts/install.sh`。使用上述下載方式者可執行：
 
 ```bash
+cd "$HOME/Applications/PadPilot-source"
 ./scripts/install.sh --check
 ./scripts/install.sh
-./bin/padpilot-cli status
-
-# 僅自動同意透過 Homebrew 安裝缺少的 BetterDisplay：
-./scripts/install.sh --yes
+"$HOME/bin/padpilot-cli" status
 ```
 
-`--check` 是不修改系統的預檢：不呼叫 Homebrew、不建立設定或日誌、不編譯、不啟動服務，也不掃描或改動螢幕。必要項目缺失回傳非零結束碼；Tk 缺失僅警告。BetterDisplay CLI 的 help 成功不代表授權或 Sidecar 可用，兩者需另行確認。GitHub 倉庫目前是私人，需有存取權限；也可直接使用現有原始碼資料夾。
+`--check` 是不修改系統的完整預檢：不呼叫 Homebrew、不建立設定或日誌、不編譯、不啟動服務，也不掃描或改動螢幕。必要項目缺失回傳非零結束碼；Tk 缺失僅警告。
 
-安裝器會：
+互動安裝會顯示找到的 Python／Tk 與 BetterDisplay 路徑，讓你沿用、輸入其他路徑或安裝缺少的依賴。Python 與 Tk 必須屬於相同環境。安裝 Homebrew 或透過 Homebrew 安裝依賴前都會詢問；需要管理員密碼時由官方安裝流程處理。Apple Command Line Tools 必須在 macOS 對話框完成安裝，再重跑安裝器。
 
-1. 驗證 macOS 14+、Python 3.10+、Tk 是否可用、Swift 編譯器、BetterDisplay app 和 CLI 回應。若 BetterDisplay 缺失可詢問透過 Homebrew 安裝；拒絕、安裝失敗或 CLI 不可用就停止，不印出完成。
-2. 編譯並本機簽署 App，準備安裝至 `~/Applications/PadPilot.app`。
-3. 停止前先記錄 LaunchAgent 與服務執行狀態；透過既有 CLI 停止舊服務與選單，再替換 App，保留設定與配對。
-4. 清理屬於此專案的舊版整合連結；移除項目放入垃圾桶，不更動其他應用程式。
-5. 按原本登入啟動偏好，呼叫 `padpilot-cli start`，由共享 autostart 流程啟動 Python 服務與原生選單。首次安裝預設開啟登入啟動。必須收到此專案 daemon 的結構化 socket 回應才成功；失敗會嘗試還原舊 App、LaunchAgent 與安裝前的服務執行狀態，若回復也失敗則明確報錯，不假裝完成。獨立啟動失敗會終止本次建立的子程序。
-6. 若 `~/bin` 存在且名稱未被占用，建立 CLI 快捷連結。
+```bash
+# 明確指定現有環境；路徑含空白時保留雙引號。
+./scripts/install.sh --python "/path/to/python3" --betterdisplay-path "/Applications/BetterDisplay.app"
 
-App 記錄這次使用的 Python 及專案路徑。**請保留該 Python 環境與專案資料夾**；這版不是內含 Python 的獨立發行包。搬移後需重新安裝；安裝器會拒絕覆蓋屬於另一個專案路徑的同名 App／LaunchAgent，請先在原路徑解除安裝再搬移。正式公開的 Developer ID 簽署、公證與自動更新尚未包含。
+# 非互動：只沿用現有依賴；缺少必要依賴即停止。
+./scripts/install.sh --yes
+
+# 明確允許安裝缺少的 Homebrew 依賴。
+./scripts/install.sh --yes --install-deps
+
+# 選擇不使用 Tk 設定視窗，仍保留 daemon、CLI 與原生選單。
+./scripts/install.sh --headless
+```
+
+`--python` 接受 Python 執行檔；`--betterdisplay-path` 接受 `.app` 資料夾或 CLI 執行檔。`--yes` 不等於同意安裝第三方軟體；Tk 缺失時會停止，需補上相符的 Tk、加 `--install-deps` 或明確指定 `--headless`。`--check` 的 Tk 缺失仍只警告。BetterDisplay CLI help 成功不代表授權、Sidecar 或實際顯示可用。
+
+Homebrew 自動安裝使用配套的 Python 3.14 與 [python-tk@3.14](https://formulae.brew.sh/formula/python-tk@3.14)，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
+
+安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定、配對與登入啟動偏好；首次安裝預設啟用登入啟動。替換前記錄 LaunchAgent 與服務狀態，透過既有 CLI 停止服務與選單。新的 daemon 必須回覆結構化握手才算成功；啟動失敗會嘗試還原舊 App、LaunchAgent 與服務執行狀態，回復失敗會明確報錯。
+
+安裝器會嘗試建立 `~/bin/padpilot-cli`，並記錄選定的 Python；已被其他程式占用的同名入口會保留，此時使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留所選 Python 環境與原始碼資料夾。** App 引用兩者，搬移後需重新安裝；另一個來源路徑的同名 App／LaunchAgent 不會被接管。這版尚未內含 Python、Developer ID 簽署、公證或自動更新。
 
 ## 開啟與配對
 
@@ -57,9 +83,9 @@ open "$HOME/Applications/PadPilot.app"
 選單「設定與配對」開啟設定視窗，可搜尋、儲存配對並指定控制目標；刪除配對需確認。也能使用：
 
 ```bash
-./bin/padpilot-cli pair --interactive
-./bin/padpilot-cli gui
-./bin/padpilot-cli gui diagnostics
+"$HOME/bin/padpilot-cli" pair --interactive
+"$HOME/bin/padpilot-cli" gui
+"$HOME/bin/padpilot-cli" gui diagnostics
 ```
 
 設定儲存於 `~/Library/Application Support/PadPilot/config.json`，既有配對不需重建。
@@ -81,13 +107,13 @@ IPC 僅記錄已知命令名稱，不記錄配對 payload。既有日誌仍可�
 ## 日常操作與開發
 
 ```bash
-./bin/padpilot-cli start            # 啟動服務並顯示選單
-./bin/padpilot-cli stop             # 停止服務、保留選單
-./bin/padpilot-cli exit             # 停止服務並關閉選單
-./bin/padpilot-cli autostart status
-./bin/padpilot-cli autostart toggle
+"$HOME/bin/padpilot-cli" start            # 啟動服務並顯示選單
+"$HOME/bin/padpilot-cli" stop             # 停止服務、保留選單
+"$HOME/bin/padpilot-cli" exit             # 停止服務並關閉選單
+"$HOME/bin/padpilot-cli" autostart status
+"$HOME/bin/padpilot-cli" autostart toggle
 python3 scripts/build_app.py        # 僅建置 build/PadPilot.app，不安裝或啟動
-./bin/padpilot-cli menu-json        # 只讀原生選單模型，不掃描硬體
+"$HOME/bin/padpilot-cli" menu-json        # 只讀原生選單模型，不掃描硬體
 ```
 
 單元測試包含原生選單三語資料解碼、子選單、勾選／停用狀態及命令白名單：
@@ -102,9 +128,22 @@ python3 scripts/check_release.py --gui
 
 ## 解除安裝
 
+從任何目錄複製執行：
+
 ```bash
-./scripts/uninstall.sh
-./scripts/uninstall.sh --purge
+/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者與曾使用的 `/tmp/PadPilot/config.json` 備援設定移到垃圾桶，可復原。原始碼、BetterDisplay、其他應用程式及虛擬螢幕均不刪除。
+手動取得原始碼者在其原始專案目錄執行 `./scripts/uninstall.sh`。互動流程會逐項詢問設定與配對、日誌、受管理的原始碼、以及安裝器新增的每項第三方依賴，**預設全部保留**。最後顯示完整移除摘要並確認，才停止此專案的服務與選單、移除 App、LaunchAgent 與 CLI 整合。
+
+| 選項 | 行為 |
+| --- | --- |
+| `--yes` | 免互動移除 PadPilot App 與整合，保留設定、日誌、原始碼與第三方依賴。 |
+| `--yes --purge` | 另清除設定／配對與日誌，包含曾使用的 `/tmp/PadPilot/config.json` 備援。 |
+| `--remove-config`／`--remove-logs` | 單獨選擇設定或日誌。 |
+| `--remove-source` | 另移除由下載安裝器管理的 `~/Applications/PadPilot-source`；手動取得的來源不自動刪除。 |
+| `--remove-dependency NAME` | 選擇 receipt 記錄由安裝器新裝的 Homebrew 項目，可重複指定；無紀錄的既有軟體不自動卸除。 |
+
+App、整合、設定、日誌與選定的來源會移到垃圾桶，可復原。第三方依賴交由 Homebrew 解除安裝，不在 PadPilot 的垃圾桶回復範圍內，也不執行 `autoremove` 或 `--zap`。有其他 Homebrew 套件依賴的 Python／Tk 會保留；Homebrew 本身、Apple Command Line Tools、系統 Python、既有 BetterDisplay 與虛擬螢幕不一併清除。
+
+移除 BetterDisplay 可能中斷目前的 Sidecar／虛擬螢幕，會再次要求確認；非互動時需另外明確加 `--allow-display-disconnect`。移除 Python 或來源前請先確認不再需要 PadPilot；若保留來源，可重跑安裝器復原安裝。

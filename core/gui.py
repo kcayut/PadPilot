@@ -15,8 +15,9 @@ import tkinter as tk
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from urllib.parse import quote
 
-from core import __version__
+from core import __revision__, __version__
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, get_config_file_path, get_status_file_path, read_status
 from core.detector import DisplayDetector
@@ -64,10 +65,30 @@ MODE_DESCS = {
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
 
+def get_documentation_ref() -> str:
+    if re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', __revision__):
+        return __revision__
+    if (ROOT / '.git').exists():
+        try:
+            result = subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
+                                    capture_output=True, text=True, check=True, timeout=2)
+            revision = result.stdout.strip()
+            if re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', revision):
+                return revision
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return f'v{__version__}'
+
+
+# Keep links tied to the source loaded by this GUI, even if the checkout updates.
+DOCUMENTATION_REF = get_documentation_ref()
+
+
 def get_documentation_url(path: str, language: str) -> str:
-    source = ROOT / path
+    source = Path(path)
     suffix = {'zh-Hant': '', 'en': '.en', 'ja': '.ja'}.get(language, '.en')
-    return source.with_name(f'{source.stem}{suffix}{source.suffix}').as_uri()
+    localized = source.with_name(f'{source.stem}{suffix}{source.suffix}').as_posix()
+    return f'{GITHUB_URL}/blob/{quote(DOCUMENTATION_REF, safe="")}/{quote(localized)}'
 
 
 def get_troubleshooting_url(label: str, language: str = 'zh-Hant') -> str:
@@ -115,8 +136,14 @@ def get_check_light(label: str, value: str) -> tuple[str, str]:
        any(k in lbl for k in ('人工確認', '滑鼠與鍵盤', '注意', '提示')):
         return 'pending', ORANGE
 
-    # Login security choices are informational, not installation requirements.
-    if 'filevault' in lbl.lower() or '自動登入' in lbl:
+    # These two checks describe unattended startup display readiness.
+    if lbl == 'FileVault' or lbl == 'macOS 自動登入':
+        if ((lbl == 'FileVault' and val == '未開啟') or
+                (lbl == 'macOS 自動登入' and (val == '已啟用' or val.startswith('已設定：')))):
+            return 'pass', GREEN
+        if ((lbl == 'FileVault' and (val == '已開啟' or val.startswith('已開啟；'))) or
+                (lbl == 'macOS 自動登入' and val in ('未設定', '已停用', '未啟用'))):
+            return 'fail', RED
         return 'pending', ORANGE
 
     # Explicit failure cases
@@ -245,11 +272,11 @@ def confirm(parent: tk.Tk, question: str, detail: str) -> bool:
         icon_text = '⚠️' if is_danger else '📱'
         tk.Label(title_row, text=icon_text, font=('Helvetica Neue', 16), bg='#ffffff').pack(
             side='left', padx=(0, 8))
-        tk.Label(title_row, text=question, font=('Helvetica Neue', 12, 'bold'),
-                 fg=TEXT_PRIMARY, bg='#ffffff').pack(side='left', anchor='w')
+        tk.Label(title_row, text=question, font=('Helvetica Neue', 14, 'bold'),
+                 fg=TEXT_PRIMARY, bg='#ffffff', wraplength=360, justify='left').pack(side='left', anchor='w')
 
         # Detail message
-        tk.Label(box, text=detail, wraplength=400, font=('Helvetica Neue', 10),
+        tk.Label(box, text=detail, wraplength=400, font=('Helvetica Neue', 12),
                  fg=TEXT_SECONDARY, bg='#ffffff', justify='left').pack(
             anchor='w', fill='x', pady=(8, 16))
 
@@ -258,10 +285,10 @@ def confirm(parent: tk.Tk, question: str, detail: str) -> bool:
         row.pack(fill='x')
 
         yes_btn = ttk.Button(row, text=tr('是'), command=lambda: finish(True),
-                             style='Danger.TButton' if is_danger else 'Accent.TButton')
+                             style='Dialog.Danger.TButton' if is_danger else 'Dialog.Accent.TButton')
         yes_btn.pack(side='right', padx=(8, 0))
 
-        no_btn = ttk.Button(row, text=tr('否'), command=finish, style='Secondary.TButton')
+        no_btn = ttk.Button(row, text=tr('否'), command=finish, style='Dialog.Secondary.TButton')
         no_btn.pack(side='right')
         no_btn.focus_set()
 
@@ -270,7 +297,7 @@ def confirm(parent: tk.Tk, question: str, detail: str) -> bool:
         yes_btn.bind('<Return>', lambda _: finish(True))
         dialog.protocol('WM_DELETE_WINDOW', finish)
         dialog.update_idletasks()
-        width, height = 460, max(175, dialog.winfo_reqheight() + 10)
+        width, height = max(460, dialog.winfo_reqwidth()), max(175, dialog.winfo_reqheight() + 10)
         dialog.geometry(
             f'{width}x{height}+{(dialog.winfo_screenwidth()-width)//2}+{(dialog.winfo_screenheight()-height)//2}'
         )
@@ -374,6 +401,9 @@ class SettingsWindow:
         style.map('Danger.TButton',
                   background=[('pressed', '#fbc5c2'), ('active', '#fdd3d0'), ('disabled', '#f5f5f7')],
                   foreground=[('disabled', '#a1a1a6')])
+        for name in ('Accent', 'Secondary', 'Danger'):
+            style.configure(f'Dialog.{name}.TButton',
+                            font=('Helvetica Neue', 12, 'normal' if name == 'Secondary' else 'bold'))
 
         # Progressbar & Combobox & Checkbutton
         style.configure('TProgressbar', background=BLUE, troughcolor='#e5e5ea', borderwidth=0)
@@ -536,8 +566,8 @@ class SettingsWindow:
             self.header_language_picker.state(['disabled'])
         self.buttons.append(self.header_language_picker)
 
-        # Canvas without visible scrollbar, gentle 15px step increment
-        self.canvas = tk.Canvas(self.content_area, bg=BG, highlightthickness=0, bd=0, yscrollincrement=15)
+        # Pixel precision for touchpads; mouse wheels keep their 15px steps.
+        self.canvas = tk.Canvas(self.content_area, bg=BG, highlightthickness=0, bd=0, yscrollincrement=1)
         self.scroll_frame = tk.Frame(self.canvas, bg=BG)
 
         def _update_scrollregion():
@@ -568,21 +598,12 @@ class SettingsWindow:
         self.canvas.pack(fill='both', expand=True)
 
         # Smooth, responsive mousewheel handling
-        def _on_mousewheel(event):
+        def _on_mousewheel(event, precise=False):
             if not self.canvas.winfo_exists():
                 return
             if isinstance(getattr(event, 'widget', None), tk.Text):
                 return
             try:
-                # Check pointer position to ensure mouse is within PadPilot window
-                x, y = self.root.winfo_pointerxy()
-                rx = self.root.winfo_rootx()
-                ry = self.root.winfo_rooty()
-                rw = self.root.winfo_width()
-                rh = self.root.winfo_height()
-                if not (rx <= x <= rx + rw and ry <= y <= ry + rh):
-                    return
-
                 req_h = self.scroll_frame.winfo_reqheight()
                 canvas_height = self.canvas.winfo_height()
 
@@ -602,6 +623,12 @@ class SettingsWindow:
                         pass
 
                 delta = getattr(event, 'delta', 0)
+                if precise:
+                    # Tk 9 packs both axes; use its native decoder and pixel distance.
+                    _, delta_y = self.root.tk.call('tk::PreciseScrollDeltas', delta)
+                    if delta_y:
+                        self.canvas.yview_moveto(self.canvas.yview()[0] - delta_y / req_h)
+                    return 'break'
                 if not delta:
                     return
 
@@ -622,11 +649,15 @@ class SettingsWindow:
                 if step > 0 and y_range[1] >= 0.999:
                     return
 
-                self.canvas.yview_scroll(step, 'units')
-            except Exception:
+                self.canvas.yview_scroll(step * 15, 'units')
+                return 'break'
+            except tk.TclError:
                 pass
 
-        self.root.bind_all('<MouseWheel>', _on_mousewheel)
+        # Toplevel bindings include page children, but exclude popup windows.
+        self.root.bind('<MouseWheel>', _on_mousewheel)
+        if self.root.tk.call('info', 'commands', 'tk::PreciseScrollDeltas'):
+            self.root.bind('<TouchpadScroll>', lambda event: _on_mousewheel(event, precise=True))
 
         # Bottom footer bar
         self.footer = tk.Frame(self.content_area, bg=BG, padx=18, pady=6)
@@ -783,7 +814,7 @@ class SettingsWindow:
         self.version_label.pack(anchor='w', pady=(4, 8))
         tk.Label(card.body, text=tr('Mac 的 Sidecar 顯示器自動化工具'), font=('Helvetica Neue', 10),
                  fg=TEXT_PRIMARY, bg=CARD_BG).pack(anchor='w')
-        tk.Label(card.body, text='MIT License · © 2026 kcayut', font=('Helvetica Neue', 9),
+        tk.Label(card.body, text='PolyForm Noncommercial 1.0.0 · © 2026 kcayut', font=('Helvetica Neue', 9),
                  fg=TEXT_SECONDARY, bg=CARD_BG).pack(anchor='w', pady=(4, 10))
         self.github_button = ttk.Button(card.body, text=tr('在 GitHub 查看專案'),
                                         command=lambda: webbrowser.open(GITHUB_URL), style='Secondary.TButton')
@@ -1309,8 +1340,11 @@ class SettingsWindow:
             enabled = getattr(cfg, field)
             row = tk.Frame(adv_body, bg=CARD_BG)
             row.pack(fill='x', pady=(6, 0))
-            tk.Label(row, text=title + (tr('：已啟用') if enabled else tr('：已停用')),
+            tk.Label(row, text=title,
                      font=('Helvetica Neue', 10, 'bold'), fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
+            self.make_badge(row, tr('已啟用') if enabled else tr('已停用'),
+                            GREEN_BG if enabled else '#f2f2f7',
+                            GREEN_FG if enabled else TEXT_SECONDARY).pack(side='left', padx=4)
             if not self.readonly:
                 button = ttk.Button(
                     row, text=tr('停用') if enabled else tr('啟用'),
@@ -1669,8 +1703,8 @@ class SettingsWindow:
         self.buttons.append(refresh)
 
         if not authenticated:
-            legend = tk.Frame(top, bg=CARD_BG)
-            legend.pack(side='left', padx=(14, 0))
+            legend = tk.Frame(card.body, bg=CARD_BG)
+            legend.pack(anchor='w', pady=(3, 2))
             for dot_color, dot_text in [
                 (GREEN, tr('通過')),
                 (RED, tr('不通過')),
@@ -1691,6 +1725,7 @@ class SettingsWindow:
         checks = self.view.get(section) or default_checks
         for label, value in checks:
             status_type, light_color = get_check_light(label, value)
+            startup_check = label in ('macOS 自動登入', 'FileVault')
             row = tk.Frame(card.body, bg=CARD_BG)
             row.pack(fill='x', pady=2)
             dot = tk.Label(row, text='●', font=('Helvetica Neue', 10, 'bold'),
@@ -1698,14 +1733,22 @@ class SettingsWindow:
             dot.pack(side='left', anchor='nw', padx=(0, 4))
             line = tk.Label(row, text=tr('{0}：{1}', tr(label), tr_message(value)), anchor='w', justify='left',
                             font=('Helvetica Neue', 10), fg=TEXT_PRIMARY, bg=CARD_BG)
-            line.pack(side='left', fill='x', expand=True, anchor='nw')
+            line.pack(side='left', fill='x', expand=not startup_check, anchor='nw')
+            if startup_check:
+                line.configure(wraplength=210)
+                note = tk.Label(row, text=tr('用於開機自動連接螢幕；本檢查僅讀取狀態，不會修改設定或讀取密碼。'),
+                                font=('Helvetica Neue', 9), fg=TEXT_SECONDARY, bg=CARD_BG,
+                                anchor='w', justify='left', wraplength=240)
+                note.pack(side='left', fill='x', expand=True, anchor='nw', padx=(6, 0))
+                note.bind('<Configure>', lambda e, w=note: w.configure(wraplength=max(100, e.width)))
             if status_type == 'fail' or light_color == RED:
                 help_link = tk.Label(row, text=tr('說明 ↗'), font=('Helvetica Neue', 9, 'underline'),
                                      fg=BLUE, bg=CARD_BG, cursor='hand2')
                 help_link.pack(side='right', anchor='ne', padx=(4, 0))
                 help_link.bind('<Button-1>', lambda e, topic=label: webbrowser.open(
                     get_troubleshooting_url(topic, self._display_language)))
-            row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 50)))
+            if not startup_check:
+                row.bind('<Configure>', lambda e, w=line: w.configure(wraplength=max(100, e.width - 50)))
 
     def render_logs_card(self):
         # Card 2: 系統運行日誌 (System Logs) - expands to fill remaining space
@@ -2166,16 +2209,17 @@ class SettingsWindow:
         box = tk.Frame(dialog, bg='#ffffff', padx=22, pady=18)
         box.pack(fill='both', expand=True)
 
-        tk.Label(box, text=tr('⚙️ 手動指定 BetterDisplay CLI'), font=('Helvetica Neue', 12, 'bold'),
+        tk.Label(box, text=tr('⚙️ 手動指定 BetterDisplay CLI'), font=('Helvetica Neue', 14, 'bold'),
                  fg=TEXT_PRIMARY, bg='#ffffff').pack(anchor='w', pady=(0, 6))
         tk.Label(box, text=tr('請輸入或選擇 betterdisplaycli 執行檔，或 BetterDisplay.app 應用程式路徑：'),
-                 font=('Helvetica Neue', 10), fg=TEXT_SECONDARY, bg='#ffffff', justify='left').pack(anchor='w', pady=(0, 10))
+                 font=('Helvetica Neue', 12), fg=TEXT_SECONDARY, bg='#ffffff', justify='left',
+                 wraplength=560).pack(anchor='w', pady=(0, 10))
 
         entry_frame = tk.Frame(box, bg='#ffffff')
         entry_frame.pack(fill='x', pady=(0, 16))
 
         path_var = tk.StringVar(value=current_val)
-        entry = ttk.Entry(entry_frame, textvariable=path_var, width=48, font=('Menlo', 10))
+        entry = ttk.Entry(entry_frame, textvariable=path_var, width=48, font=('Menlo', 12))
         entry.pack(side='left', fill='x', expand=True, padx=(0, 8))
 
         def browse():
@@ -2188,7 +2232,7 @@ class SettingsWindow:
                 path_var.set(chosen)
                 entry.focus()
 
-        browse_btn = ttk.Button(entry_frame, text=tr('瀏覽…'), command=browse, style='Secondary.TButton')
+        browse_btn = ttk.Button(entry_frame, text=tr('瀏覽…'), command=browse, style='Dialog.Secondary.TButton')
         browse_btn.pack(side='right')
 
         btn_row = tk.Frame(box, bg='#ffffff')
@@ -2206,10 +2250,10 @@ class SettingsWindow:
             close_dialog()
             self.change('set_betterdisplaycli_path', {'path': raw_path})
 
-        save_btn = ttk.Button(btn_row, text=tr('儲存'), command=save, style='Accent.TButton')
+        save_btn = ttk.Button(btn_row, text=tr('儲存'), command=save, style='Dialog.Accent.TButton')
         save_btn.pack(side='right', padx=(8, 0))
 
-        cancel_btn = ttk.Button(btn_row, text=tr('取消'), command=close_dialog, style='Secondary.TButton')
+        cancel_btn = ttk.Button(btn_row, text=tr('取消'), command=close_dialog, style='Dialog.Secondary.TButton')
         cancel_btn.pack(side='right')
 
         dialog.bind('<Return>', lambda e: save())

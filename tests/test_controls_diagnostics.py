@@ -237,9 +237,39 @@ class ControlsTests(unittest.TestCase):
         with patch('core.diagnostics.command', return_value='FileVault is Off.') as command, \
              patch('core.diagnostics.is_daemon_running', return_value=False):
             checks = collect_system_checks(Config(), {})
-        self.assertEqual(command.call_args_list[0].args[0], ['/usr/bin/fdesetup', 'status'])
-        self.assertEqual(command.call_count, 1)
+        self.assertEqual([call.args[0] for call in command.call_args_list], [
+            ['/usr/sbin/sysadminctl', '-autologin', 'status'], ['/usr/bin/fdesetup', 'status']])
         self.assertNotIn('BetterDisplay 登入啟動', [label for label, _ in checks])
+
+    def test_automatic_login_uses_live_status_instead_of_residual_username(self):
+        from core.diagnostics import collect_system_checks
+        from core.gui import get_check_light, GREEN, RED, ORANGE
+        for output, code, expected, color in [
+            ('Automatic login is OFF.', 0, '已停用', RED),
+            ('Automatic login user: testuser', 0, '已設定：testuser', GREEN),
+            ('Automatic login is disabled by your system administrator.', 0, '已停用', RED),
+            ('Automatic login is disabled because FileVault is enabled.', 0, '已停用', RED),
+            ('Automatic login user: ', 0, '未知（無法查詢）', ORANGE),
+            ('Unsupported option', 0, '未知（無法查詢）', ORANGE),
+            ('Automatic login user: testuser', 1, '未知（無法查詢）', ORANGE),
+            ('', 0, '未知（無法查詢）', ORANGE),
+            (subprocess.TimeoutExpired('sysadminctl', 5), 0, '未知（無法查詢）', ORANGE),
+        ]:
+            with self.subTest(output=output, code=code):
+                result = (output if isinstance(output, Exception) else
+                          subprocess.CompletedProcess([], code, '',
+                              '2026-09-11 13:51:43.722 sysadminctl[123:456] ' + output if output else ''))
+                with patch('core.diagnostics.read_plist', return_value={'autoLoginUser': 'old-user'}) as read, \
+                     patch('core.diagnostics.is_daemon_running', return_value=True), \
+                     patch('core.diagnostics.BetterDisplayCLI.resolve_cli_path', return_value='/mock/cli'), \
+                     patch('core.diagnostics.subprocess.run', side_effect=[
+                         result, subprocess.CompletedProcess([], 0, 'FileVault is Off.', '')]) as run:
+                    checks = dict(collect_system_checks(Config(), {}))
+                self.assertEqual(checks['macOS 自動登入'], expected)
+                self.assertEqual(get_check_light('macOS 自動登入', expected)[1], color)
+                self.assertEqual(run.call_args_list[0].kwargs['stdin'], subprocess.DEVNULL)
+                self.assertNotIn('/Library/Preferences/com.apple.loginwindow.plist',
+                                 [str(call.args[0]) for call in read.call_args_list])
 
     def test_diagnostic_refresh_updates_only_requested_card(self):
         from core.gui import SettingsWindow
@@ -314,12 +344,25 @@ class ControlsTests(unittest.TestCase):
             self.assertEqual(status, 'fail', f'Failed on {label}: {val}')
             self.assertEqual(color, RED, f'Failed color on {label}: {val}')
 
+        # Grade these states for unattended startup display readiness.
+        for label, val, expected in [
+            ('macOS 自動登入', '已設定：testuser', ('pass', GREEN)),
+            ('macOS 自動登入', '已啟用', ('pass', GREEN)),
+            ('macOS 自動登入', '未設定', ('fail', RED)),
+            ('macOS 自動登入', '已停用', ('fail', RED)),
+            ('macOS 自動登入', '未啟用', ('fail', RED)),
+            ('FileVault', '未開啟', ('pass', GREEN)),
+            ('FileVault', '已開啟', ('fail', RED)),
+            ('FileVault', '已開啟；重新開機後需先解鎖磁碟', ('fail', RED)),
+        ]:
+            self.assertEqual(get_check_light(label, val), expected)
+
         # Pending cases -> ORANGE
         for label, val in [
-            ('macOS 自動登入', '已設定：testuser'),
-            ('macOS 自動登入', '未設定'),
-            ('FileVault', '未開啟'),
-            ('FileVault', '已開啟；重新開機後需先解鎖磁碟'),
+            ('macOS 自動登入', '未知（無法讀取系統設定）'),
+            ('macOS 自動登入', '尚未檢查'),
+            ('FileVault', '尚未檢查'),
+            ('FileVault', 'unexpected response'),
             ('BetterDisplay 登入啟動', '尚未驗證'),
             ('PadPilot 登入啟動', '尚未檢查'),
             ('BetterDisplay 登入啟動', '未知／受系統限制（請檢查登入項目）'),

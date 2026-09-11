@@ -4,48 +4,74 @@
 
 PadPilot provides a **Swift/AppKit menu app, Python core, and Tk settings window**. The installer builds, installs, and starts `~/Applications/PadPilot.app`. No additional pip or Swift packages are needed.
 
+Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.
+
 ## Prepare your environment
 
 - macOS 14+; Apple Silicon is the primary validation environment.
-- Python 3.10+. Settings require `tkinter` in that same Python environment. The installer does not install Python or Tk; there are no pip packages to install.
-- Apple Command Line Tools to compile the app locally. Full Xcode is not required.
-- [BetterDisplay](https://github.com/waydabber/BetterDisplay) with working CLI control. Check its documentation for licensing requirements.
+- Python 3.10+. Settings require `tkinter` in the same Python environment. There are no extra pip packages.
+- Apple Command Line Tools to compile locally. Full Xcode is not required.
+- [BetterDisplay](https://github.com/waydabber/BetterDisplay) with working CLI control, subject to its licensing requirements.
 - A Sidecar-compatible iPad. First confirm manual connection through macOS Screen Mirroring.
 
+You do not need to install each dependency first: the installer detects them, then offers reuse, a custom path, or installation. Sidecar needs a logged-in user session; PadPilot cannot take over before FileVault unlock. See [troubleshooting](TROUBLESHOOTING.en.md#filevault).
+
+## Copy and paste installation
+
+Paste the entire block into Terminal:
+
 ```bash
-xcode-select --install
-python3 --version
-python3 -c "import tkinter"
-xcrun --find swiftc
+(
+  set -e
+  installer="$(mktemp -t padpilot-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
 ```
 
-Missing Tk produces a warning: the daemon, CLI, and native menu can still be installed, but settings-window actions are disabled. Install Tk support matching the selected Python; do not mix Python installations. Sidecar requires a logged-in user session. PadPilot cannot take over before FileVault unlock. See [troubleshooting](TROUBLESHOOTING.en.md#filevault).
+**Publication prerequisite:** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) must be public and these scripts must be published on `main`. A private repository or missing script returns 404; until publication, use an authorized source copy and the local installation steps below. The command downloads the complete script to a temporary file before running it; the source archive is also checked for unsafe paths and file types before extraction.
 
-## Install or upgrade
+Downloading requires neither Git nor Python. Source is kept in `~/Applications/PadPilot-source`; an unrelated existing folder is never overwritten. Rerunning reuses that source and resumes installation without downloading updates. Keep `.padpilot-install.json`: it records the managed source and newly installed dependencies for the uninstaller.
 
-Run from the project directory:
+## Dependency choices and local installation
+
+With an existing source copy, run `./scripts/install.sh` from its project directory. After using the download command above:
 
 ```bash
+cd "$HOME/Applications/PadPilot-source"
 ./scripts/install.sh --check
 ./scripts/install.sh
-./bin/padpilot-cli status
-
-# Automatically accept installation of missing BetterDisplay through Homebrew:
-./scripts/install.sh --yes
+"$HOME/bin/padpilot-cli" status
 ```
 
-`--check` is read-only: it does not invoke Homebrew, create configuration or logs, compile, start services, scan hardware, or change displays. Missing required components return a nonzero exit code; missing Tk is only a warning. Successful BetterDisplay CLI help does not verify its license or Sidecar availability. The GitHub repository is private and requires access; an existing source folder also works.
+`--check` is a complete read-only preflight: it does not invoke Homebrew, create configuration or logs, compile, start services, scan hardware, or change displays. Missing required components return a nonzero exit code; missing Tk is only a warning.
 
-The installer:
+Interactive installation shows detected Python/Tk and BetterDisplay paths, then lets you reuse them, enter another path, or install missing dependencies. Python and Tk must belong to the same environment. Installing Homebrew or using it to install dependencies requires consent; any administrator password is handled by the official installer. Apple Command Line Tools must finish in the macOS installation dialog before you rerun PadPilot's installer.
 
-1. Checks macOS 14+, Python 3.10+, Tk availability, the Swift compiler, BetterDisplay, and its CLI response. If BetterDisplay is missing, it can offer Homebrew installation. Refusal, installation failure, or an unusable CLI stops the process without claiming success.
-2. Compiles and locally signs the app, and stages it for installation in `~/Applications/PadPilot.app`.
-3. Records the LaunchAgent and running state before stopping the previous service and menu through the shared CLI, then replaces the app while preserving settings and pairings.
-4. Cleans up old integration links owned by this checkout, moving removed items to Trash without modifying other apps.
-5. Preserves the launch-at-login preference and calls `padpilot-cli start`, which uses shared autostart to start the Python service and menu. A first installation enables launch at login. Success requires a structured socket reply from this checkout's daemon. Failure attempts to restore the previous app, LaunchAgent, and pre-install service running state; incomplete rollback is explicitly reported. A failed standalone start terminates the child it created.
-6. Creates a CLI shortcut if `~/bin` exists and the name is available.
+```bash
+# Select an existing environment; keep quotes around paths containing spaces.
+./scripts/install.sh --python "/path/to/python3" --betterdisplay-path "/Applications/BetterDisplay.app"
 
-The app records the selected Python and source paths. **Keep that Python environment and source folder in place.** Python is not bundled. Reinstall after moving them; the installer refuses to overwrite an app or LaunchAgent owned by another checkout. Uninstall from the original location before moving. Developer ID signing, notarization, and automatic updates are not included.
+# Noninteractive: reuse existing dependencies; stop if required ones are missing.
+./scripts/install.sh --yes
+
+# Explicitly allow installation of missing dependencies through Homebrew.
+./scripts/install.sh --yes --install-deps
+
+# Continue without the Tk settings window; keep the daemon, CLI, and native menu.
+./scripts/install.sh --headless
+```
+
+`--python` accepts a Python executable; `--betterdisplay-path` accepts an `.app` folder or CLI executable. `--yes` does not authorize third-party installation and stops if Tk is missing: provide matching Tk, add `--install-deps`, or explicitly use `--headless`. Missing Tk under `--check` remains warning-only. Successful BetterDisplay CLI help does not verify its license, Sidecar, or a working display.
+
+Homebrew installation uses matching Python 3.14 and [python-tk@3.14](https://formulae.brew.sh/formula/python-tk@3.14), plus the official [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay). `--yes --install-deps` may still require an administrator password or an Apple installation dialog; it does not guarantee unattended setup.
+
+The installer builds and locally signs `~/Applications/PadPilot.app`, preserving configuration, pairings, and login preferences; a first install enables launch at login. It records LaunchAgent and service state before stopping the old service and menu through the shared CLI. Success requires a structured handshake from the new daemon. Failed startup attempts to restore the previous app, LaunchAgent, and running state; any rollback failure is reported explicitly.
+
+The installer attempts to create `~/bin/padpilot-cli` with the selected Python. An entry owned by another program is preserved; use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` in that case. **Keep the selected Python environment and source folder in place.** The app references both. Reinstall after moving them; an app or LaunchAgent owned by another source path is not taken over. Bundled Python, Developer ID signing, notarization, and automatic updates are not included.
 
 ## Open and pair
 
@@ -57,9 +83,9 @@ open "$HOME/Applications/PadPilot.app"
 Choose Settings & Pairing to discover devices, save pairings, and select the control target. Deleting a pairing requires confirmation. Alternatively:
 
 ```bash
-./bin/padpilot-cli pair --interactive
-./bin/padpilot-cli gui
-./bin/padpilot-cli gui diagnostics
+"$HOME/bin/padpilot-cli" pair --interactive
+"$HOME/bin/padpilot-cli" gui
+"$HOME/bin/padpilot-cli" gui diagnostics
 ```
 
 Configuration is stored in `~/Library/Application Support/PadPilot/config.json`. Existing pairings are preserved.
@@ -81,13 +107,13 @@ IPC logs record known command names, not pairing payloads. Historical logs may c
 ## Daily use and development
 
 ```bash
-./bin/padpilot-cli start            # Start the service and show the menu
-./bin/padpilot-cli stop             # Stop the service, keep the menu
-./bin/padpilot-cli exit             # Stop the service and close the menu
-./bin/padpilot-cli autostart status
-./bin/padpilot-cli autostart toggle
+"$HOME/bin/padpilot-cli" start            # Start the service and show the menu
+"$HOME/bin/padpilot-cli" stop             # Stop the service, keep the menu
+"$HOME/bin/padpilot-cli" exit             # Stop the service and close the menu
+"$HOME/bin/padpilot-cli" autostart status
+"$HOME/bin/padpilot-cli" autostart toggle
 python3 scripts/build_app.py        # Build build/PadPilot.app only; no install/start
-./bin/padpilot-cli menu-json        # Read the menu model without a hardware scan
+"$HOME/bin/padpilot-cli" menu-json        # Read the menu model without a hardware scan
 ```
 
 Tests cover native menu decoding in three languages, submenus, checked/disabled states, and the command allowlist:
@@ -102,9 +128,22 @@ Local release checks also cover shell syntax, plist validity, version consistenc
 
 ## Uninstall
 
+Run this from any directory:
+
 ```bash
-./scripts/uninstall.sh
-./scripts/uninstall.sh --purge
+/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-Standard removal stops this checkout's service and menu, moves its app, LaunchAgent, and CLI link to Trash, and clears status snapshots. Configuration and logs remain; `--purge` also moves both and any `/tmp/PadPilot/config.json` fallback configuration to Trash and is recoverable. Source, BetterDisplay, other apps, and virtual displays are preserved.
+For a manually obtained source copy, run `./scripts/uninstall.sh` from its original project directory. The wizard asks separately about settings/pairings, logs, managed source, and each third-party dependency newly installed by the installer. **All are kept by default.** It presents a complete removal summary for confirmation before stopping this checkout's service and menu and removing its app, LaunchAgent, and CLI integration.
+
+| Option | Behavior |
+| --- | --- |
+| `--yes` | Remove the PadPilot app and integrations noninteractively; keep settings, logs, source, and third-party dependencies. |
+| `--yes --purge` | Also remove settings/pairings and logs, including any `/tmp/PadPilot/config.json` fallback. |
+| `--remove-config` / `--remove-logs` | Select configuration or logs individually. |
+| `--remove-source` | Also remove the downloader-managed `~/Applications/PadPilot-source`; manually obtained source is never deleted automatically. |
+| `--remove-dependency NAME` | Select a Homebrew item recorded as newly installed in the receipt; repeat for multiple items. Pre-existing software without that record is not uninstalled automatically. |
+
+The app, integrations, settings, logs, and selected source are moved to Trash and can be recovered. Third-party dependencies are uninstalled through Homebrew, outside PadPilot's Trash recovery; `autoremove` and `--zap` are not used. Python/Tk required by other Homebrew packages is kept. Homebrew itself, Apple Command Line Tools, system Python, pre-existing BetterDisplay, and virtual displays are not removed along with PadPilot.
+
+Removing BetterDisplay may disconnect Sidecar or virtual displays and requires an additional confirmation. Noninteractive removal also needs explicit `--allow-display-disconnect`. Only remove Python or source when PadPilot is no longer needed; if source is retained, rerunning the installer restores the installation.

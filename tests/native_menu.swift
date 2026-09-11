@@ -23,6 +23,11 @@ struct NativeMenuCheck {
             precondition(items.count == rows.count)
             for (item, row) in zip(items, rows) {
                 precondition(item.title == row.title)
+                precondition((item.image != nil) == (row.icon != nil))
+                if row.icon != nil {
+                    precondition(item.image?.isTemplate == true)
+                    precondition(item.image?.size == NSSize(width: 18, height: 18))
+                }
                 precondition(item.isEnabled == (row.enabled && (!busy || row.args.isEmpty || row.args.first == "gui")), "enabled mismatch: \(row.title), busy=\(busy), args=\(row.args)")
                 precondition(item.state == (row.checked ? .on : .off))
                 precondition((item.action == #selector(Actions.perform(_:))) == validAction(row.args))

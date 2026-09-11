@@ -61,7 +61,7 @@ class NativeAppTests(unittest.TestCase):
                         patch.object(manage_app, 'load_config', return_value=cfg),
                         patch.object(manage_app, 'job_loaded', side_effect=lambda _: state['loaded']),
                         patch.object(manage_app, 'daemon_pids', side_effect=lambda: [123] if state['running'] else []),
-                        patch.object(manage_app, 'stop_daemon', side_effect=stop), patch.object(manage_app, 'stop_menu_apps'),
+                        patch.object(manage_app, 'stop_daemon', side_effect=stop), patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'),
                         patch.object(manage_app, 'start_standalone', side_effect=standalone),
                         patch.object(manage_app, 'wait_for_daemon'), patch.object(manage_app.subprocess, 'run', side_effect=run),
                         patch.object(autostart, 'job_loaded', side_effect=lambda _: state['loaded']),
@@ -93,7 +93,7 @@ class NativeAppTests(unittest.TestCase):
                      patch.object(manage_app, 'APP_SUPPORT_DIR', primary.parent), \
                      patch.object(manage_app, 'FALLBACK_CONFIG_FILE', fallback), \
                      patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'missing.plist'), \
-                     patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app.subprocess, 'run') as run:
+                     patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app.subprocess, 'run') as run:
                     if unsafe:
                         with self.assertRaises(RuntimeError):
                             manage_app.manage(uninstall=True, purge=True)
@@ -172,7 +172,7 @@ class NativeAppTests(unittest.TestCase):
                 (user_data / 'config.json').write_text('keep')
                 with patch('pathlib.Path.home', return_value=home), \
                      patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'missing.plist'), \
-                     patch.object(manage_app, 'stop_menu_apps'), \
+                     patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), \
                      patch.object(manage_app.subprocess, 'run') as run:
                     manage_app.manage(uninstall=True)
                 self.assertEqual(shortcut.is_symlink(), not own_link)

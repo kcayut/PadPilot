@@ -2,6 +2,8 @@
 
 感謝您對 PadPilot 專案感興趣！我們非常歡迎社群的各項建議、錯誤回報與代碼貢獻。
 
+提交貢獻表示您有權依本專案的 [PolyForm Noncommercial License 1.0.0](LICENSE) 提供該內容；散佈時須保留 [NOTICE](NOTICE) 中的作者與專案來源聲明。第三方內容須保留其原有授權與署名。
+
 ---
 
 ## 🛠️ 開發環境準備 (Development Setup)
@@ -76,6 +78,12 @@ GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整�
 3. **原子性狀態寫入**：狀態必須透過原子寫入更新至 `status.json`，供原生選單與 GUI 讀取，嚴禁在 Menu Bar 觸發高成本硬體掃描。
 
 ---
+
+## 發布版本與文件
+
+GUI 的使用說明與診斷說明連到 GitHub 上對應來源 commit 的文件；開啟 GUI 時固定修訂，不跟隨 `main`。Git 封存檔透過 `.gitattributes` 的 `export-subst` 保留修訂；若來源沒有 Git 記錄或封存修訂，才使用 `v<core.__version__>` 標籤。
+
+正式發布時，先將程式、三語文件與版本號一起提交並推送，確認檢查通過，再為同一 commit 建立 `vX.Y.Z` 標籤與 Release。不要移動或重用已發布的版本標籤；修改內容須使用新版本。未提交或未推送的開發內容無法在 GitHub 文件中呈現。目前尚無版本標籤；對外發布前須建立相符標籤，並確保使用者有文件存取權限（私人倉庫的文件亦受限）。
 
 ## 🚀 Pull Request 流程
 

@@ -288,14 +288,14 @@ class PadPilotDaemon:
 
     def ensure_betterdisplay_running(self) -> None:
         """Ensure BetterDisplay app is running."""
-        bd_app = Path("/Applications/BetterDisplay.app")
-        if not bd_app.exists():
+        bd_app = BetterDisplayCLI.resolve_app_path(self.config.betterdisplaycli_path)
+        if not bd_app:
             return
         res = subprocess.run(["pgrep", "-f", "BetterDisplay"], capture_output=True, text=True, check=False)
         if res.returncode != 0:
             logger.info("BetterDisplay not running; launching BetterDisplay app...")
             try:
-                subprocess.Popen(["open", "-a", "BetterDisplay"])
+                subprocess.Popen(["open", "-a", bd_app])
                 time.sleep(2.0)
             except Exception as e:
                 logger.warning(f"Could not auto-launch BetterDisplay: {e}")

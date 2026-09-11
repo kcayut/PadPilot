@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg" alt="Platform: macOS 14+">
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
@@ -27,6 +27,8 @@ PadPilot は **Apple Sidecar と BetterDisplay** を使う macOS 向けディス
 > [!IMPORTANT]
 > **早期プレビュー版です。** 物理モニター、または利用可能なリモート接続を確保した状態で試してください。
 > PadPilot はユーザーのログイン後に動作し、**FileVault のロック解除画面やログイン前の画面を iPad に表示することはできません。** インストールのために FileVault を無効にする必要はありません。モニターなしのコールドブートや各種ハードウェア構成は、実機検証が必要です。
+
+GUI の使用説明、トラブルシューティング、診断ヘルプは、使用中の版に対応する GitHub 上の文書を表示言語に合わせて開きます。非公開リポジトリの文書にはアクセス権のある GitHub アカウントが必要です。文書リンクは版に固定され、新版の公開で内容は変わりません。
 
 ## 特長
 
@@ -57,51 +59,58 @@ PadPilot は **Apple Sidecar と BetterDisplay** を使う macOS 向けディス
 | --- | --- |
 | Mac | macOS 14 以降を対象とし、主な用途は Apple Silicon Mac mini です。他機種・OS の組み合わせは網羅的に検証していません。 |
 | iPad | Sidecar 対応機種で、Mac と同じ Apple Account を使用し、2 ファクタ認証が有効なこと。 |
-| Python | Python 3.10 以降。設定画面には同じ Python 環境で `tkinter` を読み込めることが必要です。インストーラーは Python/Tk を導入しません。 |
+| Python | Python 3.10 以降。設定画面には同じ Python 環境で `tkinter` を読み込めることが必要です。検出後、既存環境の使用、パス指定、導入を選べます。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Sidecar と画面を制御します。macOS と互換性のある版を使用し、CLI が動作することを確認してください。CLI 制御には提供元の条件に従った Pro または有効な試用が必要です。 |
 | Apple Command Line Tools | Swift/AppKit アプリのビルドに使用します。`xcode-select --install` で導入します。 |
 | 接続 | 初回はデータ転送対応 USB ケーブルを推奨し、iPad で Mac を信頼します。ワイヤレス Sidecar には Wi-Fi、Bluetooth、Handoff も必要です。 |
 
-対応機種と接続条件は [Apple の Sidecar ガイド](https://support.apple.com/en-us/102597)を参照してください。BetterDisplay の機能とライセンスは[提供元の説明](https://github.com/waydabber/BetterDisplay#key-features)に従います。PadPilot の MIT ライセンスに第三者ソフトウェアのライセンスは含まれません。
+対応機種と接続条件は [Apple の Sidecar ガイド](https://support.apple.com/en-us/102597)を参照してください。BetterDisplay の機能とライセンスは[提供元の説明](https://github.com/waydabber/BetterDisplay#key-features)に従います。PadPilot のライセンスに第三者ソフトウェアのライセンスは含まれません。
 
 ## クイックスタート
 
 ### 1. インストール
 
-まず macOS の「画面ミラーリング」で Sidecar を手動利用できることを確認してください。
+まず macOS の「画面ミラーリング」で Sidecar を手動利用できることを確認し、次のブロック全体をターミナルに貼り付けます。
 
 ```bash
-# ソースを取得した後、PadPilot フォルダーで実行：
-./scripts/install.sh --check
-./scripts/install.sh
-./bin/padpilot-cli status
+(
+  set -e
+  installer="$(mktemp -t padpilot-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
 ```
 
-[kcayut/PadPilot](https://github.com/kcayut/PadPilot) は現在非公開で、アクセス権のあるアカウントだけが利用できます。正式な Release はまだありません。`--check` は依存関係の確認だけを行い、インストール、ユーザー設定の書き込み、サービス起動、画面変更はしません。Tk 不足は警告となり、設定画面への操作は無効になりますが、daemon、CLI、メニューは利用できます。同じ Python に対応する Tk を追加してください。
+**このダウンロード方法は、[kcayut/PadPilot](https://github.com/kcayut/PadPilot) が公開され、今回のインストールスクリプトが `main` に公開された後に利用できます。** 非公開リポジトリや未公開のスクリプトは 404 になり、ダウンロードに失敗するとインストーラーは実行しません。取得済みのソースがある場合は、プロジェクトフォルダーで `./scripts/install.sh` を実行できます。
 
-インストーラーは macOS、Python バージョン、Swift コンパイラー、BetterDisplay と CLI 応答を検査します。Homebrew があれば確認後に BetterDisplay を導入できます（`--yes` で同意）。必須項目不足や CLI 検査失敗時は停止します。その後 `~/Applications/PadPilot.app` をビルド・インストールし、ペアリング、動作モード、ログイン時起動の設定を保持して、**サービスとメニューを再起動**します。初回はログイン時起動が有効です。daemon の応答を確認して初めて成功とし、起動失敗時は以前のアプリ・LaunchAgent・導入前のサービス実行状態の復元を試み、復元失敗も明示します。
+Python/Tk、BetterDisplay、Apple のビルドツールを先に検出し、既存のものを使用するか、パスを指定するか、不足する依存関係をインストールするかを選べます。Homebrew を使う前に確認し、Homebrew 自体がない場合も導入前に同意を求めます。Apple Command Line Tools は macOS のインストール画面で完了させ、同じコマンドを再実行してください。
 
-CLI 応答だけでは、Pro ライセンス、Sidecar ペアリング、権限、実際の画面表示は検証できません。下記の設定と実機確認を行ってください。
+導入・削除の前に変更を保存し、PadPilot の設定・診断画面を閉じてください。開いたままの場合は停止し、再実行を案内します。
+
+ソースは `~/Applications/PadPilot-source` に保存します。再実行時は同じフォルダーを使用して導入を再開し、ソースの上書きや自動更新はしません。アプリは `~/Applications/PadPilot.app` に配置し、ペアリング、動作モード、ログイン時起動の設定を保持します。初回はログイン時起動が有効です。daemon の応答を確認して初めて成功とし、起動失敗時は以前のアプリとサービス状態の復元を試みます。
 
 ```bash
-open -a BetterDisplay
+"$HOME/bin/padpilot-cli" status
 open "$HOME/Applications/PadPilot.app"
 ```
 
-アプリはローカルの Python とソースを参照します。**Python 環境とプロジェクトフォルダーは残してください。** 移動後は再インストールが必要です。現在はローカルビルド版で、Python 同梱・公証済みの独立配布パッケージではありません。
+CLI ショートカットは導入時に選んだ Python を使用します。`~/bin/padpilot-cli` が他のプログラムに使われている場合は `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` を使用してください。**Python 環境とソースフォルダーを残してください。** 現在のアプリはローカルビルドでソースを参照します。読み取り専用の確認、パス指定、設定 GUI なしの導入、非対話オプションは[インストールガイド](docs/INSTALLATION.ja.md)を参照してください。BetterDisplay CLI の応答だけでは、ライセンス、Sidecar ペアリング、実際の画面表示は検証できません。
 
 ### 2. iPad を指定
 
 対話型ウィザードで操作対象を選びます。
 
 ```bash
-./bin/padpilot-cli pair --interactive
+"$HOME/bin/padpilot-cli" pair --interactive
 ```
 
 設定画面でもデバイス検索、ペアリング保存、操作対象の選択ができます。
 
 ```bash
-./bin/padpilot-cli gui
+"$HOME/bin/padpilot-cli" gui
 ```
 
 PadPilot のペアリングはデバイスの対応関係を記録するもので、Apple Account や「このコンピュータを信頼」の設定に代わるものではありません。複数台を保存できますが、同時に管理する操作対象は 1 台です。
@@ -111,8 +120,8 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 モニターなしで使う場合、BetterDisplay に `PadPilotVirtual` という仮想画面があるか、設定画面で既存の仮想画面を選んでください。自動作成に対応しないバージョンでは、BetterDisplay で一度手動作成します。
 
 ```bash
-./bin/padpilot-cli status
-./bin/padpilot-cli open-log
+"$HOME/bin/padpilot-cli" status
+"$HOME/bin/padpilot-cli" open-log
 ```
 
 `open-log` は状態・診断画面を開き、`open-log --raw` は生ログを開きます。リモート復旧が必要なら Screen Sharing/VNC または SSH を事前に設定してください。PadPilot はリモートアクセスを有効にせず、SSH 自体は仮想ディスプレイを必要としません。
@@ -144,40 +153,40 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 
 ## よく使うコマンド
 
-プロジェクトフォルダーで実行します。導入時に `~/bin/padpilot-cli` が作成され、`~/bin` が PATH にあれば `padpilot-cli` だけでも実行できます。
+どのフォルダーからでも実行できます。`~/bin` が PATH にあれば `padpilot-cli` だけでも実行できます。導入・更新・開発用スクリプトはソースフォルダーで実行してください。
 
 ```bash
 # 状態と設定
-./bin/padpilot-cli status --json
-./bin/padpilot-cli gui
-./bin/padpilot-cli set-language ja        # zh-Hant または en も使用可能
+"$HOME/bin/padpilot-cli" status --json
+"$HOME/bin/padpilot-cli" gui
+"$HOME/bin/padpilot-cli" set-language ja        # zh-Hant または en も使用可能
 
 # 動作モード：いずれかを選択
-./bin/padpilot-cli set-mode automatic
-./bin/padpilot-cli set-mode manual_only
-./bin/padpilot-cli set-mode prefer_ipad
+"$HOME/bin/padpilot-cli" set-mode automatic
+"$HOME/bin/padpilot-cli" set-mode manual_only
+"$HOME/bin/padpilot-cli" set-mode prefer_ipad
 
 # 手動操作：必要に応じて実行
-./bin/padpilot-cli action use_ipad_secondary
-./bin/padpilot-cli action use_ipad_main
-./bin/padpilot-cli action disconnect_ipad
-./bin/padpilot-cli action reconnect_sidecar
-./bin/padpilot-cli action refresh
-./bin/padpilot-cli action reset           # 一時指定とクールダウンを解除
+"$HOME/bin/padpilot-cli" action use_ipad_secondary
+"$HOME/bin/padpilot-cli" action use_ipad_main
+"$HOME/bin/padpilot-cli" action disconnect_ipad
+"$HOME/bin/padpilot-cli" action reconnect_sidecar
+"$HOME/bin/padpilot-cli" action refresh
+"$HOME/bin/padpilot-cli" action reset           # 一時指定とクールダウンを解除
 
 # サービスとログイン時起動
-./bin/padpilot-cli stop
-./bin/padpilot-cli start
-./bin/padpilot-cli exit                  # サービスを停止し、メニューを閉じる
-./bin/padpilot-cli autostart status
-./bin/padpilot-cli autostart toggle
+"$HOME/bin/padpilot-cli" stop
+"$HOME/bin/padpilot-cli" start
+"$HOME/bin/padpilot-cli" exit                  # サービスを停止し、メニューを閉じる
+"$HOME/bin/padpilot-cli" autostart status
+"$HOME/bin/padpilot-cli" autostart toggle
 
 # バージョンとヘルプ
-./bin/padpilot-cli --version
-./bin/padpilot-cli --help
+"$HOME/bin/padpilot-cli" --version
+"$HOME/bin/padpilot-cli" --help
 ```
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`./bin/padpilot-cli status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。互換性のある旧版へ戻すにはソースを復元して再インストールしてください。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。互換性のある旧版へ戻すにはソースを復元して再インストールしてください。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 ## 制限とトラブルシューティング
 
@@ -192,11 +201,15 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 
 ## アンインストール
 
+ターミナルに貼り付けて、削除する項目を選択します。
+
 ```bash
-./scripts/uninstall.sh
+/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-サービスとメニューを停止し、このプロジェクトのアプリ、LaunchAgent、CLI ショートカットをゴミ箱へ移して状態スナップショットを消去します。設定、ログ、ソース、BetterDisplay、仮想画面は保持します。`./scripts/uninstall.sh --purge` は設定（使用済みの `/tmp/PadPilot/config.json` 代替設定を含む）とログもゴミ箱へ移し、復元可能です。
+削除内容を確認してから、このプロジェクトのサービスとメニューを停止し、アプリ、LaunchAgent、CLI 入口をゴミ箱へ移します。設定・ペアリング、ログ、ダウンロードしたソース、インストーラーが新規導入した第三者の依存関係は個別に選択し、既定では保持します。既存の Python、BetterDisplay、Homebrew、Apple のツール、仮想ディスプレイは一緒に削除しません。
+
+非対話で PadPilot 本体だけを削除するには `--yes`、設定とログも削除するには `--yes --purge` を追加します。ソースと第三者の依存関係は保持します。手動で取得したソースでは、そのフォルダーで `./scripts/uninstall.sh` を実行してください。[削除オプション](docs/INSTALLATION.ja.md#アンインストール)を参照してください。
 
 ## ドキュメントと貢献
 
@@ -212,6 +225,12 @@ README と `docs/` 内の文書は繁体字中国語、英語、日本語で読�
 
 ## ライセンスと謝辞
 
-[MIT License](LICENSE)。Copyright (c) 2026 kcayut.
+[PolyForm Noncommercial License 1.0.0](LICENSE) を採用しています。作者：**kcayut**。Copyright (c) 2026 kcayut.
+
+- 非商用目的での使用、変更、再配布を許可します。ライセンスの許可範囲外の商用利用には、作者から別途許諾を得る必要があります。
+- ソースコード、実行ファイル、変更版を配布する際は、ライセンス本文または公式 URL を添え、[NOTICE](NOTICE) の `Required Notice:` で始まる作者・プロジェクト出典の表示をすべて保持してください。ビルドした App には `LICENSE` と `NOTICE` が同梱されます。
+- 慈善団体、教育機関、公的研究機関、公共安全・保健機関、環境保護団体、政府機関による使用も、資金源にかかわらず明示的に許可されています。詳細はライセンス原文に従います。
+
+ソースを入手できる非商用ライセンスであり、OSI の定義によるオープンソースライセンスではありません。この変更は本ライセンスを添えて提供する版に適用され、以前に MIT で取得した版の権利を取り消しません。
 
 画面制御機能を提供する [BetterDisplay](https://github.com/waydabber/BetterDisplay) に感謝します。PadPilot は独立したプロジェクトであり、Apple や BetterDisplay との提携・公式サポートを示すものではありません。

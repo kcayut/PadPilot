@@ -1,4 +1,8 @@
 {
+  "用於開機自動連接螢幕；本檢查僅讀取狀態，不會修改設定或讀取密碼。": {
+    "en": "For automatic display connection at startup. This check only reads status; it does not change settings or read passwords.",
+    "ja": "起動時の自動画面接続のための確認です。状態の読み取りのみを行い、設定の変更やパスワードの読み取りは行いません。"
+  },
   "進階選項": {"en": "Advanced options", "ja": "詳細オプション"},
   "自動模式": {
     "en": "Automatic mode",

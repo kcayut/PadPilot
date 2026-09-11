@@ -33,7 +33,7 @@ This guide covers status warnings, hardware identification, connection failures,
 
 **Installation does not require disabling FileVault or enabling automatic login.** Those settings affect data and account security and do not guarantee a Sidecar connection within seconds. Do not lower system security to pass a check.
 
-FileVault and macOS automatic login use amber informational indicators in diagnostics; neither is an installation pass/fail condition.
+These checks assess conditions for automatic display connection after startup: automatic login enabled is green “Pass” and disabled is red “Fail”; FileVault off is “Pass” and on is “Fail”. Unchecked or unknown states remain amber. The checks only read status; they do not change settings or read passwords. Passing does not guarantee a Sidecar connection.
 
 <a id="sidecar-session"></a>
 ## 2. Sidecar session prerequisites

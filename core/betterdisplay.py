@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
@@ -63,6 +64,17 @@ class BetterDisplayCLI:
 
     def _resolve_cli_path(self, custom_path: Optional[str] = None) -> Optional[str]:
         return self.resolve_cli_path(custom_path)
+
+    @classmethod
+    def resolve_app_path(cls, custom_path: Optional[str] = None) -> Optional[str]:
+        """Use the selected app bundle for preflight, startup, and manual opening."""
+        candidates = []
+        if custom_path:
+            path = Path(custom_path).expanduser().resolve()
+            candidates.extend(p for p in (path, *path.parents) if p.suffix == '.app')
+        candidates.extend((Path('/Applications/BetterDisplay.app'),
+                           Path.home() / 'Applications/BetterDisplay.app'))
+        return next((str(p) for p in candidates if p.is_dir()), None)
 
     def is_available(self) -> bool:
         return self.cli_path is not None and os.path.isfile(self.cli_path) and os.access(self.cli_path, os.X_OK)

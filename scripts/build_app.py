@@ -4,6 +4,7 @@ import argparse
 import json
 import platform
 import plistlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -43,7 +44,14 @@ def build(output):
         (resources / 'runtime.json').write_text(json.dumps({
             'python': sys.executable, 'project_root': str(ROOT),
         }, indent=2), encoding='utf-8')
+        # The terminal shortcut must use the same Python as the app and launchd.
+        launcher = resources / 'padpilot-cli'
+        launcher.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' '
+                            + shlex.quote(str(ROOT / 'bin/padpilot-cli')) + ' "$@"\n', encoding='utf-8')
+        launcher.chmod(0o755)
         shutil.copytree(ROOT / 'assets' / 'menu-icons', resources / 'menu-icons')
+        shutil.copy2(ROOT / 'LICENSE', resources / 'LICENSE')
+        shutil.copy2(ROOT / 'NOTICE', resources / 'NOTICE')
         subprocess.run(['codesign', '--force', '--sign', '-', str(app)], check=True)
         # Validate ownership before replacing only our generated output.
         if output.exists():

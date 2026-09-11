@@ -1,10 +1,13 @@
-"""Local language navigation and diagnostic anchors must resolve in every locale."""
+"""Versioned GitHub documentation and diagnostic anchors resolve in every locale."""
 import re
 import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+from unittest.mock import Mock, patch
 
-from core.gui import SettingsWindow, get_documentation_url, get_troubleshooting_url
+from core import __version__
+from core.gui import (DOCUMENTATION_REF, GITHUB_URL, SettingsWindow,
+                      get_documentation_ref, get_documentation_url, get_troubleshooting_url)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,20 +24,41 @@ class DocumentationTests(unittest.TestCase):
         self.assertNotEqual(app._content_signature(), original)
 
     def test_gui_language_paths_and_diagnostic_anchors(self):
+        prefix = f'{urlsplit(GITHUB_URL).path}/blob/{DOCUMENTATION_REF}/'
         for language, suffix in [('zh-Hant', ''), ('en', '.en'), ('ja', '.ja'), ('unknown', '.en')]:
             for name in ('README', 'docs/TROUBLESHOOTING'):
                 url = urlsplit(get_documentation_url(f'{name}.md', language))
-                self.assertEqual(url.scheme, 'file')
-                self.assertEqual(Path(unquote(url.path)), ROOT / f'{name}{suffix}.md')
-                self.assertTrue(Path(unquote(url.path)).is_file())
+                self.assertEqual((url.scheme, url.netloc), ('https', 'github.com'))
+                self.assertEqual(unquote(url.path), f'{prefix}{name}{suffix}.md')
+                self.assertTrue((ROOT / f'{name}{suffix}.md').is_file())
             for label, anchor in [('FileVault', 'filevault'), ('macOS 自動登入', 'filevault'),
                                   ('BetterDisplay 控制介面', 'betterdisplay'), ('登入啟動', 'autostart'),
                                   ('背景服務', 'autostart'), ('Sidecar', 'sidecar-session'), ('其他', '')]:
                 url = urlsplit(get_troubleshooting_url(label, language))
                 self.assertEqual(url.fragment, anchor)
-                self.assertEqual(Path(unquote(url.path)), ROOT / f'docs/TROUBLESHOOTING{suffix}.md')
+                self.assertEqual(unquote(url.path), f'{prefix}docs/TROUBLESHOOTING{suffix}.md')
                 if anchor:
-                    self.assertIn(f'id="{anchor}"', Path(unquote(url.path)).read_text())
+                    self.assertIn(f'id="{anchor}"', (ROOT / f'docs/TROUBLESHOOTING{suffix}.md').read_text())
+
+    def test_documentation_revision_uses_archive_or_checkout_and_freezes_links(self):
+        revision = 'a' * 40
+        with patch('core.gui.__revision__', revision), patch('core.gui.subprocess.run') as git:
+            self.assertEqual(get_documentation_ref(), revision)
+            git.assert_not_called()
+        with patch('core.gui.__revision__', '$Format:%H$'), \
+             patch('core.gui.ROOT') as source, patch('core.gui.subprocess.run') as git:
+            (source / '.git').exists.return_value = True
+            git.return_value = Mock(stdout=revision + '\n')
+            self.assertEqual(get_documentation_ref(), revision)
+            original = get_documentation_url('README.md', 'en')
+            git.return_value = Mock(stdout='b' * 40 + '\n')
+            self.assertEqual(get_documentation_url('README.md', 'en'), original)
+            git.side_effect = OSError('git unavailable')
+            self.assertEqual(get_documentation_ref(), f'v{__version__}')
+            git.reset_mock()
+            (source / '.git').exists.return_value = False
+            self.assertEqual(get_documentation_ref(), f'v{__version__}')
+            git.assert_not_called()
 
     def test_document_translations_and_local_links_exist(self):
         documents = list((ROOT / 'docs').rglob('*.md')) + list(ROOT.glob('README*.md'))

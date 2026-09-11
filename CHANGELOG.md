@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Align the PR privacy checklist with the documented release scanner.
 
 ### Changed
+- Added a copy-and-paste source installer and interactive Python/Tk, BetterDisplay, and Apple build-tool setup with custom paths and explicit dependency-install consent.
+- Added uninstall previews and separate configuration, log, managed-source, and recorded-dependency choices; existing shared dependencies remain preserved by default.
+- App, launchd, and the installed CLI shortcut use the selected Python; custom BetterDisplay paths also work during startup, and setup protects open settings windows.
+- GUI help and diagnostic links now open localized GitHub documentation pinned to the source revision; source archives retain the revision and copies without revision metadata use the matching version tag.
+- Changed licensing from MIT to PolyForm Noncommercial 1.0.0, with required attribution to kcayut in NOTICE; updated the three READMEs and About page, and bundled LICENSE/NOTICE in built apps. Previously granted MIT rights remain unchanged.
 - Added a localized About page with the shared version, GitHub link, and disabled Buy Me a Coffee/PayPal placeholders until recipient URLs are configured; moved the version out of the sidebar.
 - Settings GUI displays the shared application version; usage and diagnostic help links open bundled guides in the selected language.
 - Added Japanese README, English/Japanese documentation, language navigation, and a clearly labeled development archive.

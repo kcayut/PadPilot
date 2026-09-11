@@ -79,58 +79,197 @@ class InstallCheckTests(unittest.TestCase):
             resolve.assert_called_once_with(None)
             self.assertIn('FAIL: Configuration', output.getvalue())
 
-    def test_shell_check_never_installs_or_starts_and_failure_stops_install(self):
+    @contextlib.contextmanager
+    def shell_setup(self, **overrides):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            fake_bin = root / 'bin'
+            fake_bin = root / 'bin with spaces'
             fake_bin.mkdir()
+            state = root / 'packages'
+            state.mkdir()
             record = root / 'commands.log'
-            python = fake_bin / 'python3'
-            # External command stubs, never execute the real setup or brew.
-            python.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$PADPILOT_TEST_RECORD"\nexit 7\n')
-            python.chmod(0o755)
-            brew = fake_bin / 'brew'
-            brew.write_text('#!/bin/sh\nprintf "UNEXPECTED BREW\\n" >> "$PADPILOT_TEST_RECORD"\nexit 9\n')
-            brew.chmod(0o755)
+            commands = {
+                'uname': 'echo Darwin',
+                'sw_vers': 'echo 14.7',
+                'xcrun': 'exit "${PADPILOT_TEST_CLT:-0}"',
+                'xcode-select': 'echo "xcode-select $*" >> "$PADPILOT_TEST_RECORD"; exit "${PADPILOT_TEST_CLT_SELECT:-0}"',
+                'plutil': 'case "$*" in *project_root*) echo "$PADPILOT_TEST_ROOT" ;; *python*) echo "$PADPILOT_TEST_RUNTIME_PYTHON" ;; esac',
+                'python3': r'''for last do :; done
+printf 'python %s\n' "$*" >> "$PADPILOT_TEST_RECORD"
+case "$*" in
+    *'import sys; sys.exit'*)
+        case "$0" in */python3.14) [ ! -f "$PADPILOT_TEST_STATE/python@3.14" ] || exit 0 ;; esac
+        exit "${PADPILOT_TEST_PYTHON:-0}" ;;
+    *'import tkinter'*)
+        if [ -f "$PADPILOT_TEST_STATE/python-tk@3.14" ]; then exit 0; fi
+        exit "${PADPILOT_TEST_TK:-0}" ;;
+    *resolve_betterdisplay_path*)
+        if [ -n "$last" ]; then printf '%s\n' "$last"; else printf '%s\n' "${PADPILOT_TEST_BD:-}"; fi ;;
+    *check_install.py*) exit "${PADPILOT_TEST_CHECK:-0}" ;;
+esac
+exit 0''',
+                'brew': r'''for last do :; done
+printf 'brew %s\n' "$*" >> "$PADPILOT_TEST_RECORD"
+case "$1" in
+    list) [ -f "$PADPILOT_TEST_STATE/$last" ] || exit 1; echo "$last 3.14" ;;
+    install)
+        if [ "${PADPILOT_TEST_BREW_FAIL:-}" = "$last" ]; then
+            if [ "${PADPILOT_TEST_BREW_PARTIAL:-0}" = 1 ]; then touch "$PADPILOT_TEST_STATE/$last"; fi
+            exit 9
+        fi
+        touch "$PADPILOT_TEST_STATE/$last" ;;
+    --prefix) printf '%s\n' "$PADPILOT_TEST_PREFIX" ;;
+esac''',
+            }
+            for name, body in commands.items():
+                command = fake_bin / name
+                command.write_text('#!/bin/sh\n' + body + '\n')
+                command.chmod(0o755)
+            prefix = fake_bin / 'prefix'
+            (prefix / 'bin').mkdir(parents=True)
+            (prefix / 'bin/python3.14').symlink_to(fake_bin / 'python3')
+            (fake_bin / 'saved-python').symlink_to(fake_bin / 'python3')
             env = dict(os.environ, PATH=str(fake_bin) + ':/usr/bin:/bin', HOME=str(root / 'user'),
-                       PADPILOT_TEST_RECORD=str(record))
-            for flag in ('--check', '--yes'):
+                       PADPILOT_TEST_RECORD=str(record), PADPILOT_TEST_STATE=str(state),
+                       PADPILOT_TEST_PREFIX=str(prefix), PADPILOT_TEST_BD='/custom/BetterDisplay.app',
+                       PADPILOT_TEST_ROOT=str(ROOT), PADPILOT_TEST_RUNTIME_PYTHON=str(fake_bin / 'saved-python'))
+            env.update(overrides)
+            def run(*args, answer=None, use_saved=False):
                 record.unlink(missing_ok=True)
-                result = subprocess.run(['bash', str(ROOT / 'scripts/install.sh'), flag], env=env,
-                                        capture_output=True, text=True)
-                self.assertNotEqual(result.returncode, 0)
-                calls = record.read_text()
+                python_args = [] if use_saved else ['--python', str(fake_bin / 'python3')]
+                result = subprocess.run(['/bin/bash', str(ROOT / 'scripts/install.sh'),
+                                         *python_args, *args],
+                                        input=answer, env=env, capture_output=True, text=True)
+                return result, record.read_text() if record.exists() else ''
+            yield root, state, run
+
+    def test_shell_check_never_installs_or_starts_and_failure_stops_install(self):
+        with self.shell_setup(PADPILOT_TEST_CHECK='7') as (root, _, run):
+            for flag in ('--check', '--yes'):
+                result, calls = run(flag)
+                self.assertEqual(result.returncode, 7, result.stderr)
                 self.assertNotIn('manage_app.py', calls)
-                self.assertNotIn('UNEXPECTED BREW', calls)
+                self.assertNotIn('brew ', calls)
+                self.assertNotIn('setup_state.py --record', calls)
                 self.assertNotIn('Installed:', result.stdout)
                 self.assertFalse((root / 'user').exists())
 
     def test_missing_betterdisplay_refusal_and_brew_failure_never_succeed(self):
+        with self.shell_setup(PADPILOT_TEST_BD='', PADPILOT_TEST_BREW_FAIL='betterdisplay') as (root, _, run):
+            result, calls = run('--yes')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn('brew ', calls)
+            self.assertNotIn('manage_app.py', calls)
+            result, calls = run('--yes', '--install-deps')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('brew install --cask betterdisplay', calls)
+            self.assertNotIn('setup_state.py --record', calls)
+            self.assertNotIn('manage_app.py', calls)
+            self.assertFalse((root / 'user').exists())
+
+    def test_yes_installs_with_selected_paths_and_never_calls_brew(self):
+        with self.shell_setup() as (_, _, run):
+            selected = '/Users/example/Custom BetterDisplay.app'
+            result, calls = run('--yes', '--betterdisplay-path', selected)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('check_install.py --betterdisplay-path ' + selected, calls)
+            self.assertIn('manage_app.py --betterdisplay-path ' + selected, calls)
+            self.assertNotIn('brew ', calls)
+
+    def test_interactive_manual_path_and_confirmation(self):
+        with self.shell_setup(PADPILOT_TEST_BD='') as (_, _, run):
+            result, calls = run(answer='\nm\n/custom/My BetterDisplay.app\n\n\n')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('manage_app.py --betterdisplay-path /custom/My BetterDisplay.app', calls)
+            self.assertNotIn('brew ', calls)
+
+    def test_reinstall_prefers_the_installed_apps_python(self):
+        with self.shell_setup() as (root, _, run):
+            runtime = root / 'user/Applications/PadPilot.app/Contents/Resources/runtime.json'
+            runtime.parent.mkdir(parents=True)
+            runtime.write_text('{}')  # plutil is stubbed with this checkout's runtime values.
+            result, _ = run('--yes', use_saved=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('saved-python', result.stdout)
+
+    def test_missing_tk_requires_explicit_headless_or_dependency_install(self):
+        with self.shell_setup(PADPILOT_TEST_TK='1') as (_, _, run):
+            result, calls = run('--yes')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('--headless', result.stderr)
+            self.assertNotIn('brew ', calls)
+            self.assertNotIn('manage_app.py', calls)
+            result, calls = run('--yes', '--headless')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('manage_app.py', calls)
+            self.assertNotIn('brew ', calls)
+
+    def test_new_python_is_recorded_before_failed_tk_install(self):
+        with self.shell_setup(PADPILOT_TEST_TK='1', PADPILOT_TEST_BREW_FAIL='python-tk@3.14') as (_, _, run):
+            result, calls = run('--yes', '--install-deps')
+            self.assertNotEqual(result.returncode, 0)
+            recorded = 'setup_state.py --record-dependency formula python@3.14'
+            self.assertIn(recorded, calls)
+            self.assertLess(calls.index(recorded), calls.index('brew install --formula python-tk@3.14'))
+            self.assertNotIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
+            self.assertNotIn('manage_app.py', calls)
+
+    def test_missing_python_installs_and_records_both_python_and_tk(self):
+        with self.shell_setup(PADPILOT_TEST_PYTHON='1', PADPILOT_TEST_TK='1') as (_, _, run):
+            result, calls = run('--yes', '--install-deps')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('setup_state.py --record-dependency formula python@3.14', calls)
+            self.assertIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
+            self.assertIn('manage_app.py', calls)
+
+    def test_preexisting_python_is_not_claimed_and_new_tk_is_recorded(self):
+        with self.shell_setup(PADPILOT_TEST_TK='1') as (_, state, run):
+            (state / 'python@3.14').touch()
+            result, calls = run('--yes', '--install-deps')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('setup_state.py --record-dependency formula python@3.14', calls)
+            self.assertIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
+            self.assertIn('manage_app.py', calls)
+
+    def test_partly_successful_brew_failure_records_installed_dependency(self):
+        with self.shell_setup(PADPILOT_TEST_BD='', PADPILOT_TEST_BREW_FAIL='betterdisplay',
+                              PADPILOT_TEST_BREW_PARTIAL='1') as (_, _, run):
+            result, calls = run('--yes', '--install-deps')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('setup_state.py --record-dependency cask betterdisplay', calls)
+            self.assertNotIn('manage_app.py', calls)
+
+    def test_missing_clt_requires_opt_in_and_waits_for_apple_install(self):
+        with self.shell_setup(PADPILOT_TEST_CLT='1') as (_, _, run):
+            result, calls = run('--yes')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn('xcode-select --install', calls)
+            result, calls = run('--yes', '--install-deps')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('xcode-select --install', calls)
+            self.assertNotIn('brew ', calls)
+            self.assertNotIn('manage_app.py', calls)
+
+    def test_receipt_is_read_only_then_appends_only_once(self):
+        import setup_state
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            fake_bin = root / 'bin'
-            fake_bin.mkdir()
-            record = root / 'commands.log'
-            installer = root / 'install.sh'
-            # Isolate the fixed system app lookup as well as HOME and commands.
-            installer.write_text((ROOT / 'scripts/install.sh').read_text().replace(
-                '/Applications/BetterDisplay.app', '/Applications/PadPilot-Test-Missing.app'))
-            for name, body in (('python3', 'exit 0'), ('brew', 'exit 9')):
-                command = fake_bin / name
-                command.write_text(f'#!/bin/sh\nprintf "{name} %s\\n" "$*" >> "$PADPILOT_TEST_RECORD"\n{body}\n')
-                command.chmod(0o755)
-            env = dict(os.environ, PATH=str(fake_bin) + ':/usr/bin:/bin', HOME=str(root / 'user'),
-                       PADPILOT_TEST_RECORD=str(record))
-            for answer, brew_expected in (('n\n', False), ('y\n', True)):
-                record.unlink(missing_ok=True)
-                result = subprocess.run(['bash', str(installer)], input=answer, env=env,
-                                        capture_output=True, text=True)
-                self.assertNotEqual(result.returncode, 0)
-                calls = record.read_text()
-                self.assertEqual('brew install --cask betterdisplay' in calls, brew_expected)
-                self.assertNotIn('manage_app.py', calls)
-                self.assertNotIn('Installed:', result.stdout)
-                self.assertFalse((root / 'user').exists())
+            receipt = setup_state.read_receipt(root)
+            self.assertEqual(list(root.iterdir()), [])
+            receipt['managed_source'] = True
+            setup_state.write_receipt(root, receipt)
+            for _ in range(2):
+                setup_state.record_dependency(root, 'formula', 'python@3.14', '/opt/homebrew/bin/brew')
+            result = setup_state.read_receipt(root)
+            self.assertTrue(result['managed_source'])
+            self.assertEqual(len(result['dependencies']), 1)
+            self.assertEqual((root / '.padpilot-install.json').stat().st_mode & 0o777, 0o600)
+            outside = root / 'outside.json'
+            (root / '.padpilot-install.json').rename(outside)
+            (root / '.padpilot-install.json').symlink_to(outside)
+            with self.assertRaises(RuntimeError):
+                setup_state.read_receipt(root)
+            self.assertEqual(len(json.loads(outside.read_text())['dependencies']), 1)
 
 
 if __name__ == '__main__':

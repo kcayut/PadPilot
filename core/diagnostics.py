@@ -19,8 +19,9 @@ def read_plist(path):
 
 def command(args, timeout=5):
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
-        return result.stdout.strip() if result.returncode == 0 else None
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
+                                stdin=subprocess.DEVNULL)
+        return (result.stdout.strip() or result.stderr.strip()) if result.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -48,6 +49,17 @@ def betterdisplay_login_status(output, uid):
     return '未知／受系統限制（請檢查登入項目）'
 
 
+def automatic_login_status(output):
+    if output:
+        if re.search(r'(?:^|\] )Automatic login is (?:OFF|disabled by your system administrator|'
+                     r'disabled because FileVault is enabled)\.\s*$', output, re.M):
+            return '已停用'
+        user = re.search(r'(?:^|\] )Automatic login user: ([^\r\n]+)$', output, re.M)
+        if user and user[1].strip():
+            return '已設定：' + user[1].strip()
+    return '未知（無法查詢）'
+
+
 def collect_system_checks(cfg, actual):
     plist = get_launch_agent_plist_path()
     agent = read_plist(plist)
@@ -63,9 +75,8 @@ def collect_system_checks(cfg, actual):
             startup = '設定異常（執行檔或程式路徑不存在）'
     applications = [Path('/Applications/BetterDisplay.app'), Path.home() / 'Applications/BetterDisplay.app']
     installed = any(p.is_dir() for p in applications)
-    login = read_plist('/Library/Preferences/com.apple.loginwindow.plist')
-    automatic = ('未知（無法讀取系統設定）' if login is None else
-                 '已設定：' + str(login['autoLoginUser']) if login.get('autoLoginUser') else '未設定')
+    # autoLoginUser can remain in the plist after automatic login is disabled.
+    automatic = automatic_login_status(command(['/usr/sbin/sysadminctl', '-autologin', 'status']))
     vault = command(['/usr/bin/fdesetup', 'status'])
     vault_state = ('已開啟；重新開機後需先解鎖磁碟' if vault and 'FileVault is On' in vault else
                    '未開啟' if vault and 'FileVault is Off' in vault else '未知（無法查詢）')

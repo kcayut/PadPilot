@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg" alt="Platform: macOS 14+">
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
@@ -23,6 +23,8 @@
 PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器自動化工具，主要為 Mac mini + iPad 的使用情境設計。沒有實體螢幕時，它會嘗試連接指定 iPad，並將它設為主螢幕；接回實體螢幕時，則依運作模式與手動選擇調整顯示器角色。
 
 你可以透過選單列、圖形設定視窗或命令列控制連線、管理配對，以及查看目前狀態與切換原因。
+
+GUI 的「使用說明」、「疑難排解」與診斷說明會在 GitHub 開啟對應版本的文件，並跟隨介面語言。私人倉庫的文件需要登入有存取權限的 GitHub 帳號；文件連結固定版本，不會隨新版發布而改變內容。
 
 > [!IMPORTANT]
 > **目前為早期預覽版本。** 請先在保留實體螢幕或可用遠端連線的環境中測試。
@@ -57,51 +59,58 @@ PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器
 | --- | --- |
 | Mac | 專案目標為 macOS 14+，主要使用情境是 Apple Silicon Mac mini；其他機型與版本組合尚未全面驗證。 |
 | iPad | 支援 Sidecar 的 iPad，與 Mac 登入相同 Apple Account 並啟用雙重認證。 |
-| Python | Python 3.10+；圖形設定視窗另外需要此 Python 環境可匯入 `tkinter`。安裝腳本不會安裝 Python／Tk。 |
+| Python | Python 3.10+；圖形設定視窗另外需要此 Python 環境可匯入 `tkinter`。安裝器會偵測，並提供沿用、手動路徑或安裝選項。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | 提供 Sidecar 與顯示器控制。請選擇相容於 macOS 的版本，並確認 CLI 可用；命令列控制依上游授權需要 Pro 或有效試用。 |
 | Apple Command Line Tools | 編譯 Swift／AppKit 原生選單列；首次安裝執行 `xcode-select --install`。 |
 | 連線 | 初次設定建議使用可傳輸資料的 USB 線，並在 iPad 上信任 Mac。無線 Sidecar 另需 Wi-Fi、藍牙與 Handoff。 |
 
-裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的 MIT 授權不包含第三方軟體授權。
+裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的授權不包含第三方軟體授權。
 
 ## 快速開始
 
 ### 1. 安裝
 
-先確認可以在 macOS「螢幕鏡像輸出」中手動使用 Sidecar，再設定 PadPilot。
+先確認可以在 macOS「螢幕鏡像輸出」中手動使用 Sidecar，再複製整段至「終端機」：
 
 ```bash
-# 取得原始碼後，在 PadPilot 專案資料夾執行：
-./scripts/install.sh --check
-./scripts/install.sh
-./bin/padpilot-cli status
+(
+  set -e
+  installer="$(mktemp -t padpilot-install)"
+  trap 'rm -f "$installer"' EXIT
+  curl --fail --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    --output "$installer"
+  /bin/bash "$installer"
+)
 ```
 
-GitHub 倉庫為 [kcayut/PadPilot](https://github.com/kcayut/PadPilot)，目前是私人倉庫，僅受邀帳號可存取，尚無正式 Release。`--check` 只檢查依賴，不安裝、不寫入使用者設定、不啟動服務或切換螢幕。Tk 缺失是警告：daemon、CLI 與原生選單仍可使用，設定視窗入口會停用；請補上同一個 Python 的 Tk 支援。
+**下載入口須待 [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 公開，且本次安裝腳本已發布至 `main` 後才能使用。** 私人倉庫或尚未發布的腳本會回傳 404；下載失敗不會執行安裝器。已有原始碼者可直接在專案目錄執行 `./scripts/install.sh`。
 
-安裝腳本會驗證 macOS、Python 版本、Swift 編譯器、BetterDisplay app 及 CLI 回應；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。缺少必要依賴或 CLI 檢查失敗會停止。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動；服務握手成功後才回報安裝完成，啟動失敗會嘗試還原舊 App、LaunchAgent 與安裝前的服務執行狀態，回復失敗也會明確報錯。
+安裝器先偵測 Python／Tk、BetterDisplay 與 Apple 編譯工具，再讓你選擇沿用、手動指定路徑或安裝缺少的依賴。透過 Homebrew 安裝前會詢問；沒有 Homebrew 時也會先徵求同意。Apple Command Line Tools 由 macOS 的安裝視窗處理，完成後重跑同一段指令即可。
 
-CLI 可回應不代表 Pro 授權、Sidecar 配對、權限或實際顯示已驗證；仍需完成下方配對與實機確認。
+安裝或解除安裝前，請先儲存並關閉 PadPilot 的設定／診斷視窗；若視窗仍開啟，安裝器會停止並提示重跑。
+
+來源保存在 `~/Applications/PadPilot-source`；重跑會沿用此資料夾、繼續安裝，不覆蓋原始碼或自動更新。App 安裝至 `~/Applications/PadPilot.app`，保留既有配對、模式與登入啟動偏好。首次安裝預設啟用登入啟動；收到背景服務的握手回應後才報告成功，啟動失敗會嘗試還原舊 App 與服務狀態。
 
 ```bash
-open -a BetterDisplay
+"$HOME/bin/padpilot-cli" status
 open "$HOME/Applications/PadPilot.app"
 ```
 
-App 目前引用本機 Python 與專案路徑，**請保留 Python 環境與專案資料夾**；搬移後需重新安裝。這是本機編譯版本，尚非內含 Python、經公證的獨立發行包。
+CLI 快捷入口會使用安裝時選定的 Python。若 `~/bin/padpilot-cli` 已被其他程式占用，請使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留 Python 環境與原始碼資料夾**；這版仍是本機編譯、引用原始碼的 App。依賴檢查、手動路徑、無 GUI 安裝及非互動選項見[完整安裝指南](docs/INSTALLATION.md)。BetterDisplay CLI 回應不等於授權、Sidecar 配對或實際顯示已通過驗證。
 
 ### 2. 指定 iPad
 
-在專案目錄執行互動式配對，選取要控制的 iPad：
+在終端機執行互動式配對，選取要控制的 iPad：
 
 ```bash
-./bin/padpilot-cli pair --interactive
+"$HOME/bin/padpilot-cli" pair --interactive
 ```
 
 也可開啟圖形設定視窗，搜尋裝置、儲存配對並選定控制目標：
 
 ```bash
-./bin/padpilot-cli gui
+"$HOME/bin/padpilot-cli" gui
 ```
 
 PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任這部電腦」設定。雖然可以儲存多台 iPad，目前一次管理一台控制目標。
@@ -111,8 +120,8 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 若要使用無實體螢幕情境，請確認 BetterDisplay 中存在名為 `PadPilotVirtual` 的虛擬螢幕，或在 PadPilot 設定中選擇既有的虛擬螢幕。若版本不支援自動建立，請先在 BetterDisplay 中手動建立一次。
 
 ```bash
-./bin/padpilot-cli status
-./bin/padpilot-cli open-log
+"$HOME/bin/padpilot-cli" status
+"$HOME/bin/padpilot-cli" open-log
 ```
 
 `open-log` 會開啟狀態與診斷視窗；`open-log --raw` 可開啟原始日誌。遠端救援需自行事先設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你啟用遠端存取，SSH 本身也不依賴虛擬螢幕。
@@ -144,40 +153,40 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 ## 常用指令
 
-以下指令在專案目錄執行。若安裝時已建立 `~/bin/padpilot-cli` 連結，且 `~/bin` 位於 PATH，也可直接使用 `padpilot-cli`。
+以下指令可從任何目錄執行。若 `~/bin` 位於 PATH，也可直接使用 `padpilot-cli`。安裝、更新及開發腳本仍須在原始碼目錄執行。
 
 ```bash
 # 狀態與設定
-./bin/padpilot-cli status --json
-./bin/padpilot-cli gui
-./bin/padpilot-cli set-language zh-Hant   # 亦可使用 en 或 ja
+"$HOME/bin/padpilot-cli" status --json
+"$HOME/bin/padpilot-cli" gui
+"$HOME/bin/padpilot-cli" set-language zh-Hant   # 亦可使用 en 或 ja
 
 # 運作模式：擇一設定
-./bin/padpilot-cli set-mode automatic
-./bin/padpilot-cli set-mode manual_only
-./bin/padpilot-cli set-mode prefer_ipad
+"$HOME/bin/padpilot-cli" set-mode automatic
+"$HOME/bin/padpilot-cli" set-mode manual_only
+"$HOME/bin/padpilot-cli" set-mode prefer_ipad
 
 # 手動操作：依需要選擇
-./bin/padpilot-cli action use_ipad_secondary
-./bin/padpilot-cli action use_ipad_main
-./bin/padpilot-cli action disconnect_ipad
-./bin/padpilot-cli action reconnect_sidecar
-./bin/padpilot-cli action refresh
-./bin/padpilot-cli action reset           # 清除暫時覆寫與冷卻狀態
+"$HOME/bin/padpilot-cli" action use_ipad_secondary
+"$HOME/bin/padpilot-cli" action use_ipad_main
+"$HOME/bin/padpilot-cli" action disconnect_ipad
+"$HOME/bin/padpilot-cli" action reconnect_sidecar
+"$HOME/bin/padpilot-cli" action refresh
+"$HOME/bin/padpilot-cli" action reset           # 清除暫時覆寫與冷卻狀態
 
 # 背景服務與登入自動啟動
-./bin/padpilot-cli stop
-./bin/padpilot-cli start
-./bin/padpilot-cli exit                  # 停止服務並隱藏 PadPilot 選單
-./bin/padpilot-cli autostart status
-./bin/padpilot-cli autostart toggle
+"$HOME/bin/padpilot-cli" stop
+"$HOME/bin/padpilot-cli" start
+"$HOME/bin/padpilot-cli" exit                  # 停止服務並隱藏 PadPilot 選單
+"$HOME/bin/padpilot-cli" autostart status
+"$HOME/bin/padpilot-cli" autostart toggle
 
 # 版本與完整指令說明
-./bin/padpilot-cli --version
-./bin/padpilot-cli --help
+"$HOME/bin/padpilot-cli" --version
+"$HOME/bin/padpilot-cli" --help
 ```
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`./bin/padpilot-cli status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。若需降回相容舊版，回復原始碼後重新安裝；安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。若需降回相容舊版，回復原始碼後重新安裝；安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 ## 限制與疑難排解
 
@@ -192,11 +201,15 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 ## 解除安裝
 
+複製至終端機，即可逐項選擇要移除的內容：
+
 ```bash
-./scripts/uninstall.sh
+/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-預設會停止背景服務與原生選單，將此專案的 App、LaunchAgent 與 CLI 快捷連結移到垃圾桶，清除狀態快照；保留設定、日誌、專案及 BetterDisplay／虛擬螢幕。`./scripts/uninstall.sh --purge` 會另外將設定（包含曾使用的 `/tmp/PadPilot/config.json` 備援）與日誌移到垃圾桶，可復原。
+解除安裝會先顯示移除摘要並確認，再停止本專案服務與選單，將 App、LaunchAgent 與屬於此專案的 CLI 入口移到垃圾桶。設定／配對、日誌、下載的原始碼，以及由安裝器新增的第三方依賴會分別詢問；預設保留。既有 Python、BetterDisplay、Homebrew、Apple 工具與虛擬螢幕不會一併刪除。
+
+免互動只移除 PadPilot 主體：加 `--yes`。同時清理設定與日誌：加 `--yes --purge`；仍保留原始碼與第三方依賴。手動取得原始碼者在其專案目錄執行 `./scripts/uninstall.sh`。詳見[解除安裝選項](docs/INSTALLATION.md#解除安裝)。
 
 ## 文件與貢獻
 
@@ -212,6 +225,12 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 
 ## 授權與致謝
 
-本專案採用 [MIT License](LICENSE)。Copyright (c) 2026 kcayut.
+本專案採用 [PolyForm Noncommercial License 1.0.0](LICENSE)。作者：**kcayut**，Copyright (c) 2026 kcayut。
+
+- 允許非商業用途的使用、修改與散佈；授權未允許的商業用途須另取得作者授權。
+- 散佈原始碼、執行檔或修改版本時，必須附上授權條款或其官方網址，並保留 [NOTICE](NOTICE) 中所有 `Required Notice:` 作者與專案來源聲明。建置出的 App 已內附 `LICENSE` 與 `NOTICE`。
+- 授權另明文允許慈善、教育、公共研究、公共安全或衛生、環保及政府機構使用，不因資金來源而受限；完整範圍以授權原文為準。
+
+這是可取得原始碼的非商業授權，並非 OSI 定義的開源授權。本次變更適用於附帶此授權提供的版本；不撤回先前已依 MIT 授權取得之版本的權利。
 
 感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。

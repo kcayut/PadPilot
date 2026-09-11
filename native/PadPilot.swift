@@ -14,6 +14,18 @@ struct MenuRow: Codable {
     let enabled: Bool
     let checked: Bool
     let separator: Bool
+    var icon: String? = nil
+}
+
+func menuIcon(_ name: String) -> NSImage? {
+    let allowed = ["ipad", "physical", "virtual", "paused", "working", "warning"]
+    let name = allowed.contains(name) ? name : "warning"
+    let url = Bundle.main.resourceURL?.appendingPathComponent("menu-icons/\(name).png")
+    let image = url.flatMap { NSImage(contentsOf: $0) }
+        ?? NSImage(systemSymbolName: "display", accessibilityDescription: "PadPilot")
+    image?.isTemplate = true
+    image?.size = NSSize(width: 18, height: 18)
+    return image
 }
 
 struct MenuSnapshot: Codable {
@@ -63,6 +75,7 @@ func makeMenu(_ rows: [MenuRow], target: AnyObject, action: Selector, busy: Bool
         }
         let allowed = validAction(row.args)
         let item = NSMenuItem(title: row.title, action: allowed ? action : nil, keyEquivalent: "")
+        if let icon = row.icon { item.image = menuIcon(icon) }
         item.target = target
         item.representedObject = row.args
         item.isEnabled = row.enabled && (!busy || row.args.isEmpty || row.args.first == "gui")
@@ -133,14 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func setIcon(_ name: String) {
-        let allowed = ["ipad", "physical", "virtual", "paused", "working", "warning"]
-        let name = allowed.contains(name) ? name : "warning"
-        let url = Bundle.main.resourceURL?.appendingPathComponent("menu-icons/\(name).png")
-        let image = url.flatMap { NSImage(contentsOf: $0) }
-            ?? NSImage(systemSymbolName: "display", accessibilityDescription: "PadPilot")
-        image?.isTemplate = true
-        image?.size = NSSize(width: 18, height: 18)
-        statusItem.button?.image = image
+        statusItem.button?.image = menuIcon(name)
     }
 
     private func signature() -> String {
