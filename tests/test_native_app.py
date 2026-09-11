@@ -274,7 +274,10 @@ else: sys.exit(1)
                 self.assertEqual((user_data / 'config.json').read_text(), 'keep')
                 self.assertEqual(run.call_count, 1)
                 self.assertEqual(run.call_args.args[0][-1], 'exit')
-                self.assertEqual(bool(list((home / '.Trash').glob('*/padpilot-cli'))), own_link)
+                # Python 3.10's literal glob skips dangling links; inspect the link itself.
+                trash = home / '.Trash'
+                moved = [directory / shortcut.name for directory in trash.iterdir()] if trash.is_dir() else []
+                self.assertEqual(any(path.is_symlink() and path.readlink() == launcher for path in moved), own_link)
 
 
 if __name__ == '__main__':
