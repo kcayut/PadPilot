@@ -22,8 +22,9 @@ from core.config import Config, get_config_file_path, get_status_file_path, read
 from core.detector import DisplayDetector
 from core.logger import get_log_file_path
 from core.i18n import LANGUAGES, LANGUAGE_CODES, set_language, tr, tr_message
-from core.models import pairing_key
+from core.models import OperationMode, pairing_key
 from core.settings import is_virtual_device
+from core.storage import read_private_json, UnsafePathError
 
 ROOT = Path(__file__).resolve().parents[1]
 GITHUB_URL = 'https://github.com/kcayut/PadPilot'
@@ -114,12 +115,9 @@ def get_check_light(label: str, value: str) -> tuple[str, str]:
        any(k in lbl for k in ('人工確認', '滑鼠與鍵盤', '注意', '提示')):
         return 'pending', ORANGE
 
-    # FileVault special case: FileVault Off is desirable for headless boot
-    if 'filevault' in lbl.lower():
-        if '未開啟' in val or 'off' in val.lower():
-            return 'pass', GREEN
-        if '已開啟' in val or 'on' in val.lower():
-            return 'fail', RED
+    # Login security choices are informational, not installation requirements.
+    if 'filevault' in lbl.lower() or '自動登入' in lbl:
+        return 'pending', ORANGE
 
     # Explicit failure cases
     if any(k in val for k in ('未設定', '未啟用', '未回應', '未找到', '未在標準', '尚未配對', '未登錄', '設定異常', '不通過', '失敗', '錯誤')) or \
@@ -138,17 +136,19 @@ def read_view(scan: bool = False) -> dict:
     """Read-only view of configuration and hardware status."""
     path = get_config_file_path()
     cfg = Config()
+    config_error = ''
     if path.exists():
         try:
-            cfg = Config.from_dict(json.loads(path.read_text()))
-        except Exception:
-            cfg = Config()
+            cfg = Config.from_dict(read_private_json(path))
+        except (OSError, ValueError, TypeError, UnsafePathError):
+            cfg = Config(mode=OperationMode.MANUAL_ONLY, auto_detect_ipad=False, autostart_on_login=False)
+            config_error = tr('設定檔無法讀取；請修復或還原原檔。此視窗已停用設定儲存與控制。')
     status = read_status() or {}
     actual = status.get('actual', {})
     stamp = actual.get('timestamp', 0)
     fresh = isinstance(stamp, (int, float)) and 0 <= time.time() - stamp <= 120
     identifiers = []
-    if scan:
+    if scan and not config_error:
         bd = BetterDisplayCLI(cfg.betterdisplaycli_path)
         detector = DisplayDetector(cfg, bd)
         observed, _ = detector.observe()
@@ -171,6 +171,7 @@ def read_view(scan: bool = False) -> dict:
 
     return {
         'config': cfg,
+        'config_error': config_error,
         'actual': actual,
         'fresh': fresh,
         'identifiers': identifiers,
@@ -1416,8 +1417,8 @@ class SettingsWindow:
         cfg_row = tk.Frame(adv_body, bg=CARD_BG)
         cfg_row.pack(fill='x', pady=(4, 0))
         tk.Label(cfg_row, text=tr('設定檔位置：'), font=('Helvetica Neue', 10, 'bold'),
-                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left')
-        tk.Label(cfg_row, text=str(get_config_file_path()),
+                 fg=TEXT_PRIMARY, bg=CARD_BG).pack(side='left', anchor='n')
+        tk.Label(cfg_row, text=str(get_config_file_path()), wraplength=400, justify='left',
                  font=('Menlo', 9), fg=TEXT_SECONDARY, bg=CARD_BG).pack(side='left', padx=2)
 
     def render_displays_tab(self):
@@ -1848,6 +1849,7 @@ class SettingsWindow:
             if section not in view and hasattr(self, 'view'):
                 view[section] = self.view.get(section, [])
         self.view = view
+        self.readonly = bool(view.get('config_error'))
         cfg = view['config']
         language_changed = cfg.language != getattr(self, '_display_language', None)
         set_language(cfg.language)
@@ -1864,6 +1866,7 @@ class SettingsWindow:
             self.build_main_content()
         elif hasattr(self, 'header_language_picker') and self.header_language_picker.winfo_exists():
             self.header_language_picker.set(LANGUAGES.get(cfg.language, 'English'))
+            self.header_language_picker.state(['disabled'] if self.readonly else ['!disabled'])
         actual = view.get('actual', {})
 
         # Update sidebar summary labels
@@ -1887,7 +1890,9 @@ class SettingsWindow:
         self.usbs = [u for u in actual.get('usb_devices', []) if u.get('serial')]
 
         errors = actual.get('discovery_errors', {})
-        if errors:
+        if view.get('config_error'):
+            self.notice.configure(text=view['config_error'])
+        elif errors:
             self.notice.configure(text=tr('部分狀態未知：') + '；'.join(tr_message(v) for v in errors.values()))
         elif consistency == 'APPLYING_CONFIG':
             self.notice.configure(text=tr('正在套用新設定至硬體…'))
@@ -2036,6 +2041,8 @@ class SettingsWindow:
     def change(self, action: str, payload: dict):
         if self.readonly or self.busy:
             return
+        payload = dict(payload)
+        payload.setdefault('__expected_revision__', self.view['config'].revision)
 
         def work():
             message = send_change(action, payload)

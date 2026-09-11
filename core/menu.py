@@ -11,8 +11,9 @@ from pathlib import Path
 
 from core.i18n import LANGUAGES, set_language, tr
 from core.autostart import daemon_pids
-from core.models import pairing_key
-from core.storage import read_private_json, state_file_exists, UnsafePathError
+from core.config import Config
+from core.models import OperationMode, pairing_key
+from core.storage import latest_state_path, read_private_json, state_file_exists, UnsafePathError
 
 APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
@@ -21,14 +22,18 @@ PLIST_PATH = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.pli
 MODES = {"automatic": "自動", "manual_only": "僅手動", "prefer_ipad": "偏好 iPad"}
 
 
-def load_json(*paths: Path) -> dict:
-    for path in paths:
+def load_json(*paths: Path, strict=False) -> dict:
+    try:
+        path = latest_state_path(*paths)
         if path.exists():
-            try:
-                value = read_private_json(path)
-                return value if isinstance(value, dict) else {}
-            except (OSError, ValueError, UnsafePathError):
-                return {}
+            value = read_private_json(path)
+            if not isinstance(value, dict):
+                raise ValueError('Expected a JSON object')
+            return value
+    except (OSError, ValueError, UnsafePathError):
+        if strict:
+            raise
+        return {}
     return {}
 
 
@@ -230,7 +235,12 @@ def read_menu() -> dict:
                 return {'schema_version': 1, 'hidden': True, 'icon': 'paused', 'items': []}
         except (OSError, UnsafePathError):
             continue  # Untrusted fallback markers cannot hide the native app.
-    config = load_json(APP_SUPPORT / 'config.json', Path('/tmp/PadPilot/config.json'))
+    config_error = False
+    try:
+        config = Config.from_dict(load_json(APP_SUPPORT / 'config.json', Path('/tmp/PadPilot/config.json'), strict=True)).to_dict()
+    except (OSError, ValueError, UnsafePathError):
+        config = Config(mode=OperationMode.MANUAL_ONLY, auto_detect_ipad=False, autostart_on_login=False).to_dict()
+        config_error = True
     try:
         service_running = bool(daemon_pids())
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
@@ -240,7 +250,11 @@ def read_menu() -> dict:
         gui_available = True
     except (ImportError, OSError):
         gui_available = False
-    return render(load_status(), config, PLIST_PATH.is_file(), service_running=service_running,
+    status = load_status()
+    if config_error:
+        status = dict(status, actual=dict(status.get('actual') or {}, discovery_errors={
+            'config': 'Configuration unreadable; repair or restore the file before starting PadPilot.'}))
+    return render(status, config, PLIST_PATH.is_file(), service_running=service_running,
                   gui_available=gui_available)
 
 

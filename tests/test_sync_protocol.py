@@ -129,6 +129,7 @@ class SyncProtocolTests(unittest.TestCase):
         mock_path.read_text.return_value = json.dumps(cfg.to_dict())
 
         with patch("core.gui.get_config_file_path", return_value=mock_path), \
+             patch("core.gui.read_private_json", return_value=cfg.to_dict()), \
              patch("core.gui.read_status", return_value=stale_status.to_dict()):
             view = read_view(scan=False)
 

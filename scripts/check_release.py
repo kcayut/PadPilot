@@ -118,7 +118,8 @@ def main():
               'github': 'not_checked', 'stable_ready': False,
               'gate': 'software_only' if args.software_only else 'release'}
     commands = [('unit_tests', [sys.executable, '-W', 'always::ResourceWarning', '-m', 'unittest', 'discover', '-s', 'tests']),
-                ('shell_syntax', ['bash', '-n', 'scripts/install.sh', 'scripts/uninstall.sh']),
+                ('install_shell_syntax', ['bash', '-n', 'scripts/install.sh']),
+                ('uninstall_shell_syntax', ['bash', '-n', 'scripts/uninstall.sh']),
                 ('diff', ['git', 'diff', '--check']),
                 ('plist_lint', ['plutil', '-lint', 'launchd/com.padpilot.daemon.plist.in'])]
     if args.gui:

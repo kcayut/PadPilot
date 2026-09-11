@@ -289,8 +289,6 @@ class ControlsTests(unittest.TestCase):
             ('背景服務', '執行中'),
             ('BetterDisplay 安裝', '已安裝'),
             ('BetterDisplay 控制介面', '可用'),
-            ('macOS 自動登入', '已設定：testuser'),
-            ('FileVault', '未開啟'),
             ('虛擬備援螢幕', '已設定'),
             ('Sidecar 配對', '已設定 UUID'),
             ('BetterDisplay 登入啟動', '已啟用'),
@@ -307,8 +305,6 @@ class ControlsTests(unittest.TestCase):
             ('背景服務', '未回應／尚未啟動'),
             ('BetterDisplay 安裝', '未在標準應用程式位置找到'),
             ('BetterDisplay 控制介面', '未找到'),
-            ('macOS 自動登入', '未設定'),
-            ('FileVault', '已開啟；重新開機後需先解鎖磁碟'),
             ('虛擬備援螢幕', '未找到：PadPilotVirtual'),
             ('Sidecar 配對', '尚未配對'),
             ('BetterDisplay 登入啟動', '未啟用'),
@@ -320,6 +316,10 @@ class ControlsTests(unittest.TestCase):
 
         # Pending cases -> ORANGE
         for label, val in [
+            ('macOS 自動登入', '已設定：testuser'),
+            ('macOS 自動登入', '未設定'),
+            ('FileVault', '未開啟'),
+            ('FileVault', '已開啟；重新開機後需先解鎖磁碟'),
             ('BetterDisplay 登入啟動', '尚未驗證'),
             ('PadPilot 登入啟動', '尚未檢查'),
             ('BetterDisplay 登入啟動', '未知／受系統限制（請檢查登入項目）'),

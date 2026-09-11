@@ -79,7 +79,7 @@ PadPilot は **Apple Sidecar と BetterDisplay** を使う macOS 向けディス
 
 [kcayut/PadPilot](https://github.com/kcayut/PadPilot) は現在非公開で、アクセス権のあるアカウントだけが利用できます。正式な Release はまだありません。`--check` は依存関係の確認だけを行い、インストール、ユーザー設定の書き込み、サービス起動、画面変更はしません。Tk 不足は警告となり、設定画面への操作は無効になりますが、daemon、CLI、メニューは利用できます。同じ Python に対応する Tk を追加してください。
 
-インストーラーは macOS、Python バージョン、Swift コンパイラー、BetterDisplay と CLI 応答を検査します。Homebrew があれば確認後に BetterDisplay を導入できます（`--yes` で同意）。必須項目不足や CLI 検査失敗時は停止します。その後 `~/Applications/PadPilot.app` をビルド・インストールし、ペアリング、動作モード、ログイン時起動の設定を保持して、**サービスとメニューを再起動**します。初回はログイン時起動が有効です。daemon の応答を確認して初めて成功とし、起動失敗時は以前の LaunchAgent 設定の復元を試み、復元失敗も明示します。
+インストーラーは macOS、Python バージョン、Swift コンパイラー、BetterDisplay と CLI 応答を検査します。Homebrew があれば確認後に BetterDisplay を導入できます（`--yes` で同意）。必須項目不足や CLI 検査失敗時は停止します。その後 `~/Applications/PadPilot.app` をビルド・インストールし、ペアリング、動作モード、ログイン時起動の設定を保持して、**サービスとメニューを再起動**します。初回はログイン時起動が有効です。daemon の応答を確認して初めて成功とし、起動失敗時は以前のアプリ・LaunchAgent・導入前のサービス実行状態の復元を試み、復元失敗も明示します。
 
 CLI 応答だけでは、Pro ライセンス、Sidecar ペアリング、権限、実際の画面表示は検証できません。下記の設定と実機確認を行ってください。
 
@@ -196,7 +196,7 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 ./scripts/uninstall.sh
 ```
 
-サービスとメニューを停止し、このプロジェクトのアプリ、LaunchAgent、CLI ショートカットをゴミ箱へ移して状態スナップショットを消去します。設定、ログ、ソース、BetterDisplay、仮想画面は保持します。`./scripts/uninstall.sh --purge` は設定とログもゴミ箱へ移し、復元可能です。
+サービスとメニューを停止し、このプロジェクトのアプリ、LaunchAgent、CLI ショートカットをゴミ箱へ移して状態スナップショットを消去します。設定、ログ、ソース、BetterDisplay、仮想画面は保持します。`./scripts/uninstall.sh --purge` は設定（使用済みの `/tmp/PadPilot/config.json` 代替設定を含む）とログもゴミ箱へ移し、復元可能です。
 
 ## ドキュメントと貢献
 

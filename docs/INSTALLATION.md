@@ -39,10 +39,10 @@ xcrun --find swiftc
 安裝器會：
 
 1. 驗證 macOS 14+、Python 3.10+、Tk 是否可用、Swift 編譯器、BetterDisplay app 和 CLI 回應。若 BetterDisplay 缺失可詢問透過 Homebrew 安裝；拒絕、安裝失敗或 CLI 不可用就停止，不印出完成。
-2. 編譯並本機簽署 App，安裝至 `~/Applications/PadPilot.app`。
-3. 透過既有 CLI 停止舊服務，關閉舊原生選單，保留設定與配對。
+2. 編譯並本機簽署 App，準備安裝至 `~/Applications/PadPilot.app`。
+3. 停止前先記錄 LaunchAgent 與服務執行狀態；透過既有 CLI 停止舊服務與選單，再替換 App，保留設定與配對。
 4. 清理屬於此專案的舊版整合連結；移除項目放入垃圾桶，不更動其他應用程式。
-5. 按原本登入啟動偏好，呼叫共享的 `padpilot-cli autostart enable`，再啟動 Python 服務與原生選單。首次安裝預設開啟登入啟動。必須收到此專案 daemon 的結構化 socket 回應才成功；失敗會嘗試回復原 LaunchAgent 與設定，若回復也失敗則明確報錯，不假裝完成。獨立啟動失敗會終止本次建立的子程序。
+5. 按原本登入啟動偏好，呼叫 `padpilot-cli start`，由共享 autostart 流程啟動 Python 服務與原生選單。首次安裝預設開啟登入啟動。必須收到此專案 daemon 的結構化 socket 回應才成功；失敗會嘗試還原舊 App、LaunchAgent 與安裝前的服務執行狀態，若回復也失敗則明確報錯，不假裝完成。獨立啟動失敗會終止本次建立的子程序。
 6. 若 `~/bin` 存在且名稱未被占用，建立 CLI 快捷連結。
 
 App 記錄這次使用的 Python 及專案路徑。**請保留該 Python 環境與專案資料夾**；這版不是內含 Python 的獨立發行包。搬移後需重新安裝；安裝器會拒絕覆蓋屬於另一個專案路徑的同名 App／LaunchAgent，請先在原路徑解除安裝再搬移。正式公開的 Developer ID 簽署、公證與自動更新尚未包含。
@@ -63,6 +63,8 @@ open "$HOME/Applications/PadPilot.app"
 ```
 
 設定儲存於 `~/Library/Application Support/PadPilot/config.json`，既有配對不需重建。
+
+若主位置寫入失敗，會使用 `/tmp/PadPilot/config.json`。daemon、CLI、GUI、選單與安裝預檢均選擇兩個位置中最後寫入的檔案；狀態快照採相同規則。備援位於暫存目錄，請修復主位置的寫入問題，勿把它當作長期備份。損壞的設定不會自動重設或覆寫：服務拒絕啟動，GUI 顯示錯誤並停用儲存；請先備份原檔，再修復 JSON 或還原已知有效設定。
 
 ## 更新與回復
 
@@ -105,4 +107,4 @@ python3 scripts/check_release.py --gui
 ./scripts/uninstall.sh --purge
 ```
 
-標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者移到垃圾桶，可復原。原始碼、BetterDisplay、其他應用程式及虛擬螢幕均不刪除。
+標準解除安裝停止本專案服務與選單，將 App、LaunchAgent 和屬於此專案的 CLI 連結移到垃圾桶，清除狀態快照。設定與日誌保留；`--purge` 另將兩者與曾使用的 `/tmp/PadPilot/config.json` 備援設定移到垃圾桶，可復原。原始碼、BetterDisplay、其他應用程式及虛擬螢幕均不刪除。

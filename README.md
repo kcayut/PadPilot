@@ -79,7 +79,7 @@ PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器
 
 GitHub 倉庫為 [kcayut/PadPilot](https://github.com/kcayut/PadPilot)，目前是私人倉庫，僅受邀帳號可存取，尚無正式 Release。`--check` 只檢查依賴，不安裝、不寫入使用者設定、不啟動服務或切換螢幕。Tk 缺失是警告：daemon、CLI 與原生選單仍可使用，設定視窗入口會停用；請補上同一個 Python 的 Tk 支援。
 
-安裝腳本會驗證 macOS、Python 版本、Swift 編譯器、BetterDisplay app 及 CLI 回應；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。缺少必要依賴或 CLI 檢查失敗會停止。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動；服務握手成功後才回報安裝完成，啟動失敗會嘗試回復原 LaunchAgent 設定，回復失敗也會明確報錯。
+安裝腳本會驗證 macOS、Python 版本、Swift 編譯器、BetterDisplay app 及 CLI 回應；若有 Homebrew，可依提示安裝 BetterDisplay，加上 `--yes` 可自動同意。缺少必要依賴或 CLI 檢查失敗會停止。接著編譯並安裝 `~/Applications/PadPilot.app`，保留配對、模式與登入啟動偏好，並**重新啟動背景服務與原生選單**。首次安裝預設啟用使用者登入時啟動；服務握手成功後才回報安裝完成，啟動失敗會嘗試還原舊 App、LaunchAgent 與安裝前的服務執行狀態，回復失敗也會明確報錯。
 
 CLI 可回應不代表 Pro 授權、Sidecar 配對、權限或實際顯示已驗證；仍需完成下方配對與實機確認。
 
@@ -196,7 +196,7 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 ./scripts/uninstall.sh
 ```
 
-預設會停止背景服務與原生選單，將此專案的 App、LaunchAgent 與 CLI 快捷連結移到垃圾桶，清除狀態快照；保留設定、日誌、專案及 BetterDisplay／虛擬螢幕。`./scripts/uninstall.sh --purge` 會另外將設定與日誌移到垃圾桶，可復原。
+預設會停止背景服務與原生選單，將此專案的 App、LaunchAgent 與 CLI 快捷連結移到垃圾桶，清除狀態快照；保留設定、日誌、專案及 BetterDisplay／虛擬螢幕。`./scripts/uninstall.sh --purge` 會另外將設定（包含曾使用的 `/tmp/PadPilot/config.json` 備援）與日誌移到垃圾桶，可復原。
 
 ## 文件與貢獻
 

@@ -113,6 +113,7 @@ class ActualState:
     sidecar_available: bool = False
     sidecar_connected: bool = False
     sidecar_display_online: bool = False
+    sidecar_display_id: Optional[int] = None
     sleeping: bool = False
     topology_generation: int = 0
     timestamp: float = field(default_factory=time.time)
@@ -132,6 +133,7 @@ class ActualState:
             "sidecar_available": self.sidecar_available,
             "sidecar_connected": self.sidecar_connected,
             "sidecar_display_online": self.sidecar_display_online,
+            "sidecar_display_id": self.sidecar_display_id,
             "sleeping": self.sleeping,
             "topology_generation": self.topology_generation,
             "timestamp": self.timestamp,

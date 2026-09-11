@@ -71,7 +71,7 @@ class MenuPairingTests(unittest.TestCase):
                 probe = MagicMock(side_effect=pids) if isinstance(pids, Exception) else MagicMock(return_value=pids)
                 draw = MagicMock()
                 with patch('pathlib.Path.exists', return_value=False), \
-                     patch.dict(read_menu.__globals__, daemon_pids=probe, load_json=lambda *a: {},
+                     patch.dict(read_menu.__globals__, daemon_pids=probe, load_json=lambda *a, **kw: {},
                                 load_status=lambda: {}, render=draw):
                     read_menu()
                 self.assertIs(draw.call_args.kwargs['service_running'], expected)

@@ -13,9 +13,9 @@ PadPilot runs as a local macOS background daemon that interacts with user sessio
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-If you discover a security vulnerability or privilege escalation issue in PadPilot:
-1. Please report it privately using **GitHub's Private Vulnerability Reporting** feature via the "Security" tab on GitHub repository (`https://github.com/kcayut/PadPilot/security/advisories/new`).
-2. Alternatively, reach out directly to the maintainer via GitHub profile contact.
+**Private reporting is not yet available.** This early preview has no confirmed private reporting URL or published maintainer email. Do not assume that the repository's Security tab or a GitHub profile provides a private contact channel.
+
+Invited preview users should use their existing private contact with the maintainer to arrange a confidential report. If you do not have that contact, retain the details privately until a verified channel is published here. Enabling and verifying that channel is required before public release.
 
 ### What information to include:
 - A clear description of the vulnerability.
@@ -23,4 +23,4 @@ If you discover a security vulnerability or privilege escalation issue in PadPil
 - The affected macOS version, architecture (Apple Silicon), and PadPilot version.
 - Potential impact or mitigation if known.
 
-We will acknowledge receipt within 48 hours and work on a fix as quickly as possible.
+Response-time commitments will be published with the verified reporting channel.

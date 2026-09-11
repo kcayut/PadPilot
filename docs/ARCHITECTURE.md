@@ -60,3 +60,9 @@ Tk settings GUI ─────────────→ shared CLI/config tra
 啟用自動偵測時，偵測器優先沿用具有 Sidecar UUID 的指定配對，不要求 USB 在場，也不因候選暫時消失而更換身份；未指定有效配對時才以 USB 唯一候選推定。選取結果放入 `ActualState.resolved_ipad`；連線、中斷、重新連線與主螢幕切換共用該目標。USB 序號與 Sidecar UUID 納入拓撲簽章，換裝置後既有覆寫失效。推定不寫入 Config 或配對清單；不完整查詢及歧義不允許發起 iPad 連線。已存 USB／Sidecar 對應優先；無對應時以唯一候選推定，無法證明兩種識別屬於同一裝置。GUI／選單列呈現本次目標，指定配對卡片可直接控制，送出前重新確認設定目標；其他配對需先設為控制目標。
 
 原生通知 API 核對來源：[Apple IOServiceAddMatchingNotification](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification) 與本機 macOS SDK `IOKitLib.h`。即時的是通知與喚醒，Sidecar 完成連線仍受探索、既有操作、重試與防抖影響。
+
+## 設定一致性與未知狀態
+
+主設定／狀態檔與 `/tmp/PadPilot` 備援共用最後寫入時間的選擇規則，讀取前驗證路徑所有者與檔案型態。設定解析失敗會拒絕啟動，不自動套用預設值；GUI 停用儲存並保留原檔。GUI 設定交易送出 `expected_revision`，名稱草稿保留開始編輯時的版本，衝突時需重新檢視後再儲存。
+
+偵測器只在執行期間保留已確認的 Sidecar session UUID／display UUID 對應；探索清單消失時仍使用該對應，目標改變或連線確認關閉時清除。`ActualState.sidecar_display_id` 供主螢幕選擇與滿足條件共用。已連線但無法確認顯示身分時標示未知並保留目前畫面；同輪 identifiers 查詢後來成功也不會抹除先前失敗。

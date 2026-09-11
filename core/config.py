@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -15,7 +16,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 from core.logger import get_logger
-from core.storage import atomic_write, private_directory, read_private_json
+from core.storage import atomic_write, latest_state_path, private_directory, read_private_json
 from core.models import (
     DEFAULT_VIRTUAL_DISPLAY_NAME,
     IpadConfig,
@@ -95,11 +96,38 @@ class Config:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Config:
+        if not isinstance(data, dict):
+            raise ValueError('Configuration must be a JSON object')
+        profiles = data.get('paired_ipads', [])
+        if not isinstance(profiles, list):
+            raise ValueError('paired_ipads must be a list')
+        for profile in [data.get('ipad', {}), *profiles]:
+            if not isinstance(profile, dict) or any(
+                not isinstance(profile.get(key, ''), str) or len(profile.get(key, '')) > 256
+                or any(ord(c) < 32 for c in profile.get(key, ''))
+                for key in ('name', 'sidecar_uuid', 'usb_serial')
+            ):
+                raise ValueError('Invalid iPad configuration')
+        for key in ('autostart_on_login', 'usb_event_wakeup', 'auto_detect_ipad'):
+            if key in data and type(data[key]) is not bool:
+                raise ValueError(f'{key} must be a boolean')
+        for key in ('debounce_seconds', 'retry_interval', 'cooldown_seconds', 'updated_at', 'max_retries', 'revision'):
+            if key not in data:
+                continue
+            value = data[key]
+            if (type(value) not in (int, float) or not math.isfinite(value) or value < 0
+                    or (key in ('max_retries', 'revision') and (type(value) is not int or value < 1))):
+                raise ValueError(f'Invalid {key}')
+        if not isinstance(data.get('ignore_list', []), list) or any(
+            not isinstance(item, str) for item in data.get('ignore_list', [])
+        ):
+            raise ValueError('ignore_list must contain strings')
+        if not isinstance(data.get('virtual_display_name', DEFAULT_VIRTUAL_DISPLAY_NAME), str):
+            raise ValueError('Invalid virtual_display_name')
+        if data.get('betterdisplaycli_path') is not None and not isinstance(data['betterdisplaycli_path'], str):
+            raise ValueError('Invalid betterdisplaycli_path')
         mode_str = data.get("mode", OperationMode.AUTOMATIC.value)
-        try:
-            mode = OperationMode(mode_str)
-        except ValueError:
-            mode = OperationMode.AUTOMATIC
+        mode = OperationMode(mode_str)
 
         ipad_data = data.get("ipad", {})
         ipad = IpadConfig(
@@ -215,16 +243,8 @@ def detect_system_language() -> str:
 
 def load_config() -> Config:
     """Load config from ~/Library/Application Support/PadPilot/config.json with /tmp fallback."""
-    primary_file = CONFIG_FILE
-    fallback_file = FALLBACK_CONFIG_FILE
-
-    target_file = None
-    if primary_file.exists():
-        target_file = primary_file
-    elif fallback_file.exists():
-        target_file = fallback_file
-
-    if target_file is None:
+    target_file = get_config_file_path()
+    if not target_file.exists():
         cfg = Config(language=detect_system_language())
         save_config(cfg)
         return cfg
@@ -233,8 +253,8 @@ def load_config() -> Config:
         data = read_private_json(target_file)
         return Config.from_dict(data)
     except (OSError, ValueError, TypeError, KeyError) as e:
-        logger.error(f"Failed to read {target_file}, loading default: {e}")
-        return Config()
+        raise ValueError(f'Cannot load configuration: {target_file}. '
+                         'Repair or restore this file before starting PadPilot; no defaults were applied.') from e
 
 
 def save_config(cfg: Config) -> None:
@@ -260,24 +280,20 @@ def write_atomic_status(snapshot: StatusSnapshot) -> None:
 
 def read_status() -> Optional[dict[str, Any]]:
     """Read the latest status snapshot. Returns None if missing or corrupted."""
-    target_file = None
-    if STATUS_FILE.exists():
-        target_file = STATUS_FILE
-    elif Path("/tmp/PadPilot/runtime/status.json").exists():
-        target_file = Path("/tmp/PadPilot/runtime/status.json")
-
-    if not target_file:
-        return None
     try:
-        return read_private_json(target_file)
+        target_file = get_status_file_path()
+        if not target_file.exists():
+            return None
+        value = read_private_json(target_file)
+        return value if isinstance(value, dict) else None
     except (OSError, ValueError) as e:
-        logger.warning(f"Could not read {target_file}: {e}")
+        logger.warning(f"Could not read status: {e}")
         return None
 
 
 def get_status_file_path() -> Path:
-    return STATUS_FILE
+    return latest_state_path(STATUS_FILE, FALLBACK_DIR / 'runtime/status.json')
 
 
 def get_config_file_path() -> Path:
-    return CONFIG_FILE
+    return latest_state_path(CONFIG_FILE, FALLBACK_CONFIG_FILE)

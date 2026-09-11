@@ -12,7 +12,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from core.betterdisplay import BetterDisplayCLI
-from core.storage import UnsafePathError, private_file
+from core.storage import UnsafePathError, latest_state_path, private_file
 
 
 def check():
@@ -41,6 +41,7 @@ def check():
     cfg_file = Path.home() / 'Library/Application Support/PadPilot/config.json'
     custom = None
     try:
+        cfg_file = latest_state_path(cfg_file, Path('/tmp/PadPilot/config.json'))
         if cfg_file.exists() or cfg_file.is_symlink():
             info = cfg_file.parent.lstat()
             if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():

@@ -38,6 +38,8 @@ PadPilot 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段�
 
 **安裝不要求關閉 FileVault 或開啟自動登入。** 這些設定會影響資料與帳號安全，也不能保證 Sidecar 在數秒內連線；不要為通過檢查而降低系統安全性。
 
+診斷中的 FileVault 與 macOS 自動登入皆以橘色資訊提示呈現，不判為安裝通過或失敗。
+
 ---
 
 <a id="sidecar-session"></a>

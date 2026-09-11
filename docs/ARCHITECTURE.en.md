@@ -59,3 +59,9 @@ Automatic detection first uses an explicitly selected pairing with a Sidecar UUI
 Inference does not write Config or the pairing list. Incomplete queries or ambiguous candidates prevent connection attempts. Saved USB/Sidecar mappings take priority; otherwise, unique candidates are a heuristic, not proof of matching hardware identity. The GUI and menu show the current target. Controls on the selected pairing recheck the target before dispatch; other pairings must first become the control target.
 
 Native notification references: [Apple IOServiceAddMatchingNotification](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification) and the local macOS SDK `IOKitLib.h`. Notifications and wakeups are immediate; Sidecar completion still depends on discovery, existing operations, retries, and debounce.
+
+## Configuration consistency and unknown state
+
+Primary configuration/status files and `/tmp/PadPilot` fallbacks share last-write-time selection, with ownership and file-type checks before reading. Invalid configuration prevents startup instead of applying defaults; the GUI disables saving and preserves the original file. GUI transactions send `expected_revision`; rename drafts retain their editing-start revision and require review after a conflict.
+
+The detector keeps a verified Sidecar session UUID/display UUID mapping only for its current process. It reuses the mapping during discovery loss and clears it when the target changes or disconnection is confirmed. `ActualState.sidecar_display_id` is shared by main-display selection and satisfaction checks. A connected session with an unidentified display is unknown and leaves displays unchanged. A later successful identifiers query does not erase an earlier failure in the same observation.

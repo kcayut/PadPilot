@@ -59,3 +59,9 @@ USB、画面イベント、30 秒ごとの watchdog が同時に到着しても�
 推定では Config やペアリング一覧を書き換えません。照会が不完全、または候補が曖昧なら接続を開始しません。保存済み USB/Sidecar 対応を優先し、なければ単一候補を推定しますが、同一機器である証明にはなりません。GUI とメニューは今回の対象を表示し、指定済みペアリングの操作は送信前に再確認します。他のペアリングは先に操作対象へ設定する必要があります。
 
 通知 API の参照先：[Apple IOServiceAddMatchingNotification](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification) とローカル macOS SDK の `IOKitLib.h`。即時なのは通知と評価の起動であり、Sidecar 接続完了は探索、実行中の操作、再試行、デバウンスにも左右されます。
+
+## 設定の整合性と不明な状態
+
+主設定・状態ファイルと `/tmp/PadPilot` の代替先は、最終書き込み時刻による選択規則を共用し、読み取り前に所有者とファイル種別を確認します。無効な設定では既定値を適用せず起動を拒否し、GUI は保存を無効化して原本を保持します。GUI 取引は `expected_revision` を送り、名前の下書きは編集開始時の版を保持します。競合後は再確認して保存します。
+
+検出器は確認済みの Sidecar session UUID と display UUID の対応を実行中だけ保持します。探索候補が消失しても対応を使い、対象変更または切断確認時に消去します。`ActualState.sidecar_display_id` をメイン画面選択と充足判定で共用します。接続中でも画面を識別できない場合は不明として現在の表示を維持します。同じ観測内で後の identifiers 照会が成功しても、先の失敗は消去しません。

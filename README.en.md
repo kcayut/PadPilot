@@ -79,7 +79,7 @@ First verify that Sidecar works manually through macOS Screen Mirroring, then se
 
 The [kcayut/PadPilot repository](https://github.com/kcayut/PadPilot) is currently private and requires access; no formal Release is available yet. `--check` only inspects dependencies: no installation, user-state writes, service startup, or display changes. Missing Tk is a warning: daemon, CLI, and native menu remain usable, while settings-window actions are disabled. Install matching Tk support for the same Python to use the GUI.
 
-The installer validates macOS, Python version, the Swift compiler, BetterDisplay app, and a CLI response. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). Missing required dependencies or failed CLI checks stop installation. It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login. Installation succeeds only after a daemon handshake; failed startup attempts to restore the prior LaunchAgent configuration and explicitly reports any rollback failure.
+The installer validates macOS, Python version, the Swift compiler, BetterDisplay app, and a CLI response. With Homebrew, it can install BetterDisplay after confirmation (`--yes` accepts). Missing required dependencies or failed CLI checks stop installation. It builds `~/Applications/PadPilot.app`, preserves pairings, mode, and login preferences, and **restarts the service and native menu**. A first install enables startup at user login. Installation succeeds only after a daemon handshake; failed startup attempts to restore the previous app, LaunchAgent, and pre-install service running state and explicitly reports any rollback failure.
 
 A CLI response does not verify the Pro license, Sidecar pairing, permissions, or an actual working display. Complete pairing and physical validation below.
 
@@ -196,7 +196,7 @@ Private directories use `0700`; configuration, status, sockets, and logs use `06
 ./scripts/uninstall.sh
 ```
 
-By default, this stops the service and menu, moves this checkout’s app, LaunchAgent, and CLI shortcut to Trash, and clears status snapshots. Configuration, logs, source, BetterDisplay, and virtual displays are preserved. Use `./scripts/uninstall.sh --purge` to also move configuration and logs to Trash; these removals are recoverable.
+By default, this stops the service and menu, moves this checkout’s app, LaunchAgent, and CLI shortcut to Trash, and clears status snapshots. Configuration, logs, source, BetterDisplay, and virtual displays are preserved. Use `./scripts/uninstall.sh --purge` to also move configuration (including any `/tmp/PadPilot/config.json` fallback) and logs to Trash; these removals are recoverable.
 
 ## Documentation and contributing
 

@@ -371,4 +371,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (OSError, ValueError) as error:
+        logger.error(f'PadPilot could not start: {error}')
+        sys.exit(1)

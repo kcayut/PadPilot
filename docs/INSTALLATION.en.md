@@ -39,10 +39,10 @@ Run from the project directory:
 The installer:
 
 1. Checks macOS 14+, Python 3.10+, Tk availability, the Swift compiler, BetterDisplay, and its CLI response. If BetterDisplay is missing, it can offer Homebrew installation. Refusal, installation failure, or an unusable CLI stops the process without claiming success.
-2. Compiles and locally signs the app, then installs it in `~/Applications/PadPilot.app`.
-3. Stops the previous service through the shared CLI, closes the previous native menu, and preserves settings and pairings.
+2. Compiles and locally signs the app, and stages it for installation in `~/Applications/PadPilot.app`.
+3. Records the LaunchAgent and running state before stopping the previous service and menu through the shared CLI, then replaces the app while preserving settings and pairings.
 4. Cleans up old integration links owned by this checkout, moving removed items to Trash without modifying other apps.
-5. Preserves the launch-at-login preference and uses the shared `padpilot-cli autostart enable` flow when enabled, then starts the Python service and menu. A first installation enables launch at login. Success requires a structured socket reply from this checkout's daemon. Failure attempts to restore the prior LaunchAgent and settings; incomplete rollback is explicitly reported. A failed standalone start terminates the child it created.
+5. Preserves the launch-at-login preference and calls `padpilot-cli start`, which uses shared autostart to start the Python service and menu. A first installation enables launch at login. Success requires a structured socket reply from this checkout's daemon. Failure attempts to restore the previous app, LaunchAgent, and pre-install service running state; incomplete rollback is explicitly reported. A failed standalone start terminates the child it created.
 6. Creates a CLI shortcut if `~/bin` exists and the name is available.
 
 The app records the selected Python and source paths. **Keep that Python environment and source folder in place.** Python is not bundled. Reinstall after moving them; the installer refuses to overwrite an app or LaunchAgent owned by another checkout. Uninstall from the original location before moving. Developer ID signing, notarization, and automatic updates are not included.
@@ -63,6 +63,8 @@ Choose Settings & Pairing to discover devices, save pairings, and select the con
 ```
 
 Configuration is stored in `~/Library/Application Support/PadPilot/config.json`. Existing pairings are preserved.
+
+If writing there fails, PadPilot uses `/tmp/PadPilot/config.json`. The daemon, CLI, GUI, menu, and installer preflight select the most recently written file across both locations; status snapshots follow the same rule. The fallback is temporary storage, not a durable backup: repair the primary location's write access. Invalid configuration is never reset or overwritten automatically. Service startup fails, and the GUI reports an error and disables saving. Back up the original file, then repair its JSON or restore a known valid configuration.
 
 ## Update and restore
 
@@ -105,4 +107,4 @@ Local release checks also cover shell syntax, plist validity, version consistenc
 ./scripts/uninstall.sh --purge
 ```
 
-Standard removal stops this checkout's service and menu, moves its app, LaunchAgent, and CLI link to Trash, and clears status snapshots. Configuration and logs remain; `--purge` also moves both to Trash and is recoverable. Source, BetterDisplay, other apps, and virtual displays are preserved.
+Standard removal stops this checkout's service and menu, moves its app, LaunchAgent, and CLI link to Trash, and clears status snapshots. Configuration and logs remain; `--purge` also moves both and any `/tmp/PadPilot/config.json` fallback configuration to Trash and is recoverable. Source, BetterDisplay, other apps, and virtual displays are preserved.

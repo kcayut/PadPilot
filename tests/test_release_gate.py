@@ -13,6 +13,24 @@ from scripts import check_release
 
 
 class ReleaseGateTests(unittest.TestCase):
+    def test_uninstall_syntax_failure_blocks_the_software_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'scripts').mkdir()
+            (root / 'scripts/install.sh').write_text('#!/bin/bash\nexit 0\n')
+            (root / 'scripts/uninstall.sh').write_text('#!/bin/bash\nif then\n')
+            real_run = subprocess.run
+            def run(command, **kwargs):
+                return real_run(command, **kwargs) if command[0] == 'bash' else subprocess.CompletedProcess(command, 0, '', '')
+            with patch.object(check_release, 'ROOT', root), patch.object(check_release, 'check_versions'), \
+                 patch.object(check_release, 'scan_privacy', return_value={'tree': [], 'history': []}), \
+                 patch.object(check_release.subprocess, 'run', side_effect=run), \
+                 patch.object(sys, 'argv', ['check_release.py', '--software-only']), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(check_release.main(), 1)
+            checks = json.loads((root / 'build/release-check.json').read_text())['checks']
+            self.assertEqual(checks['install_shell_syntax'], 'pass')
+            self.assertEqual(checks['uninstall_shell_syntax'], 'fail')
+
     def test_history_exceptions_are_exact_and_never_hide_current_files(self):
         private_path = '/Users/' + 'sample-person/project'
         accepted = sorted(check_release.ACCEPTED_HISTORY)

@@ -10,6 +10,27 @@ class UnsafePathError(RuntimeError):
     pass
 
 
+def latest_state_path(*paths: Path) -> Path:
+    """Select the last atomic write, including fallback, without changing files."""
+    existing = []
+    for path in dict.fromkeys(paths):
+        parents = [path.parent.parent, path.parent] if path.parent.name == 'runtime' else [path.parent]
+        for parent in parents:
+            try:
+                info = parent.lstat()
+            except FileNotFoundError:
+                break
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                raise UnsafePathError(f'Refusing unsafe state directory: {parent}')
+        else:
+            private_file(path, harden=False)
+            try:
+                existing.append((path.stat().st_mtime_ns, path))
+            except FileNotFoundError:
+                pass
+    return max(existing, key=lambda item: item[0])[1] if existing else paths[0]
+
+
 def private_directory(path: Path) -> None:
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = path.lstat()

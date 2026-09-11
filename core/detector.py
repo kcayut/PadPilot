@@ -28,6 +28,7 @@ class DisplayDetector:
         self.config = config
         self.bd_cli = bd_cli
         self._cg = self._init_coregraphics()
+        self._sidecar_display_identity = None
 
     def _init_coregraphics(self) -> Optional[ctypes.CDLL]:
         try:
@@ -65,8 +66,8 @@ class DisplayDetector:
                 d_id = str(item.get("displayID", ""))
                 if d_id:
                     bd_map[d_id] = item
-        except Exception:
-            pass
+        except Exception as error:
+            self.bd_cli.identifiers_error = str(error)
 
         displays: List[DisplayInfo] = []
         for i in range(count.value):
@@ -236,6 +237,7 @@ class DisplayDetector:
         """
         t0 = time.time()
         all_displays = self.get_online_displays()
+        identifiers_error = getattr(self.bd_cli, 'identifiers_error', '')
         usb_devices = self.parse_usb_devices()
 
         # Check virtual display
@@ -259,6 +261,10 @@ class DisplayDetector:
             target_name = targets[0]["name"]
         session_connected = (self.bd_cli.get_sidecar_connected(target_sidecar_uuid or target_name)
                              if target_sidecar_uuid or target_name else False)
+        cached = self._sidecar_display_identity
+        if session_connected is False or (cached and cached[0] != target_sidecar_uuid.casefold()):
+            self._sidecar_display_identity = cached = None
+        matched_displays = []
         if self.config.auto_detect_ipad and not target_sidecar_uuid:
             sidecar_available = False
 
@@ -297,11 +303,12 @@ class DisplayDetector:
                     not (target_sidecar_uuid or target_name)
                     or (d.uuid and target_sidecar_uuid and d.uuid.upper() == target_sidecar_uuid.upper())
                     or (target_name and d_name_lower == target_name.lower() and
+                        (not target_sidecar_uuid or len(targets) == 1) and
                         sum(s.get("name", "").casefold() == target_name.casefold() for s in sidecar_list) <= 1)
+                    or (cached and d.uuid and d.uuid == cached[1])
                 )
                 if matches_target:
-                    sidecar_display_online = True
-                    sidecar_connected = True
+                    matched_displays.append(d)
                 continue
 
             if d.is_virtual or self.is_display_ignored(d):
@@ -310,10 +317,18 @@ class DisplayDetector:
 
             physical_displays.append(d)
 
+        sidecar_display_online = len(matched_displays) == 1
+        sidecar_connected = sidecar_display_online
         if isinstance(session_connected, bool):
             sidecar_connected = session_connected
             if not session_connected:
                 sidecar_display_online = False
+        sidecar_display_id = matched_displays[0].display_id if sidecar_display_online else None
+        if sidecar_display_online and target_sidecar_uuid and matched_displays[0].uuid:
+            self._sidecar_display_identity = (target_sidecar_uuid.casefold(), matched_displays[0].uuid)
+        identity_error = ''
+        if session_connected is True and not sidecar_display_online and any(d.is_sidecar for d in all_displays):
+            identity_error = 'Cannot identify the connected Sidecar display; keeping current displays.'
 
         # Deterministic topology signature per requirement 1:
         # Tuple of (tuple of sorted physical display IDs, ipad_usb_present)
@@ -337,7 +352,9 @@ class DisplayDetector:
                 ("usb", getattr(self, "usb_error", "")),
                 ("sidecar", getattr(self.bd_cli, "sidecar_error", "")),
                 ("sidecar_connection", getattr(self.bd_cli, "connection_error", "")),
-                ("identifiers", getattr(self.bd_cli, "identifiers_error", "")),
+                ("sidecar_identity", identity_error),
+                ("identifiers", identifiers_error if isinstance(identifiers_error, str) and identifiers_error
+                 else getattr(self.bd_cli, "identifiers_error", "")),
             ) if isinstance(error, str) and error},
             main_display=main_display,
             virtual_display_exists=v_exists,
@@ -346,6 +363,7 @@ class DisplayDetector:
             sidecar_available=sidecar_available,
             sidecar_connected=sidecar_connected,
             sidecar_display_online=sidecar_display_online,
+            sidecar_display_id=sidecar_display_id,
             sleeping=False,
             topology_generation=current_generation,
             timestamp=time.time(),

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Restore the previous app, LaunchAgent, and pre-install running state after installation failure; purge recoverable fallback configuration too.
+- Share latest-file selection across primary/fallback readers and installer preflight; reject malformed configuration without silently enabling automation or overwriting the original.
+- Preserve verified Sidecar session/display identity during discovery loss, retain errors across repeated identifier queries, and avoid switching displays when identity is unknown.
+- Send GUI configuration revisions for optimistic concurrency; preserve the original revision of unsaved rename drafts.
+- Treat FileVault and automatic login as informational checks, interpolate virtual-display names correctly, and check both shell scripts independently in release gates.
+- Align the PR privacy checklist with the documented release scanner.
+
 ### Changed
 - Added a localized About page with the shared version, GitHub link, and disabled Buy Me a Coffee/PayPal placeholders until recipient URLs are configured; moved the version out of the sidebar.
 - Settings GUI displays the shared application version; usage and diagnostic help links open bundled guides in the selected language.

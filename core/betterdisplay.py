@@ -296,7 +296,7 @@ class BetterDisplayCLI:
         if not self.capabilities.virtual_creation_supported:
             msg = (
                 f"Virtual display '{name}' not found and CLI creation not supported in this version. "
-                "Please open BetterDisplay Settings and create a Virtual Screen named '{name}' once."
+                f"Please open BetterDisplay Settings and create a Virtual Screen named '{name}' once."
             )
             logger.warning(msg)
             return False, msg

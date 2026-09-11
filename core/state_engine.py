@@ -35,7 +35,7 @@ from core.notifier import notify_error
 
 logger = get_logger("StateEngine")
 # A notification-registration failure does not invalidate a successful watchdog scan.
-STATE_QUERY_ERRORS = {"usb", "displays", "identifiers", "sidecar", "sidecar_connection"}
+STATE_QUERY_ERRORS = {"usb", "displays", "identifiers", "sidecar", "sidecar_connection", "sidecar_identity"}
 
 
 class StateEngine:
@@ -191,7 +191,9 @@ class StateEngine:
             # Satisfied if Sidecar is connected, display is online, and main is Sidecar/iPad
             if not (actual.sidecar_connected and actual.sidecar_display_online):
                 return False
-            return bool(actual.main_display and actual.main_display.is_sidecar)
+            return bool(actual.main_display and actual.main_display.is_sidecar and
+                        (actual.sidecar_display_id is None or
+                         actual.main_display.display_id == actual.sidecar_display_id))
 
         if target == DisplayRole.IPAD_SECONDARY:
             # Satisfied if Sidecar is connected and online, but NOT main
@@ -439,6 +441,10 @@ class StateEngine:
 
     def _set_main_display(self, actual: ActualState, target_name: str) -> bool:
         if target_name == "ipad":
+            if actual.sidecar_display_id is not None:
+                matches = [d for d in actual.online_displays if d.is_sidecar and
+                           d.display_id == actual.sidecar_display_id]
+                return len(matches) == 1 and self.bd_cli.set_main_display(matches[0].uuid or matches[0].name)
             target = self.target_ipad(actual)
             live_names = [d.get("name") for d in actual.sidecar_devices
                           if d.get("uuid", "").casefold() == target.sidecar_uuid.casefold()]

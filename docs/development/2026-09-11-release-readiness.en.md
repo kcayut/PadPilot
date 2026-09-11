@@ -73,3 +73,13 @@ Record Mac/macOS/iPadOS, cable/hub, BetterDisplay version, and pairing method fi
 | Reconnect physical monitor | Automatic mode returns stably to a physical main display | unknown |
 
 For each, retain `padpilot-cli status --json` before/after/after stabilization, relevant logs, timestamps, and the actual visible result. Raw evidence may contain personal information; keep it in ignored local `build/` or another private folder and redact before publishing. Software does not unplug cables, sleep, or restart the Mac on the user's behalf.
+
+## Repairs after the final review (2026-09-11)
+
+Fixed installer rollback losing the pre-stop running state, inconsistent primary/fallback reads, malformed configuration silently enabling automation, incorrect Sidecar display identity, overwritten identifiers errors, missing GUI revision checks, fallback configuration omitted from purge, FileVault diagnostic grading, the unchecked uninstall script, and virtual-display hint interpolation. The PR template now uses the existing privacy gate. Installation, architecture, and troubleshooting guides were updated in all three languages. Long configuration paths wrap within the minimum window.
+
+178 unit tests passed without ResourceWarning, along with the 840px widget/focus/draft/scroll checks and three-language GUI checks. Installation rollback uses temporary user directories and fake services, covering launchd, standalone, and previously stopped states; no live installation or service was changed. Both shell scripts were checked separately; plist, version, and diff checks passed. Privacy results: tree=0, history=0, accepted_history=6. These source changes have not been deployed or pushed.
+
+The complete `check_release.py --gui` passed with isolated user directories; 34 tracked Markdown files had no broken local links. Read-only GitHub queries confirmed that the repository is still private; the private-reporting API returned 404, so a working reporting endpoint could not be verified.
+
+The security policy no longer directs reporters to an unenabled feature or an unspecified profile contact. A publishable maintainer email or working private-reporting URL is still required; private reporting and public release remain not ready. macOS 14 and physical acceptance remain `unknown`; `stable_ready` remains false.

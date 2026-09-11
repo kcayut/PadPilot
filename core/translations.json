@@ -1676,6 +1676,20 @@
     "en": "Donation links are coming soon. Thank you for your support.",
     "ja": "寄付リンクは準備中です。応援ありがとうございます。"
   },
+  "設定檔無法讀取；請修復或還原原檔。此視窗已停用設定儲存與控制。": {
+    "en": "Configuration unreadable. Repair or restore the original file. Saving and controls in this window are disabled.",
+    "ja": "設定を読み込めません。元のファイルを修復または復元してください。この画面での保存と操作は無効です。"
+  },
+  "Cannot identify the connected Sidecar display; keeping current displays.": {
+    "en": "Cannot identify the connected Sidecar display; keeping current displays.",
+    "zh-Hant": "無法確認已連線 Sidecar 的螢幕身分；保留目前顯示。",
+    "ja": "接続済み Sidecar のディスプレイを識別できないため、現在の表示を維持します。"
+  },
+  "Configuration unreadable; repair or restore the file before starting PadPilot.": {
+    "en": "Configuration unreadable; repair or restore the file before starting PadPilot.",
+    "zh-Hant": "設定無法讀取；啟動 PadPilot 前請修復或還原設定檔。",
+    "ja": "設定を読み込めません。PadPilot を起動する前に設定ファイルを修復または復元してください。"
+  },
   "Tkinter 不可用：設定視窗已停用": {
     "en": "Tkinter unavailable: settings window disabled",
     "ja": "Tkinter が利用できないため設定画面は無効です"

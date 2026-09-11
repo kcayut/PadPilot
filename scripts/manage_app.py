@@ -14,8 +14,10 @@ import time
 from pathlib import Path
 
 from build_app import ROOT, build
-from core.autostart import get_launch_agent_plist_path, validate_plist
-from core.config import APP_SUPPORT_DIR, load_config
+from core.autostart import (daemon_pids, get_launch_agent_plist_path, job_loaded, start_standalone,
+                            stop_daemon, validate_plist, wait_for_daemon)
+from core.config import APP_SUPPORT_DIR, FALLBACK_CONFIG_FILE, load_config
+from core.storage import atomic_write, state_file_exists
 
 
 def owned_app(app):
@@ -32,8 +34,10 @@ def trash(path):
     location = Path.home() / '.Trash'
     location.mkdir(exist_ok=True)
     folder = Path(tempfile.mkdtemp(prefix='PadPilot-', dir=location))
-    path.rename(folder / path.name)
-    print(f'Moved to Trash: {folder / path.name}')
+    destination = folder / path.name
+    shutil.move(str(path), str(destination))
+    print(f'Moved to Trash: {destination}')
+    return destination
 
 
 def retire_legacy_plugin():
@@ -81,12 +85,63 @@ def manage(uninstall=False, purge=False):
     plist = get_launch_agent_plist_path()
     validate_plist(plist)
     if not uninstall:
+        cfg = load_config()  # Invalid configuration must fail before stopping anything.
         build(ROOT / 'build/PadPilot.app')
+        was_loaded, was_running = job_loaded(plist), bool(daemon_pids())
+        previous_plist = plist.read_bytes() if plist.exists() else None
+    if purge:
+        # Validate before any removal, including a fallback left by an earlier run.
+        fallback_exists = state_file_exists(FALLBACK_CONFIG_FILE)
+    shortcut = Path.home() / 'bin/padpilot-cli'
+    if not uninstall:
+        app.parent.mkdir(parents=True, exist_ok=True)
+        previous_app = None
+        replaced = False
+        with tempfile.TemporaryDirectory(prefix='padpilot-install-', dir=app.parent) as directory:
+            staging = Path(directory) / 'PadPilot.app'
+            shutil.copytree(ROOT / 'build/PadPilot.app', staging)
+            try:
+                subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                stop_menu_apps()
+                if app.exists():
+                    previous_app = trash(app)
+                staging.rename(app)
+                replaced = True
+                if not cfg.autostart_on_login:
+                    plist.unlink(missing_ok=True)
+                subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
+            except Exception as error:
+                try:
+                    stop_daemon(plist)
+                    stop_menu_apps()
+                    if replaced:
+                        trash(app)
+                    if previous_app is not None:
+                        previous_app.rename(app)
+                    if previous_plist is None:
+                        plist.unlink(missing_ok=True)
+                    else:
+                        atomic_write(plist, previous_plist, private_parent=False)
+                    if was_loaded:
+                        subprocess.run(['launchctl', 'load', str(plist)], check=True, capture_output=True, timeout=10)
+                        wait_for_daemon()
+                    elif was_running:
+                        start_standalone()
+                    if was_running or was_loaded:
+                        # start clears the hidden-menu marker and reopens the restored app.
+                        subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
+                except Exception as restore_error:
+                    raise RuntimeError(f'Installation failed: {error}. Rollback incomplete: {restore_error}') from error
+                raise RuntimeError(f'Installation failed: {error}. Previous app and service state restored.') from error
+        retire_legacy_plugin()
+        if shortcut.parent.is_dir() and not (shortcut.exists() or shortcut.is_symlink()):
+            shortcut.symlink_to(ROOT / 'bin/padpilot-cli')
+        print(f'Installed: {app}\nPython: {sys.executable}\nKeep source folder: {ROOT}')
+        return
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
     subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
     stop_menu_apps()
     retire_legacy_plugin()
-    shortcut = Path.home() / 'bin/padpilot-cli'
     if uninstall:
         if plist.exists():
             trash(plist)
@@ -95,27 +150,13 @@ def manage(uninstall=False, purge=False):
         if shortcut.is_symlink() and shortcut.resolve() == ROOT / 'bin/padpilot-cli':
             trash(shortcut)
         if purge:
+            if fallback_exists and FALLBACK_CONFIG_FILE.parent != APP_SUPPORT_DIR:
+                trash(FALLBACK_CONFIG_FILE)
             for path in (APP_SUPPORT_DIR, Path.home() / 'Library/Logs/PadPilot'):
                 if path.exists():
                     trash(path)
         print('Uninstalled. Source, BetterDisplay and virtual displays were preserved.')
         return
-    app.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='padpilot-install-', dir=app.parent) as directory:
-        staging = Path(directory) / 'PadPilot.app'
-        shutil.copytree(ROOT / 'build/PadPilot.app', staging)
-        if app.exists():
-            trash(app)
-        staging.rename(app)
-    cfg = load_config()
-    if cfg.autostart_on_login:
-        subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'autostart', 'enable'], check=True)
-    elif plist.exists():
-        trash(plist)
-    if shortcut.parent.is_dir() and not (shortcut.exists() or shortcut.is_symlink()):
-        shortcut.symlink_to(ROOT / 'bin/padpilot-cli')
-    subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
-    print(f'Installed: {app}\nPython: {sys.executable}\nKeep source folder: {ROOT}')
 
 
 if __name__ == '__main__':
