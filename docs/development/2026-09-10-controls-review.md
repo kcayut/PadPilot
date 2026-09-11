@@ -1,6 +1,6 @@
 # 2026-09-10 控制、選單與診斷檢查
 
-**繁體中文** | [English](2026-09-10-controls-review.en.md) | [日本語](2026-09-10-controls-review.ja.md) · [開發紀錄索引](README.md)
+[開發紀錄索引](README.md)
 
 > 歷史紀錄：測試數與實機結果限於本頁日期及拓撲，不代表所有硬體組合；現行操作見[安裝指南](../INSTALLATION.md)。
 

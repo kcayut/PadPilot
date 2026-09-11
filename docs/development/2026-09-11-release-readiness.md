@@ -1,6 +1,6 @@
 # 0.1.0 Early Preview：P0／P1 驗收
 
-**繁體中文** | [English](2026-09-11-release-readiness.en.md) | [日本語](2026-09-11-release-readiness.ja.md) · [開發紀錄索引](README.md)
+[開發紀錄索引](README.md)
 
 日期：2026-09-11。範圍為 GUI 版本、安裝可靠性、本機安全與文件；GitHub 建倉、Actions、remote、分支保護、tag、Release 及公開安全通報管道依要求略過。版本仍為 `0.1.0`，不宣稱 stable。
 

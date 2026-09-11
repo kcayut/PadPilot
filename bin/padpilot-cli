@@ -42,7 +42,7 @@ from core.config import (
 )
 from core.detector import DisplayDetector
 from core.logger import get_log_file_path
-from core.models import OperationMode
+from core.models import OperationMode, pairing_key
 from core.settings import apply_change
 from core.storage import atomic_write, remove_state_file
 
@@ -145,11 +145,30 @@ def cmd_set_mode(args: argparse.Namespace) -> None:
 
 
 def cmd_action(args: argparse.Namespace) -> None:
-    resp = send_daemon_cmd(args.action, timeout=60.0)
+    expected = getattr(args, 'expected_revision', None)
+    target_key = getattr(args, 'target_key', None)
+    guarded = expected is not None or target_key is not None
+    command = json.dumps({'command': args.action, 'expected_revision': expected,
+                          'params': {'target_key': target_key}}) if guarded else args.action
+    resp = send_daemon_cmd(command, timeout=60.0)
     if "Daemon is not running" in resp:
-        cmd_start(args)
+        if guarded:
+            cfg = load_config()
+            if type(expected) is not int or cfg.revision != expected:
+                raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before controlling this iPad.')
+            if not cfg.ipad.sidecar_uuid or pairing_key(cfg.ipad.to_dict()) != target_key:
+                raise RuntimeError('TARGET_CHANGED: the selected iPad is no longer the control target.')
+        # Only an explicit control action starts a stopped service. Merely opening
+        # settings and refreshing diagnostics never does so.
+        cmd_start(argparse.Namespace(no_menu=True) if guarded else args)
         time.sleep(1.0)
-        resp = send_daemon_cmd(args.action, timeout=60.0)
+        resp = send_daemon_cmd(command, timeout=60.0)
+    if guarded:
+        result = json.loads(resp)
+        if not result.get('ok'):
+            raise RuntimeError(f"{result.get('error', 'ERROR')}: {result.get('message', '')}")
+        print(result.get('message', 'OK'))
+        return
     if not resp.startswith("OK"):
         raise RuntimeError(resp)
     print(resp)
@@ -211,11 +230,18 @@ def cmd_set_language(args: argparse.Namespace) -> None:
 
 
 def cmd_gui(args: argparse.Namespace) -> None:
-    try:
-        from core.gui import run_gui
-    except (ImportError, OSError) as error:
-        raise RuntimeError("Tkinter is unavailable in this Python. Install matching Tk support to use the GUI.") from error
-    run_gui(args.page, getattr(args, 'delete', None), getattr(args, 'select', None))
+    from core.gui import run_gui
+    run_gui(getattr(args, 'page_option', None) or args.page, getattr(args, 'delete', None), getattr(args, 'select', None))
+
+
+def cmd_gui_data(args: argparse.Namespace) -> None:
+    from core.gui import build_gui_payload, read_view
+    if args.refresh and not read_view()['config_error']:
+        response = send_daemon_cmd('refresh', timeout=60.0, retries=1)
+        if not response.startswith(('OK', 'Daemon is not running')):
+            raise RuntimeError(response)
+    print(json.dumps(build_gui_payload(scan=args.scan, diagnostics=args.diagnostics,
+                                      admin_checks=args.admin_checks, logs=args.logs), ensure_ascii=False))
 
 
 def ask(prompt: str) -> str:
@@ -373,10 +399,12 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         status_str = "Enabled (will automatically run at login)" if enabled else "Disabled (will not run at login)"
         print(f"PadPilot Autostart: {status_str}")
     elif action == "enable":
-        ok, msg = enable_autostart()
+        expected = getattr(args, 'expected_revision', None)
+        ok, msg = enable_autostart(expected_revision=expected) if expected is not None else enable_autostart()
         print(msg)
     elif action == "disable":
-        ok, msg = disable_autostart()
+        expected = getattr(args, 'expected_revision', None)
+        ok, msg = disable_autostart(expected_revision=expected) if expected is not None else disable_autostart()
         print(msg)
     elif action == "toggle":
         ok, msg = toggle_autostart()
@@ -393,12 +421,17 @@ def main() -> None:
 
     p_gui = subparsers.add_parser("gui", help="Open graphical settings and pairing management window")
     p_gui.add_argument("page", nargs="?", default="paired", help="Initial tab")
+    p_gui.add_argument("--page", dest="page_option", help="Initial tab (alias)")
     p_gui.add_argument("--delete", help="Show confirmation for a saved profile key")
     p_gui.add_argument("--select", help="Show confirmation for a saved target key")
     p_gui.set_defaults(func=cmd_gui)
     p_change = subparsers.add_parser("change-settings", help="Apply a validated JSON settings command from stdin")
-    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"])
+    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_mode"])
     p_change.set_defaults(func=cmd_change_settings)
+    p_data = subparsers.add_parser('gui-data', help='Read native settings presentation data as JSON')
+    for flag in ('scan', 'diagnostics', 'admin-checks', 'logs', 'refresh'):
+        p_data.add_argument('--' + flag, action='store_true')
+    p_data.set_defaults(func=cmd_gui_data)
 
     # start
     p_start = subparsers.add_parser("start", help="Start the background daemon")
@@ -428,6 +461,7 @@ def main() -> None:
         help="Autostart action (default: status)",
     )
     p_auto.set_defaults(func=cmd_autostart)
+    p_auto.add_argument('--expected-revision', type=int)
 
     # status
     p_status = subparsers.add_parser("status", help="Show current display and automation status")
@@ -458,6 +492,8 @@ def main() -> None:
         ],
     )
     p_act.set_defaults(func=cmd_action)
+    p_act.add_argument('--expected-revision', type=int)
+    p_act.add_argument('--target-key')
 
     # pair
     p_pair = subparsers.add_parser("pair", help="Scan and pair connected iPad")

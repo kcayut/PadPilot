@@ -229,10 +229,12 @@ class EventSettingsTests(unittest.TestCase):
                 self.assertEqual(trigger, 'usb_event')
                 daemon.stop()
         daemon.engine.evaluate.side_effect = evaluate
+        launch_menu = MagicMock(return_value=True)
         with patch.dict(daemon.start.__func__.__globals__, remove_state_file=MagicMock()), \
              patch('threading.Thread'):
-            with patch.dict(daemon.start.__func__.__globals__, open_menu_app=MagicMock()):
+            with patch.dict(daemon.start.__func__.__globals__, open_menu_app=launch_menu):
                 daemon.start()
+        launch_menu.assert_called_once_with()
         self.assertEqual(daemon.engine.evaluate.call_count, 2)
         daemon.usb_monitor.stop.assert_called_once()
 

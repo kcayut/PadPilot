@@ -1,7 +1,10 @@
 """Native AppKit contract and recoverable setup checks; never operate displays."""
+import argparse
 import contextlib
+import io
 import json
 import plistlib
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -11,6 +14,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+import build_app
 import manage_app
 from core import autostart, config
 from core.menu import render
@@ -18,6 +22,74 @@ from core.i18n import set_language
 
 
 class NativeAppTests(unittest.TestCase):
+    def test_new_user_install_persists_login_startup_and_opens_installed_menu(self):
+        start = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['cmd_start']
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory).resolve()
+            source = home / 'source checkout'
+            (source / 'assets/menu-icons').mkdir(parents=True)
+            for name in ('LICENSE', 'NOTICE'):
+                (source / name).write_text('test package resource')
+            support = home / 'Library/Application Support/PadPilot'
+            configuration = support / 'config.json'
+            agents = home / 'Library/LaunchAgents'
+            plist = agents / 'com.padpilot.daemon.plist'
+            app = home / 'Applications/PadPilot.app'
+            python = str(home / 'Python runtime/python3')
+            cli = [python, str(source / 'bin/padpilot-cli')]
+            commands = []
+
+            def run(command, **kwargs):
+                commands.append(command)
+                if command == cli + ['start']:
+                    start(argparse.Namespace(no_menu=False))
+                elif command == cli + ['exit']:
+                    pass  # No prior daemon exists in this isolated user's home.
+                elif command[0] not in ('xcrun', 'codesign'):
+                    self.assertIn(command, (['launchctl', 'load', str(plist)], ['open', '-g', str(app)]))
+                return subprocess.CompletedProcess(command, 0)
+
+            with contextlib.ExitStack() as stack:
+                for context in (
+                    patch('pathlib.Path.home', return_value=home),
+                    patch.object(sys, 'executable', python), patch.object(sys, 'platform', 'darwin'),
+                    patch.object(build_app, 'ROOT', source), patch.object(build_app, 'build_icon'),
+                    patch.object(manage_app, 'ROOT', source),
+                    patch.object(manage_app, 'job_loaded', return_value=False),
+                    patch.object(manage_app, 'daemon_pids', return_value=[]),
+                    patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app, 'stop_menu_apps'),
+                    patch.object(config, 'CONFIG_FILE', configuration),
+                    patch.object(config, 'FALLBACK_CONFIG_FILE', home / 'fallback/config.json'),
+                    patch.object(config, 'detect_system_language', return_value='en'), patch.object(config.logger, 'info'),
+                    patch.object(autostart, 'PROJECT_ROOT', source),
+                    patch.object(autostart, 'USER_LAUNCH_AGENTS_DIR', agents),
+                    patch.object(autostart, 'job_loaded', return_value=False),
+                    patch.object(autostart, 'is_daemon_running', return_value=False),
+                    patch.object(autostart, 'stop_daemon'), patch.object(autostart, 'wait_for_daemon'),
+                    patch.dict(start.__globals__, daemon_pids=lambda: [], remove_state_file=lambda _: None),
+                    patch.object(subprocess, 'run', side_effect=run),
+                    patch.object(subprocess, 'Popen', side_effect=AssertionError('Unexpected process launch')),
+                    contextlib.redirect_stdout(io.StringIO()),
+                ):
+                    stack.enter_context(context)
+                self.assertFalse(configuration.exists())
+                self.assertIs(config.Config().autostart_on_login, True)
+                manage_app.manage()
+
+            saved = json.loads(configuration.read_text())
+            self.assertIs(saved['autostart_on_login'], True)
+            installed = plistlib.loads(plist.read_bytes())
+            self.assertIs(installed['RunAtLoad'], True)
+            self.assertIs(installed['KeepAlive'], True)
+            self.assertEqual(installed['ProgramArguments'], [python, str(source / 'bin/padpilotd')])
+            runtime = json.loads((app / 'Contents/Resources/runtime.json').read_text())
+            self.assertEqual(runtime, {'python': python, 'project_root': str(source)})
+            self.assertEqual([command for command in commands if command[:2] == cli],
+                             [cli + ['exit'], cli + ['start']])
+            self.assertEqual(commands.count(['launchctl', 'load', str(plist)]), 1)
+            self.assertEqual(commands[-1], ['open', '-g', str(app)])
+            self.assertEqual((home / 'bin/padpilot-cli').resolve(), app / 'Contents/Resources/padpilot-cli')
+
     def test_install_failure_restores_app_and_previous_service_state(self):
         for loaded, running in ((True, True), (False, True), (False, False)):
             with self.subTest(loaded=loaded, running=running), tempfile.TemporaryDirectory() as directory:
@@ -111,7 +183,7 @@ class NativeAppTests(unittest.TestCase):
             binary = Path(directory) / 'native-menu-test'
             subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
                             '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'tests/native_menu.swift'),
+                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'tests/native_menu.swift'),
                             '-o', str(binary)], check=True, capture_output=True)
             fixture = Path(directory) / 'menu.json'
             device = {'name': 'Test | --exit " iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111'}
@@ -126,28 +198,6 @@ class NativeAppTests(unittest.TestCase):
             finally:
                 set_language('zh-Hant')
 
-    def test_migration_preserves_custom_plugins_and_trashes_only_owned_link(self):
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory).resolve()
-            root = home / 'source & space'
-            folder = home / 'Library/Application Support/SwiftBar/plugins'
-            folder.mkdir(parents=True)
-            plugin = folder / 'padpilot.30s.py'
-            plugin.symlink_to(root / 'swiftbar/padpilot.30s.py')
-            other = folder / 'unrelated.5s.sh'
-            other.write_text('keep')
-            with patch.object(manage_app, 'ROOT', root), patch('pathlib.Path.home', return_value=home):
-                manage_app.retire_legacy_plugin()
-                self.assertFalse(plugin.is_symlink())
-                # The retired plugin is a dangling link; check the link itself.
-                moved = [directory / plugin.name for directory in (home / '.Trash').iterdir()]
-                self.assertTrue(any(path.is_symlink() and path.readlink() == root / 'swiftbar/padpilot.30s.py'
-                                    for path in moved))
-                self.assertEqual(other.read_text(), 'keep')
-                plugin.write_text('custom plugin')
-                manage_app.retire_legacy_plugin()
-                self.assertEqual(plugin.read_text(), 'custom plugin')
-
     def test_app_ownership_requires_matching_bundle_and_source(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / 'PadPilot.app'
@@ -161,12 +211,15 @@ class NativeAppTests(unittest.TestCase):
             self.assertFalse(manage_app.owned_app(app))
 
     def test_uninstall_preserves_foreign_shortcut_and_user_data(self):
-        for own_link in (True, False):
+        for target in ('installed', 'source', 'foreign'):
             with tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
                 shortcut = home / 'bin/padpilot-cli'
                 shortcut.parent.mkdir()
-                shortcut.symlink_to(ROOT / 'bin/padpilot-cli' if own_link else home / 'another-cli')
+                launcher = home / 'Applications/PadPilot.app/Contents/Resources/padpilot-cli'
+                shortcut.symlink_to({'installed': launcher, 'source': ROOT / 'bin/padpilot-cli',
+                                     'foreign': home / 'another-cli'}[target])
+                own_link = target == 'installed'
                 user_data = home / 'Library/Application Support/PadPilot'
                 user_data.mkdir(parents=True)
                 (user_data / 'config.json').write_text('keep')

@@ -18,12 +18,12 @@ PadPilot 是一套專為無頭 Mac mini + iPad 打造的確定性顯示器狀態
 ## 🏛️ 整體架構圖
 
 ```text
-Swift / AppKit PadPilot.app
+Swift / AppKit + SwiftUI PadPilot.app
+  ├─ SwiftUI settings → shared CLI/config transactions
   ├─ menu-json → core/menu.py → config.json + atomic status.json + daemon liveness
   └─ CLI argument arrays → padpilot-cli → Unix socket → padpilotd
                                                        ├─ Detector / IOKit / CoreGraphics
                                                        └─ StateEngine → BetterDisplay CLI
-Tk settings GUI ─────────────→ shared CLI/config transactions
 ```
 
 選單每秒檢查快照檔案是否改變；有變動或距上次讀取達 5 秒才呼叫 `menu-json`，不在選單讀取路徑掃描硬體。CLI 子程序不阻塞 AppKit 主執行緒；選單展開時不重建，關閉後呈現最新內容。動作採參數陣列與白名單，不把裝置名稱組成 shell 指令。登入由既有 LaunchAgent 啟動 Python 服務，再開啟原生 App；鎖檔避免多個選單實例。停止服務保留選單，只有「結束」才停服務並關閉選單。

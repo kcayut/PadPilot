@@ -138,7 +138,7 @@ Review and redact personal paths and sensitive information before sharing.
 ## 8. Preflight, unsafe paths, and failed handshakes
 
 - `FAIL: BetterDisplay CLI`: An installed app does not guarantee a working CLI. Verify CLI support and the saved executable path, then rerun `./scripts/install.sh --check`. Successful help is not license or hardware acceptance evidence.
-- `WARN: Tkinter`: Only the settings window is disabled; the native menu, daemon, and CLI remain usable. Install Tk support for the Python selected during installation, then reopen settings.
+- Settings will not open: after updating the source, rerun `./scripts/install.sh` to build the matching app.
 - `Refusing unsafe state directory/file`: Stop and inspect ownership, symlinks, and hard links at the reported path. Do not recursively change permissions, delete, or take over `/tmp` or someone else's directory. Back up confirmed personal data before its owner repairs it.
 - `LaunchAgent belongs to another ...`: The same-name app/service belongs to a different checkout. Use its uninstaller from the original source location, not broad process-name termination.
 - `Daemon handshake failed`: This checkout's service has not been confirmed responsive, so installation is not successful. Inspect `~/Library/Logs/PadPilot/launchd.stderr.log` and `padpilot.log`, resolve the path, permissions, or BetterDisplay issue, and retry. `Rollback incomplete` also means restoration of the old state is unconfirmed; preserve evidence instead of repeatedly reinstalling.

@@ -1,6 +1,6 @@
 # USB 事件喚醒與免配對自動偵測
 
-**繁體中文** | [English](2026-09-10-usb-discovery.en.md) | [日本語](2026-09-10-usb-discovery.ja.md) · [開發紀錄索引](README.md)
+[開發紀錄索引](README.md)
 
 > 歷史紀錄：下表為初版預設與行為。現行自動偵測預設啟用，且優先使用明確指定配對；以[目前架構](../ARCHITECTURE.md)為準。
 

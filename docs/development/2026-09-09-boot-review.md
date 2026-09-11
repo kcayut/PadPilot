@@ -1,6 +1,6 @@
 # PadPilot 無頭開機修復與邏輯檢查
 
-**繁體中文** | [English](2026-09-09-boot-review.en.md) | [日本語](2026-09-09-boot-review.ja.md) · [開發紀錄索引](README.md)
+[開發紀錄索引](README.md)
 
 > 歷史紀錄：以下測試、限制與實作描述代表當時版本；現行使用方式見[安裝指南](../INSTALLATION.md)。
 

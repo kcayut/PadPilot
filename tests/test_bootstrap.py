@@ -82,6 +82,7 @@ class BootstrapTests(unittest.TestCase):
                 ("failed-download", (), {"FAIL_DOWNLOAD": "1"}),
                 ("check-only", ("--check",), {}),
                 ("invalid-option", ("--unknown",), {}),
+                ("removed-option", ("--headless",), {}),
             ):
                 result = run(root / label, *arguments, **overrides)
                 self.assertNotEqual(result.returncode, 0, result.stdout)

@@ -78,32 +78,32 @@ class UninstallInteractiveTests(unittest.TestCase):
             self.invoke(['--yes', '--remove-dependency', 'betterdisplay'], receipt=receipt)
         self.manager.manage.assert_not_called()
 
-    def test_shared_python_is_preserved_and_tk_is_removed_before_python(self):
+    def test_shared_python_is_preserved_and_python_is_removed_last(self):
         with tempfile.TemporaryDirectory() as directory:
             brew = Path(directory) / 'brew'
             brew.write_text('#!/bin/sh\nexit 0\n')
             brew.chmod(0o755)
             receipt = {'schema': 1, 'managed_source': False, 'dependencies': [
-                {'name': name, 'kind': 'formula', 'brew': str(brew)}
-                for name in ('python@3.14', 'python-tk@3.14')]}
-            args = ['--yes', '--remove-dependency', 'python@3.14', '--remove-dependency', 'python-tk@3.14']
+                {'name': name, 'kind': kind, 'brew': str(brew)}
+                for name, kind in (('python@3.14', 'formula'), ('betterdisplay', 'cask'))]}
+            args = ['--yes', '--remove-dependency', 'python@3.14', '--remove-dependency', 'betterdisplay',
+                    '--allow-display-disconnect']
             def shared(command, **kwargs):
-                return types.SimpleNamespace(stdout='python@3.14 3.14.0\npython-tk@3.14 3.14.0\n'
+                return types.SimpleNamespace(stdout='python@3.14 3.14.0\nbetterdisplay 4.0\n'
                                              if command[1] == 'list' else 'other-tool\n')
             with patch.object(uninstall.subprocess, 'run', side_effect=shared):
                 self.assertEqual(self.invoke(args, receipt=receipt), 1)
                 self.manager.manage.assert_not_called()
             def run(command, **kwargs):
-                output = ('python@3.14 3.14.0\npython-tk@3.14 3.14.0\n' if command[1] == 'list'
-                          else 'python-tk@3.14\n' if command[1] == 'uses' else '')
+                output = 'python@3.14 3.14.0\nbetterdisplay 4.0\n' if command[1] == 'list' else ''
                 return types.SimpleNamespace(stdout=output)
             with patch.object(uninstall.subprocess, 'run', side_effect=run) as runner, \
                  patch.object(uninstall, 'write_receipt') as write:
                 self.assertEqual(self.invoke(args, receipt=receipt), 0)
                 removals = [call for call in runner.call_args_list if call.args[0][1] == 'uninstall']
-                self.assertEqual([call.args[0][-1] for call in removals], ['python-tk@3.14', 'python@3.14'])
+                self.assertEqual([call.args[0][2:] for call in removals],
+                                 [['--cask', 'betterdisplay'], ['--formula', 'python@3.14']])
                 for call in removals:
-                    self.assertEqual(call.args[0][2], '--formula')
                     self.assertEqual(call.kwargs['env']['HOMEBREW_NO_AUTOREMOVE'], '1')
                 self.assertEqual(write.call_count, 2)
 

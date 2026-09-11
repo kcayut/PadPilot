@@ -1,5 +1,4 @@
 """Installer tests use temporary user directories and fake external commands."""
-import builtins
 import contextlib
 import io
 import json
@@ -17,24 +16,17 @@ import check_install
 
 
 class InstallCheckTests(unittest.TestCase):
-    def test_preflight_warns_for_tk_and_does_not_create_user_files(self):
+    def test_preflight_never_creates_user_files(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            original_import = builtins.__import__
-            def without_tk(name, *args, **kwargs):
-                if name == 'tkinter':
-                    raise ImportError('no Tk')
-                return original_import(name, *args, **kwargs)
             with patch('pathlib.Path.home', return_value=home), \
                  patch.object(check_install.platform, 'mac_ver', return_value=('14.0', (), 'arm64')), \
                  patch.object(check_install.sys, 'platform', 'darwin'), \
                  patch('pathlib.Path.is_dir', return_value=True), \
                  patch.object(check_install.BetterDisplayCLI, 'resolve_cli_path', return_value='/fake/cli'), \
-                 patch('builtins.__import__', side_effect=without_tk), \
                  patch.object(check_install.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'help', '')), \
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertTrue(check_install.check())
-            self.assertIn('WARN: Tkinter', output.getvalue())
             self.assertEqual(list(home.iterdir()), [])
 
     def test_missing_cli_or_failed_help_fails_preflight(self):
@@ -100,9 +92,6 @@ case "$*" in
     *'import sys; sys.exit'*)
         case "$0" in */python3.14) [ ! -f "$PADPILOT_TEST_STATE/python@3.14" ] || exit 0 ;; esac
         exit "${PADPILOT_TEST_PYTHON:-0}" ;;
-    *'import tkinter'*)
-        if [ -f "$PADPILOT_TEST_STATE/python-tk@3.14" ]; then exit 0; fi
-        exit "${PADPILOT_TEST_TK:-0}" ;;
     *resolve_betterdisplay_path*)
         if [ -n "$last" ]; then printf '%s\n' "$last"; else printf '%s\n' "${PADPILOT_TEST_BD:-}"; fi ;;
     *check_install.py*) exit "${PADPILOT_TEST_CHECK:-0}" ;;
@@ -192,43 +181,39 @@ esac''',
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('saved-python', result.stdout)
 
-    def test_missing_tk_requires_explicit_headless_or_dependency_install(self):
-        with self.shell_setup(PADPILOT_TEST_TK='1') as (_, _, run):
-            result, calls = run('--yes')
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('--headless', result.stderr)
-            self.assertNotIn('brew ', calls)
-            self.assertNotIn('manage_app.py', calls)
-            result, calls = run('--yes', '--headless')
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('manage_app.py', calls)
-            self.assertNotIn('brew ', calls)
+    def test_unknown_options_stop_before_dependency_checks_or_installation(self):
+        with self.shell_setup() as (_, _, run):
+            for option in ('--headless', '--unknown'):
+                result, calls = run('--yes', option)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn('unknown option', result.stderr)
+                self.assertEqual(calls, '')
 
-    def test_new_python_is_recorded_before_failed_tk_install(self):
-        with self.shell_setup(PADPILOT_TEST_TK='1', PADPILOT_TEST_BREW_FAIL='python-tk@3.14') as (_, _, run):
+    def test_new_python_is_recorded_before_failed_betterdisplay_install(self):
+        with self.shell_setup(PADPILOT_TEST_PYTHON='1', PADPILOT_TEST_BD='',
+                              PADPILOT_TEST_BREW_FAIL='betterdisplay') as (_, _, run):
             result, calls = run('--yes', '--install-deps')
             self.assertNotEqual(result.returncode, 0)
             recorded = 'setup_state.py --record-dependency formula python@3.14'
             self.assertIn(recorded, calls)
-            self.assertLess(calls.index(recorded), calls.index('brew install --formula python-tk@3.14'))
-            self.assertNotIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
+            self.assertLess(calls.index(recorded), calls.index('brew install --cask betterdisplay'))
+            self.assertNotIn('setup_state.py --record-dependency cask betterdisplay', calls)
             self.assertNotIn('manage_app.py', calls)
 
-    def test_missing_python_installs_and_records_both_python_and_tk(self):
-        with self.shell_setup(PADPILOT_TEST_PYTHON='1', PADPILOT_TEST_TK='1') as (_, _, run):
+    def test_missing_python_installs_and_records_python(self):
+        with self.shell_setup(PADPILOT_TEST_PYTHON='1') as (_, _, run):
             result, calls = run('--yes', '--install-deps')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('setup_state.py --record-dependency formula python@3.14', calls)
-            self.assertIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
             self.assertIn('manage_app.py', calls)
 
-    def test_preexisting_python_is_not_claimed_and_new_tk_is_recorded(self):
-        with self.shell_setup(PADPILOT_TEST_TK='1') as (_, state, run):
+    def test_preexisting_python_is_not_claimed_when_user_reinstalls_it(self):
+        with self.shell_setup() as (_, state, run):
             (state / 'python@3.14').touch()
-            result, calls = run('--yes', '--install-deps')
+            result, calls = run(answer='i\n\n\n')
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('brew install --formula python@3.14', calls)
             self.assertNotIn('setup_state.py --record-dependency formula python@3.14', calls)
-            self.assertIn('setup_state.py --record-dependency formula python-tk@3.14', calls)
             self.assertIn('manage_app.py', calls)
 
     def test_partly_successful_brew_failure_records_installed_dependency(self):

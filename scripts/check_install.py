@@ -44,11 +44,6 @@ def check(betterdisplay_path=None):
            'macOS', mac_version or sys.platform)
     report(sys.version_info >= (3, 10), 'Python', f'{platform.python_version()} ({sys.executable})')
     try:
-        import tkinter
-        print(f'PASS: Tkinter: {tkinter.TkVersion}')
-    except (ImportError, OSError) as error:
-        print(f'WARN: Tkinter unavailable ({type(error).__name__}); GUI disabled, daemon/CLI/native menu remain usable.')
-    try:
         developer = subprocess.run(['xcode-select', '-p'], capture_output=True, text=True, timeout=5)
         if developer.returncode != 0 and not os.environ.get('DEVELOPER_DIR'):
             raise OSError('Apple Command Line Tools are not installed')

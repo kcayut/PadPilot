@@ -14,12 +14,12 @@ PadPilot は、モニターなしの Mac mini + iPad 環境を想定した、規
 ## 構成
 
 ```text
-Swift / AppKit PadPilot.app
+Swift / AppKit + SwiftUI PadPilot.app
+  ├─ SwiftUI settings → shared CLI/config transactions
   ├─ menu-json → core/menu.py → config.json + atomic status.json + daemon liveness
   └─ CLI argument arrays → padpilot-cli → Unix socket → padpilotd
                                                        ├─ Detector / IOKit / CoreGraphics
                                                        └─ StateEngine → BetterDisplay CLI
-Tk settings GUI ─────────────→ shared CLI/config transactions
 ```
 
 メニューは 1 秒ごとにスナップショットの変更を確認し、変更がある場合、または前回読み取りから 5 秒経過した場合に `menu-json` を呼びます。メニューの読み取りではハードウェアを検索しません。CLI 子プロセスは AppKit のメインスレッドをブロックせず、メニュー展開中は再構築せずに閉じた後で更新します。操作は引数配列と許可リストを使い、デバイス名を shell コマンドへ埋め込みません。ログイン後に LaunchAgent が Python を起動し、ネイティブアプリを開きます。ロックでメニューの重複起動を防ぎます。サービス停止ではメニューを残し、終了操作では両方を閉じます。

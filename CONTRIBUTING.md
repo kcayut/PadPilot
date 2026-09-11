@@ -11,10 +11,10 @@
 ### 系統需求
 
 - **作業系統**：macOS 14 (Sonoma) 或更高版本（支援 Apple Silicon M 系列）。
-- **Python**：Python 3.10+；GUI 測試另需同一環境的 Tk。不要假設 macOS 預裝的 Python 符合版本。
+- **Python**：Python 3.10+，供核心與測試工具使用。不要假設 macOS 預裝的 Python 符合版本。
 - **依賴工具**：
   - [BetterDisplay](https://github.com/waydabber/BetterDisplay)（建議已安裝並啟用 CLI 工具）
-  - Apple Command Line Tools（`xcode-select --install`；編譯 Swift/AppKit 選單）
+  - Apple Command Line Tools（`xcode-select --install`；編譯 Swift/AppKit 選單與 SwiftUI 設定視窗）
 
 ### 複製專案與檢查
 
@@ -39,19 +39,19 @@ python3 -m unittest discover -s tests -v
 *所有測試必須通過（exit code == 0）。*
 
 ### 2. 驗證 GUI 視窗佈局
-PadPilot 堅持使用無第三方依賴的 Tkinter 原生 Card UI。請確保視窗在 `840x500` 最小尺寸下各項按鈕與元件對齊良好：
+PadPilot 使用 SwiftUI 原生設定視窗，不需第三方 UI 套件。請確認最小視窗尺寸下各頁的內容可捲動、按鈕可使用，並檢查三種介面語言：
 ```bash
 python3 scripts/check_gui_layout.py
 ```
 
-### 3. 建置原生選單
+### 3. 建置原生 App
 
 ```bash
 python3 scripts/build_app.py
 open build/PadPilot.app
 ```
 
-單元測試包含實際編譯 AppKit 選單與三種語言資料契約，不會控制顯示器。開啟 App 會啟動既有 Python 服務；完整設定視窗仍使用 Tk。
+單元測試包含實際編譯 AppKit／SwiftUI App 與三種語言資料契約，不會控制顯示器。開啟 App 會啟動既有 Python 服務；設定視窗透過既有 CLI／IPC 交易儲存設定與執行操作。
 
 ### 4. 機敏資訊與路徑掃描
 
@@ -73,7 +73,7 @@ GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整�
 
 「關於」頁的贊助收款網址由維護者在 `core/gui.py` 的 `DONATION_URLS` 填入；空字串代表尚未開放，按鈕停用且不開啟外部網站。僅填入已確認屬於專案維護者的 HTTPS 收款連結；這是外部連結入口，不在 App 內收集付款資料或串接付款 API。
 
-1. **零重量外部套件依賴**：`core/` 模組原則上僅依賴 Python 標準庫以及系統自帶的 `ctypes`、`subprocess`、`tkinter`。
+1. **零重量外部套件依賴**：`core/` 模組原則上僅依賴 Python 標準庫以及系統自帶的 `ctypes`、`subprocess`；介面使用系統提供的 AppKit／SwiftUI。
 2. **非侵入式與狀態自癒**：任何背景操作失敗時，必須遵循 Cooldown 與 Fallback 機制，不可引發無窮迴圈或癱瘓系統顯示器。
 3. **原子性狀態寫入**：狀態必須透過原子寫入更新至 `status.json`，供原生選單與 GUI 讀取，嚴禁在 Menu Bar 觸發高成本硬體掃描。
 
@@ -81,9 +81,11 @@ GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整�
 
 ## 發布版本與文件
 
+根目錄 README 與 `docs/` 的一般使用者指南維持繁體中文、英文、日文三語。`docs/development/` 的工作與驗證紀錄僅使用繁體中文，不建立英日副本或三語導覽；其他語言的指南可連到繁中原稿並標明語言。歷史紀錄保留當時證據，後續修正以加註說明更新。
+
 GUI 的使用說明與診斷說明連到 GitHub 上對應來源 commit 的文件；開啟 GUI 時固定修訂，不跟隨 `main`。Git 封存檔透過 `.gitattributes` 的 `export-subst` 保留修訂；若來源沒有 Git 記錄或封存修訂，才使用 `v<core.__version__>` 標籤。
 
-正式發布時，先將程式、三語文件與版本號一起提交並推送，確認檢查通過，再為同一 commit 建立 `vX.Y.Z` 標籤與 Release。不要移動或重用已發布的版本標籤；修改內容須使用新版本。未提交或未推送的開發內容無法在 GitHub 文件中呈現。目前尚無版本標籤；對外發布前須建立相符標籤，並確保使用者有文件存取權限（私人倉庫的文件亦受限）。
+正式發布時，先將程式、三語使用者文件與版本號一起提交並推送，確認檢查通過，再為同一 commit 建立 `vX.Y.Z` 標籤與 Release。不要移動或重用已發布的版本標籤；修改內容須使用新版本。未提交或未推送的開發內容無法在 GitHub 文件中呈現。目前尚無版本標籤；對外發布前須建立相符標籤，並確保使用者有文件存取權限（私人倉庫的文件亦受限）。
 
 ## 🚀 Pull Request 流程
 

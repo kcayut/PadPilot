@@ -93,11 +93,14 @@ def check_versions():
     if installed_build.exists():
         info = plistlib.loads(installed_build.read_bytes())
         assert info['CFBundleShortVersionString'] == __version__, 'App version mismatch; rebuild first'
+        assert info.get('CFBundleIconFile') == 'PadPilot.icns', 'App icon is not configured; rebuild first'
+        icon = installed_build.parent / 'Resources' / info['CFBundleIconFile']
+        assert icon.read_bytes().startswith(b'icns'), 'App icon is missing or invalid'
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--gui', action='store_true', help='Run real Tk layout/language gates on a desktop session')
+    parser.add_argument('--gui', action='store_true', help='Run native SwiftUI layout/language gates on a desktop session')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--scan-only', action='store_true')
     mode.add_argument('--software-only', action='store_true',

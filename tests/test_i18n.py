@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import runpy
+import re
 from string import Formatter
 import subprocess
 import tempfile
@@ -60,30 +61,6 @@ class LanguageTests(unittest.TestCase):
             daemon.engine.republish_language_status(999)
             write.assert_not_called()
 
-    def test_gui_language_preserves_newer_scan_but_not_changed_target(self):
-        import copy
-        from core.gui import SettingsWindow
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.readonly = app.busy = False
-        old = Config(language='zh-Hant')
-        recent = {'timestamp': time.time(), 'sidecar_devices': [{'name': 'iPad'}]}
-        app.view = {'config': old, 'actual': recent, 'identifiers': [{'name': 'Backup'}], 'scanned': True}
-        app.task = lambda work, complete: setattr(app, 'result', work()[1])
-        new = copy.deepcopy(old)
-        new.language, new.revision = 'en', old.revision + 1
-        incoming = {'config': new, 'actual': {'timestamp': recent['timestamp'] - 10},
-                    'identifiers': [], 'fresh': True, 'scanned': False}
-        with patch('core.gui.send_change', return_value='OK'), \
-             patch('core.gui.read_view', side_effect=lambda **kw: dict(incoming)) as read:
-            app.change('set_language', {'language': 'en'})
-            self.assertIs(app.result['actual'], recent)
-            self.assertEqual(app.result['identifiers'], app.view['identifiers'])
-            self.assertTrue(app.result['fresh'])
-            read.assert_called_once_with(scan=False)
-            # A concurrent device-setting change must not reuse an old observation.
-            new.auto_detect_ipad = not old.auto_detect_ipad
-            app.change('set_language', {'language': 'en'})
-            self.assertIs(app.result['actual'], incoming['actual'])
 
     def test_validation_roundtrip_and_daemon_no_display_effects(self):
         self.assertEqual(Config.from_dict({}).language, 'zh-Hant')
@@ -131,6 +108,12 @@ class LanguageTests(unittest.TestCase):
                     text = node.args[0].value
                     if any('\u4e00' <= c <= '\u9fff' for c in text):
                         self.assertIn(text, TRANSLATIONS)
+        # Swift's literal UI keys use the same catalog as the daemon and menu.
+        native = (ROOT / 'native/Settings.swift').read_text()
+        for encoded in re.findall(r'tr\("((?:\\.|[^"\\])*)"', native):
+            text = json.loads('"' + encoded + '"')
+            if any('\u4e00' <= char <= '\u9fff' for char in text):
+                self.assertTrue(text in TRANSLATIONS, f"Missing translation: {text}")
         render = runpy.run_path(str(ROOT / 'core/menu.py'))['render']
         for language in LANGUAGES:
             set_language(language)

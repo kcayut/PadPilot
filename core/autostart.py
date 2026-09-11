@@ -182,6 +182,7 @@ def enable_autostart(
     python_bin: Optional[str] = None,
     project_root: Optional[Path] = None,
     log_dir: Optional[Path] = None,
+    expected_revision: Optional[int] = None,
 ) -> Tuple[bool, str]:
     """One installation path for CLI, GUI and installer; roll back on failed startup."""
     target = plist_path or get_launch_agent_plist_path()
@@ -199,12 +200,19 @@ def enable_autostart(
         was_running = is_daemon_running()
         previous = target.read_bytes() if target.exists() else None
         before = copy.deepcopy(load_config())
+        if expected_revision is not None and before.revision != expected_revision:
+            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
         logs = log_dir or Path.home() / "Library/Logs/PadPilot"
         private_directory(logs)
         for name in ("launchd.stdout.log", "launchd.stderr.log"):
             private_file(logs / name, create=True)
         stopped = True
         stop_daemon(target)
+        # Re-read after stopping: a queued daemon edit must not be overwritten.
+        current = load_config()
+        if expected_revision is not None and current.revision != expected_revision:
+            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
+        before = copy.deepcopy(current)
         atomic_write(target, generate_plist_content(python_bin, project_root, log_dir).encode(),
                      private_parent=False)
         changed = True
@@ -243,14 +251,25 @@ def enable_autostart(
         return False, message
 
 
-def disable_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
+def disable_autostart(plist_path: Optional[Path] = None, expected_revision: Optional[int] = None) -> Tuple[bool, str]:
     target = plist_path or get_launch_agent_plist_path()
     try:
         validate_plist(target)
-        was_running = is_daemon_running()
-        stop_daemon(target)
-        target.unlink(missing_ok=True)
         cfg = load_config()
+        if expected_revision is not None and cfg.revision != expected_revision:
+            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
+        was_running = is_daemon_running()
+        was_loaded = job_loaded(target)
+        stop_daemon(target)
+        cfg = load_config()
+        if expected_revision is not None and cfg.revision != expected_revision:
+            if was_loaded:
+                subprocess.run(['launchctl', 'load', str(target)], capture_output=True, check=True, timeout=10)
+                wait_for_daemon()
+            elif was_running:
+                start_standalone()
+            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
+        target.unlink(missing_ok=True)
         if cfg.autostart_on_login:
             cfg.autostart_on_login = False
             cfg.revision += 1
@@ -274,8 +293,8 @@ def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
 
 
 
-def open_menu_app() -> bool:
-    """Open our installed app, or the local build. No dependency on other menu apps."""
+def find_menu_app(*, settings=False) -> Optional[Path]:
+    """Resolve only an app built for this checkout."""
     for app in (Path.home() / "Applications" / "PadPilot.app", PROJECT_ROOT / "build" / "PadPilot.app"):
         try:
             with (app / "Contents" / "Resources" / "runtime.json").open() as stream:
@@ -283,8 +302,23 @@ def open_menu_app() -> bool:
                 runtime = json.load(stream)
             if Path(runtime.get("project_root", "")).resolve() != PROJECT_ROOT:
                 continue
-            result = subprocess.run(["open", "-g", str(app)], capture_output=True, timeout=5)
-            return result.returncode == 0
+            if settings:
+                with (app / 'Contents/Info.plist').open('rb') as stream:
+                    info = plistlib.load(stream)
+                if not any('padpilot' in item.get('CFBundleURLSchemes', []) for item in info.get('CFBundleURLTypes', [])):
+                    continue
+            return app
         except (OSError, ValueError, subprocess.SubprocessError):
             continue
-    return False
+    return None
+
+
+def open_menu_app() -> bool:
+    """Background menu startup does not open a settings window."""
+    app = find_menu_app()
+    if app is None:
+        return False
+    try:
+        return subprocess.run(["open", "-g", str(app)], capture_output=True, timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False

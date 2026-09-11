@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# Native menu + Python core. All dependency changes require an explicit choice.
+# Native app + Python core. All dependency changes require an explicit choice.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 CHECK_ONLY=0
 ASSUME_YES=0
 INSTALL_DEPS=0
-HEADLESS=0
 PYTHON_BIN=""
 BETTERDISPLAY_PATH=""
 BREW_BIN=""
-PYTHON_HAS_TK=0
 
 usage() {
     cat <<'HELP'
@@ -20,7 +18,6 @@ Usage: bash scripts/install.sh [options]
   --install-deps          同意安裝缺少的依賴 / allow missing dependency installation
   --python PATH           指定 Python 3.10+ 執行檔 / Python executable
   --betterdisplay-path PATH  指定 BetterDisplay.app 或 CLI / app or executable
-  --headless              明確略過 Tk 設定介面 / install without the Tk settings GUI
   --help, -h              顯示說明 / help
 --yes 不會自行安裝第三方依賴；需另外指定 --install-deps。
 HELP
@@ -31,7 +28,6 @@ while [[ $# -gt 0 ]]; do
         --check) CHECK_ONLY=1; shift ;;
         --yes|-y) ASSUME_YES=1; shift ;;
         --install-deps) INSTALL_DEPS=1; shift ;;
-        --headless) HEADLESS=1; shift ;;
         --python|--betterdisplay-path)
             [[ $# -ge 2 && -n "$2" ]] || fail "$1 需要路徑 / requires a path"
             if [[ "$1" == --python ]]; then PYTHON_BIN="$2"; else BETTERDISPLAY_PATH="$2"; fi
@@ -64,9 +60,8 @@ valid_python() {
     [[ "$1" != /usr/bin/python3 ]] || have_clt || return 1
     "$1" -B -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1
 }
-has_tk() { "$1" -B -c 'import tkinter' >/dev/null 2>&1; }
 find_python() {
-    local candidate fallback="" runtime
+    local candidate runtime
     if [[ -z "$PYTHON_BIN" ]]; then
         runtime="$HOME/Applications/PadPilot.app/Contents/Resources/runtime.json"
         if [[ -f "$runtime" && ! -L "$runtime" && "$(plutil -extract project_root raw -o - "$runtime" 2>/dev/null || true)" == "$PROJECT_ROOT" ]]; then
@@ -76,10 +71,8 @@ find_python() {
     fi
     if [[ -n "$PYTHON_BIN" ]]; then
         REPLY="$PYTHON_BIN"; expand_path; PYTHON_BIN="$REPLY"
-        valid_python "$PYTHON_BIN" || return 1
-        PYTHON_HAS_TK=0
-        if has_tk "$PYTHON_BIN"; then PYTHON_HAS_TK=1; fi
-        return 0
+        valid_python "$PYTHON_BIN"
+        return $?
     fi
     for candidate in "$(command -v python3 || true)" \
         /opt/homebrew/opt/python@3.14/bin/python3.14 /usr/local/opt/python@3.14/bin/python3.14 \
@@ -87,14 +80,9 @@ find_python() {
         /Library/Frameworks/Python.framework/Versions/Current/bin/python3 \
         /Library/Frameworks/Python.framework/Versions/3.*/bin/python3; do
         valid_python "$candidate" || continue
-        [[ -n "$fallback" ]] || fallback="$candidate"
-        if has_tk "$candidate"; then
-            PYTHON_BIN="$candidate"; PYTHON_HAS_TK=1; return 0
-        fi
-        if [[ "$HEADLESS" == 1 ]]; then PYTHON_BIN="$candidate"; return 0; fi
+        PYTHON_BIN="$candidate"; return 0
     done
-    PYTHON_BIN="$fallback"
-    [[ -n "$PYTHON_BIN" ]]
+    return 1
 }
 check_args() {
     CHECK_ARGS=("$SCRIPT_DIR/check_install.py")
@@ -188,33 +176,24 @@ brew_install() {
 install_python() {
     ensure_brew
     brew_install formula python@3.14
-    if [[ "$HEADLESS" == 0 ]]; then brew_install formula python-tk@3.14; fi
     find_python || fail '新安裝的 Python 無法執行。 / Installed Python is not usable.'
-    [[ "$HEADLESS" == 1 || "$PYTHON_HAS_TK" == 1 ]] || fail 'Tk 無法載入；請確認 python@3.14 與 python-tk@3.14 完整安裝。'
 }
 find_python || true
 while true; do
     if [[ -n "$PYTHON_BIN" ]] && valid_python "$PYTHON_BIN"; then
-        printf 'Python: %s（Tk: %s）\n' "$PYTHON_BIN" "$PYTHON_HAS_TK"
-        if [[ "$HEADLESS" == 1 || "$PYTHON_HAS_TK" == 1 ]]; then
-            if [[ "$ASSUME_YES" == 1 ]]; then break; fi
-            ask 'Python：[Enter] 沿用 / use、[m] 指定其他路徑 / path、[i] 安裝 Python + Tk / install、[q] 取消:'
-            [[ -n "$REPLY" ]] || break
-        elif [[ "$INSTALL_DEPS" == 1 ]]; then REPLY=i
-        elif [[ "$ASSUME_YES" == 1 ]]; then fail 'Python 缺少 Tk；請使用 --install-deps，或明確選擇 --headless。'
-        else ask 'Python 缺少 Tk：[m] 指定其他 Python / path、[i] 安裝 Python + Tk / install、[h] 無設定視窗 / headless、[q] 取消 [q]:'; fi
+        printf 'Python: %s\n' "$PYTHON_BIN"
+        if [[ "$ASSUME_YES" == 1 ]]; then break; fi
+        ask 'Python：[Enter] 沿用 / use、[m] 指定其他路徑 / path、[i] 安裝 Python / install、[q] 取消:'
+        [[ -n "$REPLY" ]] || break
     elif [[ "$INSTALL_DEPS" == 1 ]]; then REPLY=i
     elif [[ "$ASSUME_YES" == 1 ]]; then fail '找不到 Python 3.10+；請用 --python PATH 指定或加上 --install-deps。'
-    else ask '缺少 Python 3.10+：[m] 指定路徑 / path、[i] 安裝 Python + Tk / install、[q] 取消 [q]:'; fi
+    else ask '缺少 Python 3.10+：[m] 指定路徑 / path、[i] 安裝 Python / install、[q] 取消 [q]:'; fi
     case "$REPLY" in
         m|M)
             ask 'Python 執行檔完整路徑 / Full path to Python:'; expand_path
-            PYTHON_BIN="$REPLY"; PYTHON_HAS_TK=0
+            PYTHON_BIN="$REPLY"
             find_python || printf '需要可執行的 Python 3.10+ / A working Python 3.10+ is required.\n' >&2 ;;
         i|I) install_python; break ;;
-        h|H)
-            valid_python "$PYTHON_BIN" || fail '仍需 Python 3.10+。 / Python 3.10+ is still required.'
-            HEADLESS=1; break ;;
         *) fail '已取消 Python 設定。 / Python setup cancelled.' ;;
     esac
 done
@@ -252,7 +231,6 @@ BETTERDISPLAY_PATH="$BETTERDISPLAY_FOUND"
 check_args
 "$PYTHON_BIN" -B "${CHECK_ARGS[@]}"
 printf '\n將安裝 / Install: ~/Applications/PadPilot.app\nPython: %s\nBetterDisplay: %s\n' "$PYTHON_BIN" "$BETTERDISPLAY_PATH"
-if [[ "$HEADLESS" == 1 ]]; then printf '已選擇無 Tk 模式；原生選單與 CLI 可用，Tk 設定視窗不可用。 / Headless mode selected.\n'; fi
 if [[ "$ASSUME_YES" == 0 ]]; then
     ask '繼續安裝 PadPilot？ / Install PadPilot? [Y/n]:'
     case "$REPLY" in ''|y|Y|yes|YES) ;; *) fail '已取消 PadPilot 安裝；已安裝的依賴保留並已記錄。' ;; esac

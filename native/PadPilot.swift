@@ -7,6 +7,31 @@ struct Runtime: Decodable {
     let project_root: String
 }
 
+struct SettingsRequest {
+    var page = "paired"
+    var delete: String?
+    var select: String?
+
+    init?(url: URL) {
+        guard url.scheme == "padpilot", url.host == "settings",
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        var values: [String: String] = [:]
+        for item in parts.queryItems ?? [] {
+            guard ["page", "delete", "select"].contains(item.name), values[item.name] == nil,
+                  let value = item.value else { return nil }
+            values[item.name] = value
+        }
+        page = values["page"] ?? "paired"
+        guard ["paired", "search", "settings", "displays", "virtual", "diagnostics", "about"].contains(page) else { return nil }
+        for key in ["delete", "select"] {
+            if let value = values[key], value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) == nil { return nil }
+        }
+        delete = values["delete"]
+        select = values["select"]
+        if delete != nil && select != nil { return nil }
+    }
+}
+
 struct MenuRow: Codable {
     let title: String
     let depth: Int
@@ -97,11 +122,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastRead = Date.distantPast
     private var lastSignature = ""
     private var lockFD: Int32 = -1
+    private var settingsController: SettingsWindowController?
+    private var pendingSettings: [SettingsRequest] = []
+    private var ready = false
+    private var awaitingSettingsRequest = false
     private let support = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/PadPilot")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if let iconURL = Bundle.main.url(forResource: "PadPilot", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) { NSApp.applicationIconImage = icon }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.toolTip = "PadPilot"
         statusItem.button?.setAccessibilityLabel("PadPilot")
@@ -132,17 +163,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime lock"])
             }
             guard fchmod(lockFD, 0o600) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
-            guard flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { NSApp.terminate(nil); return }
+            guard flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
+                // Launch Services normally reuses the running bundle. Also bring
+                // it forward if another owned build already holds the app lock.
+                if let existing = NSRunningApplication.runningApplications(withBundleIdentifier: "com.padpilot.app")
+                    .first(where: { application in
+                        guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+                              let bundle = application.bundleURL,
+                              let data = try? Data(contentsOf: bundle.appendingPathComponent("Contents/Resources/runtime.json")),
+                              let other = try? JSONDecoder().decode(Runtime.self, from: data) else { return false }
+                        return other.project_root == self.runtime.project_root
+                    }),
+                   let bundle = existing.bundleURL {
+                    let requests = pendingSettings
+                    if !requests.isEmpty || CommandLine.arguments.contains("--settings") {
+                        guard Bundle(url: bundle)?.object(forInfoDictionaryKey: "CFBundleURLTypes") != nil else {
+                            showError("Close the previous PadPilot app, then reopen Settings. / 請先關閉舊版 PadPilot，再重新開啟設定。")
+                            NSApp.terminate(nil); return
+                        }
+                        let urls = requests.isEmpty ? [URL(string: "padpilot://settings")!] : requests.map { request -> URL in
+                            var parts = URLComponents(string: "padpilot://settings")!
+                            parts.queryItems = [URLQueryItem(name: "page", value: request.page)]
+                            if let key = request.delete { parts.queryItems?.append(URLQueryItem(name: "delete", value: key)) }
+                            if let key = request.select { parts.queryItems?.append(URLQueryItem(name: "select", value: key)) }
+                            return parts.url!
+                        }
+                        let configuration = NSWorkspace.OpenConfiguration()
+                        configuration.createsNewApplicationInstance = false
+                        NSWorkspace.shared.open(urls, withApplicationAt: bundle, configuration: configuration) { _, _ in
+                            DispatchQueue.main.async { NSApp.terminate(nil) }
+                        }
+                        return
+                    }
+                } else if CommandLine.arguments.contains("--settings") || !pendingSettings.isEmpty {
+                    showError("Another PadPilot checkout is running. Close it before opening these settings. / 請先關閉另一份 PadPilot，再開啟這份設定。")
+                }
+                NSApp.terminate(nil); return
+            }
+            ready = true
+            let settingsOnly = CommandLine.arguments.contains("--settings") || !pendingSettings.isEmpty
+            awaitingSettingsRequest = settingsOnly && pendingSettings.isEmpty
+            for request in pendingSettings { showSettings(request.page, delete: request.delete, select: request.select) }
+            pendingSettings.removeAll()
+            if settingsOnly {
+                beginPolling()
+                return
+            }
             // Explicitly opening the app resumes the service once. Stopping it from
             // the menu leaves it stopped; polling never starts or scans hardware.
             runCLI(["start", "--no-menu"], timeout: 75) { result in
                 if case .failure(let error) = result { self.showError(error.localizedDescription) }
-                self.refresh(force: true)
-                let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }
-                self.timer = timer
-                RunLoop.main.add(timer, forMode: .common)
+                self.beginPolling()
             }
         } catch { showError(error.localizedDescription); recoveryMenu() }
+    }
+
+    private func beginPolling() {
+        refresh(force: true)
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard let request = SettingsRequest(url: url) else { continue }
+            awaitingSettingsRequest = false
+            if ready { showSettings(request.page, delete: request.delete, select: request.select) }
+            else { pendingSettings.append(request) }
+        }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let window = settingsController?.window, window.isVisible || window.isMiniaturized {
+            window.deminiaturize(nil)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        return false
+    }
+
+    private func showSettings(_ page: String = "paired", delete: String? = nil, select: String? = nil) {
+        guard runtime != nil else { return }
+        if settingsController == nil { settingsController = SettingsWindowController(runtime: runtime) }
+        settingsController?.show(page: page == "wizard" ? "search" : page, delete: delete, select: select)
     }
 
     private func setIcon(_ name: String) {
@@ -176,7 +280,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let model = try JSONDecoder().decode(MenuSnapshot.self, from: data)
                 guard model.schema_version == 1 else { throw NSError(domain: "PadPilot", code: 2,
                     userInfo: [NSLocalizedDescriptionKey: "Unsupported menu schema. Rebuild PadPilot.app."]) }
-                if model.hidden { NSApp.terminate(nil); return }
+                self.statusItem.isVisible = !model.hidden
+                if model.hidden && !self.awaitingSettingsRequest,
+                   self.settingsController?.window?.isVisible != true,
+                   self.settingsController?.window?.isMiniaturized != true {
+                    NSApp.terminate(nil); return
+                }
                 self.setIcon(model.icon)
                 if data != self.snapshotData {
                     self.snapshotData = data
@@ -230,6 +339,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Recheck the last refreshed model when a menu stayed open across a change.
         guard snapshot?.items.contains(where: { $0.args == args && $0.enabled }) == true else {
             refresh(force: true); return
+        }
+        if isGUI {
+            showSettings(args.count > 1 ? args[1] : "paired",
+                         delete: args.count == 4 && args[2] == "--delete" ? args[3] : nil,
+                         select: args.count == 4 && args[2] == "--select" ? args[3] : nil)
+            return
         }
         if !isGUI { busy = true; setIcon("working") }
         runCLI(args, timeout: isGUI ? nil : 75) { result in

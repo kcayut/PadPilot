@@ -59,9 +59,9 @@ Defaults are a **4-second** physical display disconnect debounce, up to **3** Si
 | --- | --- |
 | Mac | The project targets macOS 14+, primarily on Apple Silicon Mac mini. Other model and OS combinations are not comprehensively validated. |
 | iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
-| Python | Python 3.10+. The graphical settings window also requires an importable `tkinter` module in that Python environment. The installer detects dependencies and offers reuse, a custom path, or installation. |
+| Python | Python 3.10+ for the background core. The installer detects dependencies and offers reuse, a custom path, or installation. |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
-| Apple Command Line Tools | Builds the Swift/AppKit menu app; install using `xcode-select --install`. |
+| Apple Command Line Tools | Builds the Swift/AppKit menu and native SwiftUI settings window; install using `xcode-select --install`. |
 | Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
 
 See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's license does not cover third-party software licenses.
@@ -86,7 +86,7 @@ First verify that Sidecar works manually through macOS Screen Mirroring, then pa
 
 **This download entry point requires [kcayut/PadPilot](https://github.com/kcayut/PadPilot) to be public and these installation scripts to be published on `main`.** Private repositories or unpublished scripts return 404; failed downloads never run the installer. With an existing source copy, run `./scripts/install.sh` from its project directory.
 
-The installer detects Python/Tk, BetterDisplay, and Apple's build tools, then offers to reuse a detected dependency, enter a path, or install what is missing. Homebrew installation requires consent, including installing Homebrew itself if absent. Apple Command Line Tools use the macOS installation dialog; finish it and rerun the same command.
+The installer detects Python, BetterDisplay, and Apple's build tools, then offers to reuse a detected dependency, enter a path, or install what is missing. Homebrew installation requires consent, including installing Homebrew itself if absent. Apple Command Line Tools use the macOS installation dialog; finish it and rerun the same command.
 
 Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.
 
@@ -97,7 +97,7 @@ Source is kept in `~/Applications/PadPilot-source`. Rerunning reuses that folder
 open "$HOME/Applications/PadPilot.app"
 ```
 
-The CLI shortcut uses the Python selected during installation. If another program owns `~/bin/padpilot-cli`, use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` instead. **Keep the Python environment and source folder in place**; this remains a locally built app that references its source. See the [installation guide](docs/INSTALLATION.en.md) for read-only checks, custom paths, installation without the settings GUI, and noninteractive options. A BetterDisplay CLI response does not verify licensing, Sidecar pairing, or an actual working display.
+The CLI shortcut uses the Python selected during installation. If another program owns `~/bin/padpilot-cli`, use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` instead. **Keep the Python environment and source folder in place**; this remains a locally built app that references its source. See the [installation guide](docs/INSTALLATION.en.md) for read-only checks, custom paths, and noninteractive options. A BetterDisplay CLI response does not verify licensing, Sidecar pairing, or an actual working display.
 
 ### 2. Select your iPad
 
@@ -186,7 +186,7 @@ Run these from any directory. If `~/bin` is on your PATH, you can also use `padp
 "$HOME/bin/padpilot-cli" --help
 ```
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"$HOME/bin/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. To return to a compatible older version, restore its source and reinstall. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"$HOME/bin/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 ## Limitations and troubleshooting
 
@@ -197,7 +197,7 @@ Keep a backup of the prior source, save and close settings, then update the sour
 
 Configuration and runtime state normally live in `~/Library/Application Support/PadPilot/`; logs are in `~/Library/Logs/PadPilot/`. When reporting a problem, include versions, connection type, reproduction steps, and relevant logs. Redact device serials, UUIDs, accounts, and personal paths first.
 
-Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix](docs/development/2026-09-11-release-readiness.en.md) for tested environments and hardware scenarios still marked `unknown`.
+Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix (Traditional Chinese)](docs/development/2026-09-11-release-readiness.md) for tested environments and hardware scenarios still marked `unknown`.
 
 ## Uninstall
 
@@ -217,11 +217,11 @@ For noninteractive app-only removal, add `--yes`. To also remove settings and lo
 - [Troubleshooting and FAQ](docs/TROUBLESHOOTING.en.md)
 - [Architecture](docs/ARCHITECTURE.en.md)
 - [Documentation index and languages](docs/README.en.md)
-- [Development notes](docs/development/README.en.md) — maintainer history, not installation instructions
+- [Development notes (Traditional Chinese)](docs/development/README.md) — maintainer history
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
-The README and all guides under `docs/` are available in Traditional Chinese, English, and Japanese. Issues, translation improvements, hardware compatibility reports, and pull requests are welcome. After code changes, run `python3 -m unittest discover -s tests -v`; for GUI changes, also follow the layout checks in the contributing guide. Automated tests do not substitute for physical cold-boot or hotplug validation.
+The README and user guides under `docs/` are available in Traditional Chinese, English, and Japanese. Development notes are maintained in Traditional Chinese only. Issues, translation improvements, hardware compatibility reports, and pull requests are welcome. After code changes, run `python3 -m unittest discover -s tests -v`; for GUI changes, also follow the layout checks in the contributing guide. Automated tests do not substitute for physical cold-boot or hotplug validation.
 
 ## License and acknowledgments
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from setup_state import read_receipt, write_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPENDENCIES = {'python@3.14': 'formula', 'python-tk@3.14': 'formula', 'betterdisplay': 'cask'}
+DEPENDENCIES = {'python@3.14': 'formula', 'betterdisplay': 'cask'}
 
 
 def ask(question):

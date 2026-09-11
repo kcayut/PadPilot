@@ -48,6 +48,7 @@ class TestPadPilotAutostart(unittest.TestCase):
         self.assertFalse(loaded.autostart_on_login)
 
     def test_generate_plist_content(self) -> None:
+        import plistlib
         custom_py = "/usr/local/bin/python3"
         custom_root = Path("/opt/PadPilot")
         custom_logs = Path("/var/log/PadPilot")
@@ -62,8 +63,9 @@ class TestPadPilotAutostart(unittest.TestCase):
         self.assertIn(f"<string>{custom_py}</string>", xml)
         self.assertIn(f"<string>{custom_root / 'bin' / 'padpilotd'}</string>", xml)
         self.assertIn(f"<string>{custom_logs / 'launchd.stdout.log'}</string>", xml)
-        self.assertIn("<key>RunAtLoad</key>", xml)
-        self.assertIn("<key>KeepAlive</key>", xml)
+        plist = plistlib.loads(xml.encode())
+        self.assertIs(plist["RunAtLoad"], True)
+        self.assertIs(plist["KeepAlive"], True)
 
     def test_is_autostart_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

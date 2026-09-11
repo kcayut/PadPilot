@@ -219,7 +219,6 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item(tr('設定與配對'), args=('gui',))
     item(tr('狀態與診斷'), args=('gui', 'diagnostics'))
     if not gui_available:
-        item(tr('Tkinter 不可用：設定視窗已停用'), enabled=False)
         for row in items:
             if row['args'][:1] == ['gui']:
                 row['enabled'] = False
@@ -248,17 +247,11 @@ def read_menu() -> dict:
         service_running = bool(daemon_pids())
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         service_running = None
-    try:
-        import tkinter
-        gui_available = True
-    except (ImportError, OSError):
-        gui_available = False
     status = load_status()
     if config_error:
         status = dict(status, actual=dict(status.get('actual') or {}, discovery_errors={
             'config': 'Configuration unreadable; repair or restore the file before starting PadPilot.'}))
-    return render(status, config, PLIST_PATH.is_file(), service_running=service_running,
-                  gui_available=gui_available)
+    return render(status, config, PLIST_PATH.is_file(), service_running=service_running)
 
 
 def main():

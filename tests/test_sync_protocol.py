@@ -103,7 +103,7 @@ class SyncProtocolTests(unittest.TestCase):
 
     # 2. Inconsistent revision snapshot does not mix stale reasons
     def test_inconsistent_revision_snapshot_does_not_mix_stale_reasons(self):
-        from core.gui import SettingsWindow, read_view
+        from core.gui import read_view
 
         cfg = Config(revision=5, mode=OperationMode.MANUAL_ONLY)
         # Status snapshot is still at older config_revision=4
@@ -139,121 +139,17 @@ class SyncProtocolTests(unittest.TestCase):
         self.assertEqual(view["status_config_revision"], 4)
         self.assertEqual(view["status_revision"], 10)
 
-        # In GUI render: verify stale reason is NOT displayed
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.logs_expanded = True
-        app.view = view
-        app.dirty_fields = {}
-        app.expanded_profiles = set()
-        app.buttons = []
-        app.scroll_frame = MagicMock()
-        app.search = MagicMock()
-        app.make_badge = MagicMock(return_value=MagicMock())
-        app.log_filter_var = MagicMock()
-        app.refresh_logs = MagicMock()
+        from core.gui import build_gui_payload
+        with patch('core.gui.read_view', return_value=view), \
+             patch('core.gui.BetterDisplayCLI.resolve_cli_path', return_value=None):
+            payload = build_gui_payload()
+            self.assertNotIn('Old automatic reasoning', str(payload['decision']))
+            self.assertIn('套用新設定中', payload['decision']['reason'])
+            view['consistency_state'] = 'REVISION_CONFLICT'
+            payload = build_gui_payload()
+            self.assertNotIn('Old automatic reasoning', str(payload['decision']))
+            self.assertEqual(payload['decision']['satisfaction'], '不同步')
 
-        with patch("tkinter.Frame", return_value=MagicMock()), \
-             patch("tkinter.Label") as mock_label, \
-             patch("tkinter.Text", return_value=MagicMock()), \
-             patch("tkinter.ttk.Combobox", return_value=MagicMock()), \
-             patch("tkinter.ttk.Scrollbar", return_value=MagicMock()), \
-             patch("core.gui.Card", return_value=MagicMock()):
-            app.render_diagnostics_tab()
-
-            # Check all text passed to tk.Label
-            rendered_texts = [call.kwargs.get("text", "") for call in mock_label.call_args_list if "text" in call.kwargs]
-            # Old stale reason must NOT appear
-            self.assertNotIn("Old automatic reasoning", rendered_texts)
-            # Applying state must be communicated
-            self.assertTrue(any("套用新設定中" in txt for txt in rendered_texts))
-
-    # 3. Coalescing single flight prevents duplicate render
-    def test_coalescing_single_flight_prevents_duplicate_render(self):
-        from core.gui import SettingsWindow
-
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.logs_expanded = True
-        app.busy = False
-        app.one_shot = False
-        app.modal_depth = 0
-        app._sync_in_progress = False
-        app._sync_pending = False
-        app._last_sync_sig = None
-        app._last_config_revision = 0
-        app._last_status_revision = 0
-        app.root = MagicMock()
-        app.display = MagicMock()
-
-        sig1 = (1001, 2001, 500)
-
-        mock_view = {
-            "config": Config(revision=2),
-            "status_revision": 3,
-            "consistency_state": "CONSISTENT",
-        }
-
-        # Simulate sync already in progress when FocusIn or timer fires
-        app._sync_in_progress = True
-        app._check_external_sync()
-
-        # Must mark sync as pending and return immediately without running display
-        self.assertTrue(app._sync_pending)
-        app.display.assert_not_called()
-
-        # Now first sync finishes
-        app._sync_in_progress = False
-
-        with patch("core.gui.get_sync_signatures", return_value=sig1), \
-             patch("core.gui.read_view", return_value=mock_view):
-
-            # When _check_external_sync runs normally
-            app._check_external_sync()
-            self.assertEqual(app.display.call_count, 1)
-
-            # A subsequent immediate call with identical signature must NOT re-render
-            app._check_external_sync()
-            self.assertEqual(app.display.call_count, 1)
-
-    # 4. Active entry editing preserves text while status updates
-    def test_active_entry_editing_preserves_text_while_status_updates(self):
-        from core.gui import SettingsWindow
-
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.logs_expanded = True
-        app.root = MagicMock()
-        app.busy = False
-        app.readonly = False
-        app.buttons = []
-        app.usbs = []
-        app.scroll_frame = MagicMock()
-        app.profiles = {pairing_key(self.config.ipad.to_dict()): self.config.ipad.to_dict()}
-        app.dirty_fields = {}
-        app.expanded_profiles = {"uuid-1234"}
-        app.make_badge = MagicMock(return_value=MagicMock())
-        app.view = {
-            "config": self.config,
-            "consistency_state": "CONSISTENT",
-            "status_revision": 1,
-            "fresh": True,
-            "actual": {"sidecar_devices": [], "usb_devices": [], "discovery_errors": {}},
-        }
-
-        # User is actively typing "Draft New iPad Name" in the field
-        kid = "uuid-1234"
-        app.dirty_fields[f"name.{kid}"] = {"value": "Draft New iPad Name", "base_revision": 1}
-
-        with patch("tkinter.Frame", return_value=MagicMock()), \
-             patch("tkinter.Label", return_value=MagicMock()), \
-             patch("tkinter.Entry", return_value=MagicMock()), \
-             patch("tkinter.StringVar") as mock_string_var, \
-             patch("core.gui.Card", return_value=MagicMock()):
-
-            app.render_paired_tab()
-
-            # Verify StringVar was initialized with the dirty draft value, NOT the config value
-            var_calls = [call.kwargs.get("value") for call in mock_string_var.call_args_list if "value" in call.kwargs]
-            self.assertIn("Draft New iPad Name", var_calls)
-            self.assertNotIn("iPad Pro", var_calls)
 
     # 5. Optimistic concurrency rejects stale expected revision
     def test_optimistic_concurrency_rejects_stale_expected_revision(self):
@@ -357,37 +253,6 @@ class SyncProtocolTests(unittest.TestCase):
             self.assertEqual(saved_cfg.revision, 2)
             self.assertEqual(saved_cfg.paired_ipads[1].name, "New Second iPad Name")
 
-    # 10. GUI daemon-owned change does not send duplicate client notification
-    def test_gui_daemon_owned_change_does_not_send_duplicate_client_notification(self):
-        from core.gui import SettingsWindow
-        app = MagicMock(spec=SettingsWindow)
-        app.readonly = False
-        app.busy = False
-        app.view = {"config": Config(revision=1, mode=OperationMode.AUTOMATIC)}
-        app.root = MagicMock()
-        app.notice = MagicMock()
-        app.display = MagicMock()
-        app.dirty_fields = {}
-
-        with patch("core.gui.confirm", return_value=True), \
-             patch("subprocess.run") as mock_subproc, \
-             patch("core.gui.read_view", return_value={"config": Config(revision=2, mode=OperationMode.MANUAL_ONLY)}), \
-             patch("subprocess.Popen") as mock_launch:
-
-            mock_subproc.return_value = MagicMock(returncode=0, stdout="OK: 設定已更新", stderr="")
-
-            SettingsWindow.set_mode(app, "manual_only")
-
-            # Check task work was submitted
-            task_call = app.task.call_args
-            self.assertIsNotNone(task_call)
-            work_fn, complete_fn = task_call[0]
-
-            msg, view = work_fn()
-            complete_fn((msg, view))
-
-            # The GUI reads the updated snapshot; no separate menu process is launched.
-            mock_launch.assert_not_called()
 
     # 11. Semantic config equality ignores revision and timestamp
     def test_semantic_config_equality_ignores_revision_and_timestamp(self):

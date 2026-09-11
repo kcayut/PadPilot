@@ -2,12 +2,14 @@
 """Install/remove only this checkout's app and integrations. User data is preserved."""
 import argparse
 import copy
+import fcntl
 import json
 import os
 import plistlib
 import re
 import signal
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -42,23 +44,6 @@ def trash(path):
     return destination
 
 
-def retire_legacy_plugin():
-    folders = {Path.home() / 'Library/Application Support/SwiftBar/plugins'}
-    preferences = Path.home() / 'Library/Preferences/com.ameba.SwiftBar.plist'
-    try:
-        custom = plistlib.loads(preferences.read_bytes()).get('PluginDirectory')
-        if isinstance(custom, str) and custom:
-            folders.add(Path(custom).expanduser())
-    except (OSError, ValueError):
-        pass
-    for folder in folders:
-        plugin = folder / 'padpilot.30s.py'
-        if plugin.is_symlink() and plugin.resolve() == ROOT / 'swiftbar/padpilot.30s.py':
-            trash(plugin)
-        elif plugin.exists() or plugin.is_symlink():
-            print(f'Not an owned legacy link; left untouched: {plugin}')
-
-
 def stop_menu_apps():
     for app in (Path.home() / 'Applications/PadPilot.app', ROOT / 'build/PadPilot.app'):
         if not owned_app(app):
@@ -81,13 +66,36 @@ def stop_menu_apps():
 
 
 def ensure_settings_closed():
-    # Tk windows can outlive the menu app and write settings after removal.
-    pattern = r'(^| )' + re.escape(str(ROOT / 'bin/padpilot-cli')) + r' (gui|open-log)( |$)'
+    # Closing the native window does not cancel an already submitted CLI write.
+    pattern = (r'(^| )' + re.escape(str(ROOT / 'bin/padpilot-cli'))
+               + r' (gui|open-log|change-settings|set-mode|set-language|autostart|action|pair|set-ipad|select-ipad)( |$)')
     result = subprocess.run(['pgrep', '-f', pattern], capture_output=True, text=True, timeout=5)
     if result.returncode == 0:
-        raise RuntimeError('請先儲存並關閉 PadPilot 設定／診斷視窗，再重試。 / Close PadPilot settings windows and retry.')
+        raise RuntimeError('請等待 PadPilot 操作完成、儲存並關閉設定／診斷視窗，再重試。 / Wait for PadPilot operations to finish, then close settings windows and retry.')
     if result.returncode != 1:
         raise RuntimeError('Cannot check open settings windows; no installation changes made.')
+    for support in (Path.home() / 'Library/Application Support/PadPilot', FALLBACK_CONFIG_FILE.parent):
+        path = support / 'runtime/settings-window.lock'
+        try:
+            for directory in (support, path.parent):
+                info = directory.lstat()
+                if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                    raise RuntimeError(f'Refusing unsafe settings window directory: {directory}')
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise RuntimeError(f'Cannot safely check settings window lock: {path}') from error
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+                raise RuntimeError(f'Refusing unsafe settings window lock: {path}')
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise RuntimeError('請先儲存並關閉 PadPilot 設定／診斷視窗，再重試。 / Close PadPilot settings windows and retry.') from error
+        finally:
+            os.close(fd)
 
 
 def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=False, betterdisplay_path=None):
@@ -173,29 +181,29 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
                 except Exception as restore_error:
                     raise RuntimeError(f'Installation failed: {error}. Rollback incomplete: {restore_error}') from error
                 raise RuntimeError(f'Installation failed: {error}. Previous app and service state restored.') from error
-        retire_legacy_plugin()
         try:
             shortcut.parent.mkdir(parents=True, exist_ok=True)
-            if shortcut.is_symlink() and shortcut.resolve() == ROOT / 'bin/padpilot-cli':
-                shortcut.unlink()
             if not (shortcut.exists() or shortcut.is_symlink()):
                 shortcut.symlink_to(launcher)
-            elif not (shortcut.is_symlink() and shortcut.resolve() == launcher):
+            elif not (shortcut.is_symlink() and shortcut.resolve() == launcher.resolve()):
                 print(f'Existing CLI shortcut preserved: {shortcut}; use {launcher}')
         except OSError as error:
             print(f'App installed; optional CLI shortcut unavailable ({error}). Use: {launcher}')
         print(f'Installed: {app}\nPython: {sys.executable}\nKeep source folder: {ROOT}\nCLI: {launcher}')
+        if cfg.autostart_on_login:
+            print('登入自動啟動已啟用：重新開機並登入後，背景服務與選單列會自動啟動。 / Daemon and menu bar will start automatically after login, including after a restart.')
+        else:
+            print('保留已停用的登入自動啟動設定。 / Launch at login remains disabled.')
         return
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
     subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
     stop_menu_apps()
-    retire_legacy_plugin()
     if uninstall:
         if plist.exists():
             trash(plist)
         if app.exists():
             trash(app)
-        if shortcut.is_symlink() and shortcut.resolve() in (ROOT / 'bin/padpilot-cli', launcher):
+        if shortcut.is_symlink() and shortcut.resolve() == launcher.resolve():
             trash(shortcut)
         if remove_config:
             if fallback_exists and FALLBACK_CONFIG_FILE.parent != APP_SUPPORT_DIR:

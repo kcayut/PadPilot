@@ -11,14 +11,14 @@ case "${1:-}" in
         echo "Usage: bash bootstrap.sh [installer options]"
         echo "Installs source in ~/Applications/PadPilot-source, then runs scripts/install.sh."
         echo "Existing managed source is reused, never updated or overwritten."
-        echo "Options: --yes --install-deps --headless --python PATH --betterdisplay-path PATH"
+        echo "Options: --yes --install-deps --check --python PATH --betterdisplay-path PATH"
         exit 0 ;;
 esac
 [[ "$(uname -s)" == Darwin ]] || die "macOS 14 or later is required."
 ARGS=("$@")
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --yes|-y|--install-deps|--headless|--check) shift ;;
+        --yes|-y|--install-deps|--check) shift ;;
         --python|--betterdisplay-path)
             [[ $# -ge 2 && -n "$2" ]] || die "$1 requires a path."
             shift 2 ;;

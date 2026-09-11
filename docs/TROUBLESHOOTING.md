@@ -158,7 +158,7 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 ## 8. 預檢、私人路徑或啟動握手失敗
 
 - `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，再執行 `./scripts/install.sh --check`。不要把 help 成功當成授權或實機驗收通過。
-- `WARN: Tkinter`：只停用設定視窗，原生選單、daemon 與 CLI 可繼續使用。補上安裝時所選 Python 的 Tk 支援，重新開啟視窗即可。
+- 設定視窗無法開啟：更新原始碼後請重新執行 `./scripts/install.sh`，建置與目前版本相符的 App。
 - `Refusing unsafe state directory/file`：先停止操作，檢查訊息指定路徑的所有者、符號連結與硬連結。不要對 `/tmp` 或他人目錄遞迴改權限、刪除或強制接管。確認是自己的舊資料後先備份，再由擁有者整理；應用程式會拒絕不可信路徑。
 - `LaunchAgent belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
 - `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/PadPilot/launchd.stderr.log` 與 `padpilot.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。

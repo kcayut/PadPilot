@@ -16,6 +16,19 @@ sys.path.insert(0, str(ROOT))
 from core import __version__
 
 
+def build_icon(directory, output):
+    """Package the README artwork at macOS standard and Retina icon sizes."""
+    iconset = directory / 'PadPilot.iconset'
+    iconset.mkdir()
+    for size in (16, 32, 128, 256, 512):
+        for scale in (1, 2):
+            pixels = str(size * scale)
+            name = f'icon_{size}x{size}' + ('@2x' if scale == 2 else '') + '.png'
+            subprocess.run(['/usr/bin/sips', '-z', pixels, pixels, str(ROOT / 'assets/padpilot-icon.png'),
+                            '--out', str(iconset / name)], check=True, capture_output=True)
+    subprocess.run(['/usr/bin/iconutil', '-c', 'icns', str(iconset), '-o', str(output)], check=True)
+
+
 def build(output):
     if sys.platform != 'darwin':
         raise RuntimeError('PadPilot.app requires macOS.')
@@ -29,17 +42,22 @@ def build(output):
         resources = contents / 'Resources'
         resources.mkdir(parents=True)
         (contents / 'MacOS').mkdir()
+        build_icon(Path(directory), resources / 'PadPilot.icns')
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-O',
                         '-target', f'{platform.machine()}-apple-macosx14.0',
                         '-module-cache-path', str(ROOT / 'build' / 'swift-cache'),
-                        str(ROOT / 'native' / 'PadPilot.swift'), '-o', str(contents / 'MacOS' / 'PadPilot')],
+                        str(ROOT / 'native' / 'PadPilot.swift'), str(ROOT / 'native' / 'Settings.swift'),
+                        '-o', str(contents / 'MacOS' / 'PadPilot')],
                        check=True)
         (contents / 'Info.plist').write_bytes(plistlib.dumps({
             'CFBundleIdentifier': 'com.padpilot.app', 'CFBundleName': 'PadPilot',
             'CFBundleDisplayName': 'PadPilot', 'CFBundleExecutable': 'PadPilot',
+            'CFBundleIconFile': 'PadPilot.icns',
             'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': __version__,
             'CFBundleVersion': __version__, 'LSMinimumSystemVersion': '14.0',
             'LSUIElement': True, 'NSHighResolutionCapable': True,
+            'CFBundleURLTypes': [{'CFBundleURLName': 'com.padpilot.settings',
+                                  'CFBundleURLSchemes': ['padpilot']}],
         }))
         (resources / 'runtime.json').write_text(json.dumps({
             'python': sys.executable, 'project_root': str(ROOT),

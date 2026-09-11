@@ -3,7 +3,10 @@
     "en": "For automatic display connection at startup. This check only reads status; it does not change settings or read passwords.",
     "ja": "起動時の自動画面接続のための確認です。状態の読み取りのみを行い、設定の変更やパスワードの読み取りは行いません。"
   },
-  "進階選項": {"en": "Advanced options", "ja": "詳細オプション"},
+  "進階選項": {
+    "en": "Advanced options",
+    "ja": "詳細オプション"
+  },
   "自動模式": {
     "en": "Automatic mode",
     "ja": "自動モード"
@@ -376,9 +379,9 @@
     "en": "Collapse ▲",
     "ja": "折りたたむ ▲"
   },
-  "設定 ▼": {
-    "en": "Settings ▼",
-    "ja": "設定 ▼"
+  "設定": {
+    "en": "Settings",
+    "ja": "設定"
   },
   " (目前已接上 USB)": {
     "en": " (USB connected)",
@@ -1697,5 +1700,69 @@
   "Tkinter 不可用：設定視窗已停用": {
     "en": "Tkinter unavailable: settings window disabled",
     "ja": "Tkinter が利用できないため設定画面は無効です"
+  },
+  "暫停更新": {
+    "en": "Pause updates",
+    "ja": "更新を一時停止"
+  },
+  "確認": {
+    "en": "OK",
+    "ja": "確認"
+  },
+  "複製": {
+    "en": "Copy",
+    "ja": "コピー"
+  },
+  "編輯": {
+    "en": "Edit",
+    "ja": "編集"
+  },
+  "剪下": {
+    "en": "Cut",
+    "ja": "カット"
+  },
+  "貼上": {
+    "en": "Paste",
+    "ja": "ペースト"
+  },
+  "全選": {
+    "en": "Select All",
+    "ja": "すべてを選択"
+  },
+  "視窗": {
+    "en": "Window",
+    "ja": "ウインドウ"
+  },
+  "關閉視窗": {
+    "en": "Close Window",
+    "ja": "ウインドウを閉じる"
+  },
+  "最小化": {
+    "en": "Minimize",
+    "ja": "しまう"
+  },
+  "設定資料回應無效，請重新安裝 PadPilot。": {
+    "en": "The settings response is invalid. Please reinstall PadPilot.",
+    "ja": "設定データの応答が無効です。PadPilot を再インストールしてください。"
+  },
+  "指令未完成或已逾時；請先檢查「狀態與診斷」，再決定是否重試。": {
+    "en": "The command failed or timed out. Check Status & Diagnostics before retrying.",
+    "ja": "コマンドが失敗したかタイムアウトしました。再試行の前に「状態と診断」を確認してください。"
+  },
+  "設定視窗執行目錄無法安全使用，請重新安裝 PadPilot。": {
+    "en": "The settings runtime directory cannot be used safely. Please reinstall PadPilot.",
+    "ja": "設定ウインドウの実行ディレクトリを安全に使用できません。PadPilot を再インストールしてください。"
+  },
+  "設定視窗已開啟或正在更新，請稍後重試。": {
+    "en": "Settings are already open or being updated. Please try again after the operation finishes.",
+    "ja": "設定ウインドウはすでに開いているか更新中です。処理が完了してから再試行してください。"
+  },
+  "配對": {
+    "en": "Pair",
+    "ja": "ペアリング"
+  },
+  "自動更新": {
+    "en": "Auto-update",
+    "ja": "自動更新"
   }
 }

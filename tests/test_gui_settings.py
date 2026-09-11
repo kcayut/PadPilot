@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from core.config import Config
-from core.gui import SettingsWindow, read_view
+from core.gui import read_view
 from core.models import OperationMode, pairing_key
 from core.settings import apply_change
 
@@ -59,20 +59,6 @@ class GuiSettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_change(cfg, 'set_virtual_display', {'name': 'Recovery Screen'}, bd)
 
-    def test_no_confirmation_means_no_write_yes_uses_selected_key(self):
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.readonly, app.busy = False, False
-        app.root = MagicMock()
-        app.view = {'config': self.config()}
-        app.profiles = {pairing_key(ONE): ONE}
-        app.change = MagicMock()
-        with patch('core.gui.confirm', return_value=False) as dialog:
-            app.delete_selected(pairing_key(ONE))
-            app.change.assert_not_called()
-            self.assertEqual(dialog.call_args.args[1], '確定刪除配對?')
-        with patch('core.gui.confirm', return_value=True):
-            app.delete_selected(pairing_key(ONE))
-        app.change.assert_called_once_with('delete_pairing', {'key': pairing_key(ONE)})
 
     def test_settings_page_is_interactive_and_read_view_does_not_mutate(self):
         with tempfile.TemporaryDirectory() as d, patch('core.gui.get_config_file_path', return_value=Path(d)/'config.json'), \
@@ -151,98 +137,49 @@ class GuiSettingsTests(unittest.TestCase):
         self.assertTrue(response.startswith('OK:'))
         obj.engine.evaluate.assert_called_once_with(trigger='betterdisplaycli_path_change')
 
-    def test_gui_reset_betterdisplay_cli_action(self):
-        app = SettingsWindow.__new__(SettingsWindow)
-        app.readonly, app.busy = False, False
-        app.root = MagicMock()
+
+    def test_native_payload_keeps_profile_identity_controls_and_preferences(self):
+        from core.gui import build_gui_payload
         cfg = self.config()
-        cfg.betterdisplaycli_path = '/custom/path'
-        app.view = {'config': cfg}
-        app.change = MagicMock()
+        cfg.revision = 7
+        view = {'config': cfg, 'config_error': '', 'actual': {}, 'status': {},
+                'fresh': False, 'scanned': False, 'consistency_state': 'CONSISTENT',
+                'identifiers': [{'name': 'Backup', 'deviceType': 'VirtualScreen'},
+                                {'name': 'Monitor', 'deviceType': 'Display'}]}
+        with patch('core.gui.read_view', return_value=view), \
+             patch('core.gui.BetterDisplayCLI.resolve_cli_path', return_value='/custom/BetterDisplay'):
+            payload = build_gui_payload()
+        self.assertEqual(json.loads(json.dumps(payload))['config'], cfg.to_dict())
+        self.assertEqual([p['key'] for p in payload['profiles']], [pairing_key(ONE), pairing_key(TWO)])
+        self.assertEqual([p['can_control'] for p in payload['profiles']], [True, False])
+        self.assertEqual([p['is_target'] for p in payload['profiles']], [True, False])
+        self.assertEqual(payload['virtuals'], [view['identifiers'][0]])
+        self.assertEqual(payload['paths']['betterdisplaycli'], '/custom/BetterDisplay')
+        for key in ('debounce_seconds', 'max_retries', 'retry_interval', 'cooldown_seconds',
+                    'ignore_list', 'auto_detect_ipad', 'usb_event_wakeup', 'autostart_on_login'):
+            self.assertEqual(payload['config'][key], cfg.to_dict()[key])
+        view['config_error'] = 'Repair the original configuration.'
+        with patch('core.gui.read_view', return_value=view), \
+             patch('core.gui.BetterDisplayCLI.resolve_cli_path', return_value=None):
+            readonly = build_gui_payload(scan=True)
+        self.assertTrue(readonly['ui']['readonly'])
+        self.assertFalse(any(profile['can_control'] for profile in readonly['profiles']))
 
-        # Decline confirmation
-        with patch('core.gui.confirm', return_value=False):
-            app.reset_betterdisplay_cli_action()
-            app.change.assert_not_called()
-
-        # Accept confirmation
-        with patch('core.gui.confirm', return_value=True):
-            app.reset_betterdisplay_cli_action()
-            app.change.assert_called_once_with('set_betterdisplaycli_path', {'path': None})
-
-        # When already default
-        app.change.reset_mock()
-        cfg.betterdisplaycli_path = None
-        with patch('tkinter.messagebox.showinfo') as mock_info:
-            app.reset_betterdisplay_cli_action()
-            mock_info.assert_called_once()
-            app.change.assert_not_called()
-
-    def test_operations_tab_advanced_options_contain_protection_and_paths(self):
-        import tkinter as tk
-        root = tk.Tk()
-        try:
-            cfg = self.config()
-            with patch.object(SettingsWindow, 'search'), patch.object(SettingsWindow, '_check_external_sync'):
-                app = SettingsWindow(root)
-                root.geometry('840x500')
-                app.display({'config': cfg, 'actual': {}, 'fresh': True, 'identifiers': [], 'status': {}})
-                app.select_tab('settings')
-                root.update()
-
-                def descendants(widget):
-                    for child in widget.winfo_children():
-                        yield child
-                        yield from descendants(child)
-
-                prot_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '防護機制與保護參數' in w.cget('text')]
-                path_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '系統路徑與整合' in w.cget('text')]
-                bd_btns = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'TButton' and w.cget('text') == '手動設定']
-                adv_btns = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'TButton' and '進階選項' in w.cget('text')]
-
-                self.assertEqual(len(prot_lbls), 1)
-                self.assertEqual(len(path_lbls), 1)
-                self.assertEqual(len(bd_btns), 1)
-                self.assertEqual(len(adv_btns), 1)
-
-                # Initially collapsed
-                self.assertFalse(prot_lbls[0].winfo_ismapped())
-                self.assertFalse(path_lbls[0].winfo_ismapped())
-                self.assertFalse(bd_btns[0].winfo_ismapped())
-
-                # Expand
-                adv_btns[0].invoke()
-                root.update()
-                self.assertTrue(prot_lbls[0].winfo_ismapped())
-                self.assertTrue(path_lbls[0].winfo_ismapped())
-                self.assertTrue(bd_btns[0].winfo_ismapped())
-
-                # Verify BetterDisplay CLI buttons are on the right in the same row
-                bd_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and 'BetterDisplay CLI：' in w.cget('text')]
-                cfg_lbls = [w for w in descendants(app.scroll_frame) if w.winfo_class() == 'Label' and '設定檔位置：' in w.cget('text')]
-                self.assertEqual(len(bd_lbls), 1)
-                self.assertEqual(len(cfg_lbls), 1)
-
-                manual_btn = bd_btns[0]
-                bd_lbl = bd_lbls[0]
-                cfg_lbl = cfg_lbls[0]
-
-                # 1. Buttons are to the right of BetterDisplay CLI label
-                self.assertGreater(manual_btn.winfo_rootx(), bd_lbl.winfo_rootx())
-                # 2. Buttons are in the same row (vertically aligned)
-                self.assertLessEqual(abs(manual_btn.winfo_rooty() - bd_lbl.winfo_rooty()), 6)
-                # 3. Config path is on the adjacent row immediately following
-                btn_bottom = manual_btn.winfo_rooty() + manual_btn.winfo_height()
-                self.assertLessEqual(cfg_lbl.winfo_rooty() - btn_bottom, 12)
-
-                # Collapse
-                adv_btns[0].invoke()
-                root.update()
-                self.assertFalse(prot_lbls[0].winfo_ismapped())
-                self.assertFalse(path_lbls[0].winfo_ismapped())
-                self.assertFalse(bd_btns[0].winfo_ismapped())
-        finally:
-            root.destroy()
+    def test_native_launch_reuses_app_and_rejects_invalid_profile_key(self):
+        from core.gui import run_gui
+        app = ROOT / 'build/PadPilot.app'
+        with patch('core.autostart.find_menu_app', return_value=app), \
+             patch('core.gui.subprocess.run') as launch:
+            run_gui('diagnostics')
+            args = launch.call_args.args[0]
+            self.assertEqual(args[:3], ['/usr/bin/open', '-a', str(app)])
+            self.assertIn('padpilot://settings?page=diagnostics', args)
+            run_gui('wizard', delete=pairing_key(ONE))
+            self.assertIn('page=search&delete=' + pairing_key(ONE), launch.call_args.args[0][3])
+            launch.reset_mock()
+            with self.assertRaises(ValueError):
+                run_gui('paired', select='not-a-profile-key')
+            launch.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ from core.autostart import open_menu_app
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
-from core.models import DisplayRole, OperationMode
+from core.models import DisplayRole, OperationMode, pairing_key
 from core.state_engine import StateEngine
 from core.settings import ConflictError, apply_change
 from core.usb_events import USBEventMonitor
@@ -181,6 +181,21 @@ class PadPilotDaemon:
         logger.info('Received IPC command: %s', command if known else 'unknown')
         if not known:
             return json.dumps({'id': req_id, 'ok': False, 'error': 'UNKNOWN_COMMAND'}) if is_json else 'ERROR: Unknown command'
+
+        # Keep the target check and the action in the same config transaction.
+        if command in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar') and is_json:
+            if not isinstance(params, dict):
+                return json.dumps({'id': req_id, 'ok': False, 'error': 'INVALID_REQUEST'})
+            if expected_rev is not None or 'target_key' in params:
+                with self.config_lock:
+                    if type(expected_rev) is not int or self.config.revision != expected_rev:
+                        return json.dumps({'id': req_id, 'ok': False, 'error': 'CONFIG_CONFLICT',
+                                           'message': 'Settings changed; refresh before controlling this iPad.'})
+                    if not self.config.ipad.sidecar_uuid or params.get('target_key') != pairing_key(self.config.ipad.to_dict()):
+                        return json.dumps({'id': req_id, 'ok': False, 'error': 'TARGET_CHANGED',
+                                           'message': 'The selected iPad is no longer the control target.'})
+                    message = self.handle_client_cmd(command)
+                    return json.dumps({'id': req_id, 'ok': message.startswith('OK'), 'message': message})
 
         # Handle config mutation actions
         if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):

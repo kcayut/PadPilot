@@ -14,12 +14,12 @@ PadPilot is a deterministic display-state manager designed for headless Mac mini
 ## Components
 
 ```text
-Swift / AppKit PadPilot.app
+Swift / AppKit + SwiftUI PadPilot.app
+  ├─ SwiftUI settings → shared CLI/config transactions
   ├─ menu-json → core/menu.py → config.json + atomic status.json + daemon liveness
   └─ CLI argument arrays → padpilot-cli → Unix socket → padpilotd
                                                        ├─ Detector / IOKit / CoreGraphics
                                                        └─ StateEngine → BetterDisplay CLI
-Tk settings GUI ─────────────→ shared CLI/config transactions
 ```
 
 The menu checks snapshot file changes every second and calls `menu-json` only after a change or five seconds since its previous read. Reading the menu does not scan hardware. CLI subprocesses run off the AppKit main thread. An open menu is not rebuilt; updated content appears after it closes. Actions use argument arrays and an allowlist, never device names interpolated into shell commands. The LaunchAgent starts Python after login, then opens the native app. A lock prevents duplicate menu instances. Stopping the service keeps the menu; Exit closes both.

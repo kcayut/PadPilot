@@ -79,21 +79,6 @@ class ReleaseRepairsTests(unittest.TestCase):
                     self.assertEqual(path.read_text(), content)
                 hardware.assert_not_called()
 
-    def test_gui_sends_revision_and_preserves_older_draft_revision(self):
-        app = gui.SettingsWindow.__new__(gui.SettingsWindow)
-        app.busy = app.readonly = False
-        app.view = {'config': config.Config(revision=7)}
-        app.task = lambda work, complete: work()
-        with patch.object(gui, 'read_view', return_value=app.view), patch.object(gui, 'send_change') as send:
-            for payload, expected in [({'enabled': True}, 7), ({'enabled': True, '__expected_revision__': 4}, 4)]:
-                original = dict(payload)
-                app.change('set_auto_detect_ipad', payload)
-                self.assertEqual(send.call_args.args[1]['__expected_revision__'], expected)
-                self.assertEqual(payload, original)
-            send.reset_mock()
-            app.readonly = True
-            app.change('set_auto_detect_ipad', {'enabled': True})
-            send.assert_not_called()
 
     def test_identifier_recovery_does_not_erase_an_incomplete_observation(self):
         cfg = config.Config(auto_detect_ipad=False)
@@ -153,6 +138,22 @@ class ReleaseRepairsTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("named 'Recovery Screen'", message)
         self.assertNotIn('{name}', message)
+
+
+    def test_native_settings_transport_preserves_revision_and_reports_conflicts(self):
+        import subprocess
+        result = subprocess.CompletedProcess([], 0, 'OK: saved', '')
+        with patch.object(gui.subprocess, 'run', return_value=result) as run:
+            for revision in (7, 4):
+                payload = {'enabled': True, '__expected_revision__': revision}
+                original = dict(payload)
+                self.assertEqual(gui.send_change('set_auto_detect_ipad', payload), 'OK: saved')
+                self.assertEqual(json.loads(run.call_args.kwargs['input']), original)
+                self.assertEqual(payload, original)
+                self.assertEqual(run.call_args.args[0][-2:], ['change-settings', 'set_auto_detect_ipad'])
+            result.returncode, result.stderr = 1, 'CONFIG_CONFLICT: stale revision'
+            with self.assertRaisesRegex(RuntimeError, 'CONFIG_CONFLICT'):
+                gui.send_change('set_auto_detect_ipad', {'enabled': True, '__expected_revision__': 4})
 
 
 if __name__ == '__main__':

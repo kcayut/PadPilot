@@ -37,6 +37,12 @@ struct NativeMenuCheck {
             precondition(items.last?.representedObject as? [String] == ["exit"])
         }
         precondition(validAction(["gui", "wizard", "--delete", String(repeating: "a", count: 64)]))
+        precondition(SettingsRequest(url: URL(string: "padpilot://settings?page=diagnostics")!)?.page == "diagnostics")
+        for url in ["https://settings?page=about", "padpilot://other", "padpilot://settings?page=../file",
+                    "padpilot://settings?delete=bad", "padpilot://settings?page=about&page=settings",
+                    "padpilot://settings?command=exit"] {
+            precondition(SettingsRequest(url: URL(string: url)!) == nil)
+        }
         for args in [["sh", "-c", "touch /tmp/no"], ["start", "--no-menu"],
                      ["action", "garbage"], ["gui", "wizard", "--delete", "../../file"], ["exit", "extra"]] {
             precondition(!validAction(args))

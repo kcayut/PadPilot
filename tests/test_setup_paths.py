@@ -1,7 +1,9 @@
 """Installer path selection and independent data removal, with no live services."""
 import contextlib
+import fcntl
 import io
 import json
+import os
 import runpy
 import subprocess
 import sys
@@ -20,12 +22,89 @@ from core.config import Config
 
 class SetupPathsTests(unittest.TestCase):
     def test_open_settings_or_failed_process_query_blocks_changes(self):
-        for code in (0, 2):
-            with patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], code)):
-                with self.assertRaises(RuntimeError):
+        with tempfile.TemporaryDirectory() as directory, \
+             patch('pathlib.Path.home', return_value=Path(directory)), \
+             patch.object(manage_app, 'FALLBACK_CONFIG_FILE', Path(directory) / 'fallback/config.json'):
+            for code in (0, 2):
+                with patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], code)):
+                    with self.assertRaises(RuntimeError):
+                        manage_app.ensure_settings_closed()
+            with patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
+                manage_app.ensure_settings_closed()
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_native_settings_lock_blocks_only_while_window_is_open_without_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            fallback = home / 'fallback/config.json'
+            with patch('pathlib.Path.home', return_value=home), \
+                 patch.object(manage_app, 'FALLBACK_CONFIG_FILE', fallback), \
+                 patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
+                for support in (home / 'Library/Application Support/PadPilot', fallback.parent):
+                    path = support / 'runtime/settings-window.lock'
+                    path.parent.mkdir(parents=True)
+                    path.write_text('unchanged')
+                    path.chmod(0o644)
+                    with path.open() as window:
+                        fcntl.flock(window, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        with self.assertRaisesRegex(RuntimeError, 'Close PadPilot settings windows'):
+                            manage_app.ensure_settings_closed()
                     manage_app.ensure_settings_closed()
-        with patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
-            manage_app.ensure_settings_closed()
+                    self.assertEqual(path.read_text(), 'unchanged')
+                    self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+
+    def test_inflight_cli_writes_block_install_only_for_this_checkout(self):
+        source = Path('/tmp/source with spaces')
+        with patch.object(manage_app, 'ROOT', source), \
+             patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as query:
+            with self.assertRaisesRegex(RuntimeError, 'Wait for PadPilot operations to finish'):
+                manage_app.ensure_settings_closed()
+        pattern = query.call_args.args[0][2]
+        for command in ('gui', 'open-log', 'change-settings', 'set-mode', 'set-language',
+                        'autostart', 'action', 'pair', 'set-ipad', 'select-ipad'):
+            self.assertRegex(f'python3 {source}/bin/padpilot-cli {command} --option', pattern)
+            self.assertNotRegex(f'python3 {source}-other/bin/padpilot-cli {command} --option', pattern)
+        for command in ('gui-data', 'menu-json', 'status', 'set-mode-extra'):
+            self.assertNotRegex(f'python3 {source}/bin/padpilot-cli {command}', pattern)
+
+    def test_native_settings_lock_rejects_links_and_nonregular_or_foreign_files(self):
+        for kind in ('symlink', 'hardlink', 'directory', 'fifo', 'foreign', 'linked-parent'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                runtime = home / 'Library/Application Support/PadPilot/runtime'
+                runtime.mkdir(parents=True)
+                path = runtime / 'settings-window.lock'
+                outside = home / 'outside'
+                outside.write_text('keep')
+                if kind == 'symlink':
+                    path.symlink_to(outside)
+                elif kind == 'hardlink':
+                    os.link(outside, path)
+                elif kind == 'directory':
+                    path.mkdir()
+                elif kind == 'fifo':
+                    os.mkfifo(path)
+                elif kind == 'linked-parent':
+                    runtime.rmdir()
+                    runtime.symlink_to(home, target_is_directory=True)
+                else:
+                    path.write_text('keep')
+                with patch('pathlib.Path.home', return_value=home), \
+                     patch.object(manage_app, 'FALLBACK_CONFIG_FILE', home / 'fallback/config.json'), \
+                     patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
+                    if kind == 'foreign':
+                        original = os.fstat
+                        def foreign(fd):
+                            values = list(original(fd))
+                            values[4] = os.getuid() + 1
+                            return os.stat_result(values)
+                        with patch.object(manage_app.os, 'fstat', side_effect=foreign):
+                            with self.assertRaisesRegex(RuntimeError, 'unsafe settings window lock'):
+                                manage_app.ensure_settings_closed()
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            manage_app.ensure_settings_closed()
+                self.assertEqual(outside.read_text(), 'keep')
 
     def test_custom_app_preflight_and_daemon_start_share_selected_path(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -59,9 +59,9 @@ GUI の使用説明、トラブルシューティング、診断ヘルプは、�
 | --- | --- |
 | Mac | macOS 14 以降を対象とし、主な用途は Apple Silicon Mac mini です。他機種・OS の組み合わせは網羅的に検証していません。 |
 | iPad | Sidecar 対応機種で、Mac と同じ Apple Account を使用し、2 ファクタ認証が有効なこと。 |
-| Python | Python 3.10 以降。設定画面には同じ Python 環境で `tkinter` を読み込めることが必要です。検出後、既存環境の使用、パス指定、導入を選べます。 |
+| Python | バックグラウンドコア用の Python 3.10 以降。検出後、既存環境の使用、パス指定、導入を選べます。 |
 | [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Sidecar と画面を制御します。macOS と互換性のある版を使用し、CLI が動作することを確認してください。CLI 制御には提供元の条件に従った Pro または有効な試用が必要です。 |
-| Apple Command Line Tools | Swift/AppKit アプリのビルドに使用します。`xcode-select --install` で導入します。 |
+| Apple Command Line Tools | Swift/AppKit メニューと SwiftUI ネイティブ設定画面のビルドに使用します。`xcode-select --install` で導入します。 |
 | 接続 | 初回はデータ転送対応 USB ケーブルを推奨し、iPad で Mac を信頼します。ワイヤレス Sidecar には Wi-Fi、Bluetooth、Handoff も必要です。 |
 
 対応機種と接続条件は [Apple の Sidecar ガイド](https://support.apple.com/en-us/102597)を参照してください。BetterDisplay の機能とライセンスは[提供元の説明](https://github.com/waydabber/BetterDisplay#key-features)に従います。PadPilot のライセンスに第三者ソフトウェアのライセンスは含まれません。
@@ -86,7 +86,7 @@ GUI の使用説明、トラブルシューティング、診断ヘルプは、�
 
 **このダウンロード方法は、[kcayut/PadPilot](https://github.com/kcayut/PadPilot) が公開され、今回のインストールスクリプトが `main` に公開された後に利用できます。** 非公開リポジトリや未公開のスクリプトは 404 になり、ダウンロードに失敗するとインストーラーは実行しません。取得済みのソースがある場合は、プロジェクトフォルダーで `./scripts/install.sh` を実行できます。
 
-Python/Tk、BetterDisplay、Apple のビルドツールを先に検出し、既存のものを使用するか、パスを指定するか、不足する依存関係をインストールするかを選べます。Homebrew を使う前に確認し、Homebrew 自体がない場合も導入前に同意を求めます。Apple Command Line Tools は macOS のインストール画面で完了させ、同じコマンドを再実行してください。
+Python、BetterDisplay、Apple のビルドツールを先に検出し、既存のものを使用するか、パスを指定するか、不足する依存関係をインストールするかを選べます。Homebrew を使う前に確認し、Homebrew 自体がない場合も導入前に同意を求めます。Apple Command Line Tools は macOS のインストール画面で完了させ、同じコマンドを再実行してください。
 
 導入・削除の前に変更を保存し、PadPilot の設定・診断画面を閉じてください。開いたままの場合は停止し、再実行を案内します。
 
@@ -97,7 +97,7 @@ Python/Tk、BetterDisplay、Apple のビルドツールを先に検出し、既�
 open "$HOME/Applications/PadPilot.app"
 ```
 
-CLI ショートカットは導入時に選んだ Python を使用します。`~/bin/padpilot-cli` が他のプログラムに使われている場合は `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` を使用してください。**Python 環境とソースフォルダーを残してください。** 現在のアプリはローカルビルドでソースを参照します。読み取り専用の確認、パス指定、設定 GUI なしの導入、非対話オプションは[インストールガイド](docs/INSTALLATION.ja.md)を参照してください。BetterDisplay CLI の応答だけでは、ライセンス、Sidecar ペアリング、実際の画面表示は検証できません。
+CLI ショートカットは導入時に選んだ Python を使用します。`~/bin/padpilot-cli` が他のプログラムに使われている場合は `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` を使用してください。**Python 環境とソースフォルダーを残してください。** 現在のアプリはローカルビルドでソースを参照します。読み取り専用の確認、パス指定、非対話オプションは[インストールガイド](docs/INSTALLATION.ja.md)を参照してください。BetterDisplay CLI の応答だけでは、ライセンス、Sidecar ペアリング、実際の画面表示は検証できません。
 
 ### 2. iPad を指定
 
@@ -186,7 +186,7 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 "$HOME/bin/padpilot-cli" --help
 ```
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。互換性のある旧版へ戻すにはソースを復元して再インストールしてください。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"$HOME/bin/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 ## 制限とトラブルシューティング
 
@@ -197,7 +197,7 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 
 設定と状態は通常 `~/Library/Application Support/PadPilot/`、ログは `~/Library/Logs/PadPilot/` にあります。問題報告にはバージョン、接続方式、再現手順、関連ログを添え、シリアル番号、UUID、アカウント、個人のパスは伏せてください。
 
-専用ディレクトリは `0700`、設定・状態・socket・ログは `0600` です。他ユーザー所有やリンクされた状態パスを拒否します。新しい IPC ログにペアリング payload は記録しませんが、過去のログは自動消去しません。検証済み環境と `unknown` の実機項目は[リリース受け入れ表](docs/development/2026-09-11-release-readiness.ja.md)を参照してください。
+専用ディレクトリは `0700`、設定・状態・socket・ログは `0600` です。他ユーザー所有やリンクされた状態パスを拒否します。新しい IPC ログにペアリング payload は記録しませんが、過去のログは自動消去しません。検証済み環境と `unknown` の実機項目は[リリース受け入れ表（繁体字中国語）](docs/development/2026-09-11-release-readiness.md)を参照してください。
 
 ## アンインストール
 
@@ -217,11 +217,11 @@ PadPilot のペアリングはデバイスの対応関係を記録するもの�
 - [トラブルシューティング・FAQ](docs/TROUBLESHOOTING.ja.md)
 - [アーキテクチャ](docs/ARCHITECTURE.ja.md)
 - [文書一覧と言語版](docs/README.ja.md)
-- [開発記録](docs/development/README.ja.md) — 保守用の履歴であり、導入手順ではありません
+- [開発記録（繁体字中国語）](docs/development/README.md) — 保守用の履歴
 - [変更履歴](CHANGELOG.md)
 - [貢献ガイド](CONTRIBUTING.md)と[セキュリティ方針](SECURITY.md)
 
-README と `docs/` 内の文書は繁体字中国語、英語、日本語で読めます。問題報告、翻訳改善、互換性情報、Pull Request を歓迎します。コード変更後は `python3 -m unittest discover -s tests -v` を実行し、GUI 変更時は貢献ガイドのレイアウト確認も行ってください。自動テストは実際のコールドブートや抜き差し検証の代わりにはなりません。
+README と `docs/` 内のユーザー向けガイドは繁体字中国語、英語、日本語で読めます。開発記録は繁体字中国語のみで管理します。問題報告、翻訳改善、互換性情報、Pull Request を歓迎します。コード変更後は `python3 -m unittest discover -s tests -v` を実行し、GUI 変更時は貢献ガイドのレイアウト確認も行ってください。自動テストは実際のコールドブートや抜き差し検証の代わりにはなりません。
 
 ## ライセンスと謝辞
 

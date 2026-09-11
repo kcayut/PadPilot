@@ -2,14 +2,14 @@
 
 **繁體中文** | [English](INSTALLATION.en.md) | [日本語](INSTALLATION.ja.md) · [文件索引](README.md)
 
-PadPilot 提供 **Swift／AppKit 原生選單列＋Python 核心＋Tk 設定視窗**。安裝腳本會一併編譯、安裝及啟動 `~/Applications/PadPilot.app`；沒有額外 pip 或 Swift 套件依賴。
+PadPilot 提供 **Swift／AppKit 選單列＋SwiftUI 原生設定視窗＋Python 核心**。安裝腳本會一併編譯、安裝及啟動 `~/Applications/PadPilot.app`；沒有額外 pip 或 Swift 套件依賴。
 
 安裝或解除安裝前，請先儲存並關閉 PadPilot 的設定／診斷視窗；若視窗仍開啟，安裝器會停止並提示重跑。
 
 ## 準備環境
 
 - macOS 14+，目前以 Apple Silicon 為主要驗證環境。
-- Python 3.10+；設定視窗需要同一個 Python 能匯入 `tkinter`。沒有額外 pip 套件。
+- Python 3.10+，供背景核心使用。設定視窗內建於原生 App。
 - Apple Command Line Tools，供本機編譯 App；完整 Xcode 不是必要條件。
 - [BetterDisplay](https://github.com/waydabber/BetterDisplay) 與可用的 CLI 控制能力。授權條件以 BetterDisplay 說明為準。
 - 支援 Sidecar 的 iPad，先確認 macOS「螢幕鏡像輸出」可以手動連線。
@@ -47,9 +47,9 @@ cd "$HOME/Applications/PadPilot-source"
 "$HOME/bin/padpilot-cli" status
 ```
 
-`--check` 是不修改系統的完整預檢：不呼叫 Homebrew、不建立設定或日誌、不編譯、不啟動服務，也不掃描或改動螢幕。必要項目缺失回傳非零結束碼；Tk 缺失僅警告。
+`--check` 是不修改系統的完整預檢：不呼叫 Homebrew、不建立設定或日誌、不編譯、不啟動服務，也不掃描或改動螢幕。必要項目缺失回傳非零結束碼。
 
-互動安裝會顯示找到的 Python／Tk 與 BetterDisplay 路徑，讓你沿用、輸入其他路徑或安裝缺少的依賴。Python 與 Tk 必須屬於相同環境。安裝 Homebrew 或透過 Homebrew 安裝依賴前都會詢問；需要管理員密碼時由官方安裝流程處理。Apple Command Line Tools 必須在 macOS 對話框完成安裝，再重跑安裝器。
+互動安裝會顯示找到的 Python 與 BetterDisplay 路徑，讓你沿用、輸入其他路徑或安裝缺少的依賴。安裝 Homebrew 或透過 Homebrew 安裝依賴前都會詢問；需要管理員密碼時由官方安裝流程處理。Apple Command Line Tools 必須在 macOS 對話框完成安裝，再重跑安裝器。
 
 ```bash
 # 明確指定現有環境；路徑含空白時保留雙引號。
@@ -60,16 +60,13 @@ cd "$HOME/Applications/PadPilot-source"
 
 # 明確允許安裝缺少的 Homebrew 依賴。
 ./scripts/install.sh --yes --install-deps
-
-# 選擇不使用 Tk 設定視窗，仍保留 daemon、CLI 與原生選單。
-./scripts/install.sh --headless
 ```
 
-`--python` 接受 Python 執行檔；`--betterdisplay-path` 接受 `.app` 資料夾或 CLI 執行檔。`--yes` 不等於同意安裝第三方軟體；Tk 缺失時會停止，需補上相符的 Tk、加 `--install-deps` 或明確指定 `--headless`。`--check` 的 Tk 缺失仍只警告。BetterDisplay CLI help 成功不代表授權、Sidecar 或實際顯示可用。
+`--python` 接受 Python 執行檔；`--betterdisplay-path` 接受 `.app` 資料夾或 CLI 執行檔。`--yes` 不等於同意安裝第三方軟體；缺少必要依賴時會停止，需手動安裝或加 `--install-deps`。BetterDisplay CLI help 成功不代表授權、Sidecar 或實際顯示可用。
 
-Homebrew 自動安裝使用配套的 Python 3.14 與 [python-tk@3.14](https://formulae.brew.sh/formula/python-tk@3.14)，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
+Homebrew 自動安裝使用 Python 3.14，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
 
-安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定、配對與登入啟動偏好；首次安裝預設啟用登入啟動。替換前記錄 LaunchAgent 與服務狀態，透過既有 CLI 停止服務與選單。新的 daemon 必須回覆結構化握手才算成功；啟動失敗會嘗試還原舊 App、LaunchAgent 與服務執行狀態，回復失敗會明確報錯。
+安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定、配對與登入啟動偏好；首次安裝預設啟用登入啟動：之後重新開機並登入 macOS，背景服務與選單列會自動啟動，不需再次執行安裝腳本。替換前記錄 LaunchAgent 與服務狀態，透過既有 CLI 停止服務與選單。新的 daemon 必須回覆結構化握手才算成功；啟動失敗會嘗試還原舊 App、LaunchAgent 與服務執行狀態，回復失敗會明確報錯。
 
 安裝器會嘗試建立 `~/bin/padpilot-cli`，並記錄選定的 Python；已被其他程式占用的同名入口會保留，此時使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留所選 Python 環境與原始碼資料夾。** App 引用兩者，搬移後需重新安裝；另一個來源路徑的同名 App／LaunchAgent 不會被接管。這版尚未內含 Python、Developer ID 簽署、公證或自動更新。
 
@@ -96,7 +93,7 @@ open "$HOME/Applications/PadPilot.app"
 
 先保留原始碼備份，儲存並關閉設定視窗。更新原始碼後再跑「預檢 → 安裝 → status」三步，原生二進位也會重新編譯。GUI「關於」顯示 `v0.1.0`，與 CLI／App 版本共用 `core.__version__`；此頁另有 GitHub 連結與尚未開放的贊助入口。
 
-安裝器保留設定，舊 App 移到垃圾桶；它不會自動下載更新、建立 Git tag 或發布。若需降回相容舊版，回復原始碼後重新安裝。App 引用原始碼，僅取回垃圾桶中的 App 不能完整回復程式版本。
+安裝器保留設定，舊 App 移到垃圾桶；它不會自動下載更新、建立 Git tag 或發布。App 引用原始碼，僅取回垃圾桶中的 App 不能完整回復程式版本。
 
 ## 本機隱私與權限
 
@@ -144,6 +141,6 @@ python3 scripts/check_release.py --gui
 | `--remove-source` | 另移除由下載安裝器管理的 `~/Applications/PadPilot-source`；手動取得的來源不自動刪除。 |
 | `--remove-dependency NAME` | 選擇 receipt 記錄由安裝器新裝的 Homebrew 項目，可重複指定；無紀錄的既有軟體不自動卸除。 |
 
-App、整合、設定、日誌與選定的來源會移到垃圾桶，可復原。第三方依賴交由 Homebrew 解除安裝，不在 PadPilot 的垃圾桶回復範圍內，也不執行 `autoremove` 或 `--zap`。有其他 Homebrew 套件依賴的 Python／Tk 會保留；Homebrew 本身、Apple Command Line Tools、系統 Python、既有 BetterDisplay 與虛擬螢幕不一併清除。
+App、整合、設定、日誌與選定的來源會移到垃圾桶，可復原。第三方依賴交由 Homebrew 解除安裝，不在 PadPilot 的垃圾桶回復範圍內，也不執行 `autoremove` 或 `--zap`。有其他 Homebrew 套件依賴的 Python 會保留；Homebrew 本身、Apple Command Line Tools、系統 Python、既有 BetterDisplay 與虛擬螢幕不一併清除。
 
 移除 BetterDisplay 可能中斷目前的 Sidecar／虛擬螢幕，會再次要求確認；非互動時需另外明確加 `--allow-display-disconnect`。移除 Python 或來源前請先確認不再需要 PadPilot；若保留來源，可重跑安裝器復原安裝。

@@ -2,14 +2,14 @@
 
 [繁體中文](INSTALLATION.md) | **English** | [日本語](INSTALLATION.ja.md) · [Documentation](README.en.md)
 
-PadPilot provides a **Swift/AppKit menu app, Python core, and Tk settings window**. The installer builds, installs, and starts `~/Applications/PadPilot.app`. No additional pip or Swift packages are needed.
+PadPilot provides a **Swift/AppKit menu, native SwiftUI settings window, and Python core**. The installer builds, installs, and starts `~/Applications/PadPilot.app`. No additional pip or Swift packages are needed.
 
 Before installing or uninstalling, save your changes and close PadPilot settings and diagnostics windows; an open window stops the operation with instructions to retry.
 
 ## Prepare your environment
 
 - macOS 14+; Apple Silicon is the primary validation environment.
-- Python 3.10+. Settings require `tkinter` in the same Python environment. There are no extra pip packages.
+- Python 3.10+ for the background core. Settings are built into the native app.
 - Apple Command Line Tools to compile locally. Full Xcode is not required.
 - [BetterDisplay](https://github.com/waydabber/BetterDisplay) with working CLI control, subject to its licensing requirements.
 - A Sidecar-compatible iPad. First confirm manual connection through macOS Screen Mirroring.
@@ -47,9 +47,9 @@ cd "$HOME/Applications/PadPilot-source"
 "$HOME/bin/padpilot-cli" status
 ```
 
-`--check` is a complete read-only preflight: it does not invoke Homebrew, create configuration or logs, compile, start services, scan hardware, or change displays. Missing required components return a nonzero exit code; missing Tk is only a warning.
+`--check` is a complete read-only preflight: it does not invoke Homebrew, create configuration or logs, compile, start services, scan hardware, or change displays. Missing required components return a nonzero exit code.
 
-Interactive installation shows detected Python/Tk and BetterDisplay paths, then lets you reuse them, enter another path, or install missing dependencies. Python and Tk must belong to the same environment. Installing Homebrew or using it to install dependencies requires consent; any administrator password is handled by the official installer. Apple Command Line Tools must finish in the macOS installation dialog before you rerun PadPilot's installer.
+Interactive installation shows detected Python and BetterDisplay paths, then lets you reuse them, enter another path, or install missing dependencies. Installing Homebrew or using it to install dependencies requires consent; any administrator password is handled by the official installer. Apple Command Line Tools must finish in the macOS installation dialog before you rerun PadPilot's installer.
 
 ```bash
 # Select an existing environment; keep quotes around paths containing spaces.
@@ -60,16 +60,13 @@ Interactive installation shows detected Python/Tk and BetterDisplay paths, then 
 
 # Explicitly allow installation of missing dependencies through Homebrew.
 ./scripts/install.sh --yes --install-deps
-
-# Continue without the Tk settings window; keep the daemon, CLI, and native menu.
-./scripts/install.sh --headless
 ```
 
-`--python` accepts a Python executable; `--betterdisplay-path` accepts an `.app` folder or CLI executable. `--yes` does not authorize third-party installation and stops if Tk is missing: provide matching Tk, add `--install-deps`, or explicitly use `--headless`. Missing Tk under `--check` remains warning-only. Successful BetterDisplay CLI help does not verify its license, Sidecar, or a working display.
+`--python` accepts a Python executable; `--betterdisplay-path` accepts an `.app` folder or CLI executable. `--yes` does not authorize third-party installation and stops if required dependencies are missing: install them manually or add `--install-deps`. Successful BetterDisplay CLI help does not verify its license, Sidecar, or a working display.
 
-Homebrew installation uses matching Python 3.14 and [python-tk@3.14](https://formulae.brew.sh/formula/python-tk@3.14), plus the official [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay). `--yes --install-deps` may still require an administrator password or an Apple installation dialog; it does not guarantee unattended setup.
+Homebrew installation uses Python 3.14, plus the official [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay). `--yes --install-deps` may still require an administrator password or an Apple installation dialog; it does not guarantee unattended setup.
 
-The installer builds and locally signs `~/Applications/PadPilot.app`, preserving configuration, pairings, and login preferences; a first install enables launch at login. It records LaunchAgent and service state before stopping the old service and menu through the shared CLI. Success requires a structured handshake from the new daemon. Failed startup attempts to restore the previous app, LaunchAgent, and running state; any rollback failure is reported explicitly.
+The installer builds and locally signs `~/Applications/PadPilot.app`, preserving configuration, pairings, and login preferences; a first install enables launch at login. After restarting and signing in to macOS, the daemon and menu bar start automatically without rerunning the installer. It records LaunchAgent and service state before stopping the old service and menu through the shared CLI. Success requires a structured handshake from the new daemon. Failed startup attempts to restore the previous app, LaunchAgent, and running state; any rollback failure is reported explicitly.
 
 The installer attempts to create `~/bin/padpilot-cli` with the selected Python. An entry owned by another program is preserved; use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` in that case. **Keep the selected Python environment and source folder in place.** The app references both. Reinstall after moving them; an app or LaunchAgent owned by another source path is not taken over. Bundled Python, Developer ID signing, notarization, and automatic updates are not included.
 
@@ -96,7 +93,7 @@ If writing there fails, PadPilot uses `/tmp/PadPilot/config.json`. The daemon, C
 
 Back up the prior source, save your changes, and close settings. After updating the source, repeat preflight → installation → status; the native binary is rebuilt too. The GUI About page displays `v0.1.0`, sharing `core.__version__` with the CLI and app. It also includes a GitHub link and inactive donation placeholders.
 
-The installer preserves configuration and moves the previous app to Trash. It does not download updates, create Git tags, or publish releases. To downgrade to a compatible version, restore its source and reinstall. Restoring only the app from Trash does not restore the source it references.
+The installer preserves configuration and moves the previous app to Trash. It does not download updates, create Git tags, or publish releases. Restoring only the app from Trash does not restore the source it references.
 
 ## Local privacy and permissions
 
@@ -124,7 +121,7 @@ python3 scripts/check_gui_layout.py
 python3 scripts/check_release.py --gui
 ```
 
-Local release checks also cover shell syntax, plist validity, version consistency, ResourceWarning, and privacy patterns in current files and Git history. Reports are written to `build/release-check.json` and `build/privacy-scan.json`, without matched values. Reviewed historical exceptions are listed separately; new findings still return exit code 1 even if software tests pass. Omit `--gui` without a desktop session; GUI validation is then unverified. These checks do not replace [physical acceptance](development/2026-09-11-release-readiness.en.md).
+Local release checks also cover shell syntax, plist validity, version consistency, ResourceWarning, and privacy patterns in current files and Git history. Reports are written to `build/release-check.json` and `build/privacy-scan.json`, without matched values. Reviewed historical exceptions are listed separately; new findings still return exit code 1 even if software tests pass. Omit `--gui` without a desktop session; GUI validation is then unverified. These checks do not replace [physical acceptance (Traditional Chinese)](development/2026-09-11-release-readiness.md).
 
 ## Uninstall
 
@@ -144,6 +141,6 @@ For a manually obtained source copy, run `./scripts/uninstall.sh` from its origi
 | `--remove-source` | Also remove the downloader-managed `~/Applications/PadPilot-source`; manually obtained source is never deleted automatically. |
 | `--remove-dependency NAME` | Select a Homebrew item recorded as newly installed in the receipt; repeat for multiple items. Pre-existing software without that record is not uninstalled automatically. |
 
-The app, integrations, settings, logs, and selected source are moved to Trash and can be recovered. Third-party dependencies are uninstalled through Homebrew, outside PadPilot's Trash recovery; `autoremove` and `--zap` are not used. Python/Tk required by other Homebrew packages is kept. Homebrew itself, Apple Command Line Tools, system Python, pre-existing BetterDisplay, and virtual displays are not removed along with PadPilot.
+The app, integrations, settings, logs, and selected source are moved to Trash and can be recovered. Third-party dependencies are uninstalled through Homebrew, outside PadPilot's Trash recovery; `autoremove` and `--zap` are not used. Python required by other Homebrew packages is kept. Homebrew itself, Apple Command Line Tools, system Python, pre-existing BetterDisplay, and virtual displays are not removed along with PadPilot.
 
 Removing BetterDisplay may disconnect Sidecar or virtual displays and requires an additional confirmation. Noninteractive removal also needs explicit `--allow-display-disconnect`. Only remove Python or source when PadPilot is no longer needed; if source is retained, rerunning the installer restores the installation.
