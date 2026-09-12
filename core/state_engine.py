@@ -77,6 +77,9 @@ class StateEngine:
         """Set a user manual override bound to current topology generation."""
         with self._eval_lock:
             self._observe()
+            if target_role in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY):
+                self.runtime.retry_count = 0
+                self.runtime.cooldown_until = 0.0
             override = UserOverride(
                 target_role=target_role,
                 topology_generation=self.runtime.topology_generation,
@@ -219,15 +222,17 @@ class StateEngine:
         if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
             return DesiredState(DisplayRole.NO_CHANGE, "Hardware query incomplete; keeping current display and user override.")
         desired = self._policy(actual, config, runtime)
-        # Every path requesting a connection obeys the same cooldown.
+        # Exhausted retries stay paused: a cached Sidecar target is not proof of readiness.
         pending_sidecar = desired.needs_sidecar_connect or (
             desired.target_display_role in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY)
             and not actual.sidecar_display_online)
-        if pending_sidecar and runtime.cooldown_until > time.time():
+        exhausted = runtime.retry_count >= config.max_retries
+        if pending_sidecar and (exhausted or runtime.cooldown_until > time.time()):
             target = DisplayRole.PHYSICAL if actual.physical_displays else DisplayRole.VIRTUAL
             return DesiredState(
                 target_display_role=target,
-                reason="Sidecar connection in cooldown. Keeping fallback display available.",
+                reason=("Automatic Sidecar retries paused. Reconnect the iPad or choose Reconnect; keeping fallback display available."
+                        if exhausted else "Sidecar connection in cooldown. Keeping fallback display available."),
                 needs_main_display_target="physical" if actual.physical_displays else "virtual",
             )
         if desired.target_display_role in (DisplayRole.PHYSICAL, DisplayRole.VIRTUAL):
@@ -355,6 +360,19 @@ class StateEngine:
             self.actual = actual
             return actual  # Unknown observations are not physical unplug/disconnect events.
 
+        if self.runtime.retry_count >= self.config.max_retries and (
+            actual.sidecar_connected and actual.sidecar_display_online
+            or previous and (
+                actual.ipad_usb_present and not previous.ipad_usb_present
+                or actual.sidecar_available and not previous.sidecar_available
+            )
+        ):
+            logger.info("iPad reappeared or Sidecar became ready; allowing bounded retries again.")
+            self.runtime.retry_count = 0
+            if actual.sidecar_connected and actual.sidecar_display_online:
+                self.runtime.cooldown_until = 0.0
+                self.runtime.last_error = None
+
         # If Sidecar was active and now disconnected while physical displays are present,
         # expire any user override targeting iPad so it does not auto-reconnect continuously.
         if (
@@ -402,6 +420,7 @@ class StateEngine:
 
             if (satisfied and not actual.discovery_errors and
                     (actual.sidecar_connected and actual.sidecar_display_online or
+                     self.runtime.retry_count < self.config.max_retries and
                      self.runtime.cooldown_until <= time.time())):
                 self.runtime.last_error = None
                 self.runtime.cooldown_until = 0.0
@@ -570,11 +589,10 @@ class StateEngine:
                             if self.runtime.retry_count >= self.config.max_retries:
                                 self.runtime.cooldown_until = time.time() + self.config.cooldown_seconds
                                 self.runtime.transition_state = TransitionState.COOLDOWN
-                                err_msg = f"Sidecar connection failed after {self.config.max_retries} attempts. Cooling down for {self.config.cooldown_seconds:.0f}s."
+                                err_msg = f"Sidecar connection failed after {self.config.max_retries} attempts. Automatic retries paused until iPad reappears or manual reconnect."
                                 self.runtime.last_error = err_msg
                                 logger.error(err_msg)
                                 notify_error(err_msg, subtitle="Sidecar Connection Error")
-                                self.runtime.retry_count = 0
                                 success = False
                                 break
                             if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
@@ -607,7 +625,8 @@ class StateEngine:
                 sat = self.is_satisfied(self.actual, self.desired)
                 # Keep the fallback connected: removing it coincided with Sidecar
                 # session termination during headless boot. iPad remains main.
-                if success and sat and self.runtime.cooldown_until <= time.time():
+                if (success and sat and self.runtime.retry_count < self.config.max_retries
+                        and self.runtime.cooldown_until <= time.time()):
                     self.runtime.last_error = None
                 self._export_status(satisfied=sat)
 

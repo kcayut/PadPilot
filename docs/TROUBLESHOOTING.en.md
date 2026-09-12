@@ -86,12 +86,12 @@ Do not add a real physical monitor to the ignore list. Report its identifiers ra
 <a id="cooldown"></a>
 ## 5. Connection loss, retries, and cooldown
 
-**Symptom:** The menu shows a warning and a 30-second cooldown.
+**Symptom:** The menu shows that automatic retries are paused, with a cooldown during the first 30 seconds.
 
-PadPilot limits connection attempts to three, with three seconds between retries, then applies a 30-second cooldown to reduce repeated connection pressure on macOS and BetterDisplay.
+PadPilot limits connection attempts to three, with three seconds between retries, then sends one notification and pauses automatic retries while retaining the physical or virtual fallback. Retries stay paused after the 30-second cooldown, even if an unavailable iPad remains listed in Sidecar. USB event wakeup and automatic iPad detection can remain enabled.
 
 1. Wake and unlock the iPad if needed.
-2. Check the data cable and connectors.
+2. Check the data cable and connectors. When the target iPad changes from absent to present in USB or Sidecar discovery, bounded retries resume after any remaining cooldown. If waking the screen produces no discovery change, choose Reconnect. Generic USB wakeups, Refresh, and physical monitor changes do not release the pause.
 3. Once the cause is addressed, clear temporary overrides and cooldown when needed:
 
    ```bash

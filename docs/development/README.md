@@ -11,5 +11,6 @@
 - [USB 喚醒與自動偵測初版](2026-09-10-usb-discovery.md)：事件整合、推定限制與當時預設值。
 - [0.1.0 發布驗收](2026-09-11-release-readiness.md)：P0／P1、CI、已接受歷史路徑與待完成實機驗收。
 - [Apple Silicon 封裝發行](2026-09-12-bundled-release.md)：內建／外部 Python、tag 自動發行、GUI 修正與本機驗證。
+- [iPad 離線重試保護](2026-09-12-offline-ipad-retries.md)：停止無限重試與通知累積、恢復條件及驗證邊界。
 
 舊紀錄不隨功能變更改寫成「當時已完成」；需要修正時加註後續說明。對外使用方式以[安裝指南](../INSTALLATION.md)與[疑難排解](../TROUBLESHOOTING.md)為準。原始日誌、序號與私人路徑不要直接放進此處；先去識別，再保留必要證據。

@@ -37,7 +37,7 @@ USB detection, display events, and the 30-second watchdog may arrive together. A
 ### 3. Debounce and cooldown
 
 - Physical display loss starts a four-second debounce. If the monitor returns before expiry, the transfer is canceled. This avoids unnecessary iPad wakeups during brief signal changes, not all display failures.
-- Sidecar connection attempts are limited to three, with three seconds between retries and a 30-second cooldown after failure. The menu indicates the warning state.
+- Sidecar connection attempts are limited to three, with three seconds between retries. Exhaustion sends one notification and keeps the fallback available. Expiry of the 30-second cooldown does not restart retries: the target iPad must change from absent to present in USB/Sidecar discovery, or the user must reconnect/reset manually. Query errors, generic USB wakeups, and physical monitor changes do not release the pause.
 
 ### 4. Virtual fallback
 

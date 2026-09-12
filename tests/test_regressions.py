@@ -6,6 +6,7 @@ import ctypes
 import threading
 import time
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -173,6 +174,107 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(self.engine.runtime.cooldown_until, 0)
         self.assertTrue(self.engine.is_satisfied(self.engine.actual, self.engine.desired))
 
+    def test_offline_ipad_stops_retries_and_notifications_after_cooldown(self):
+        self.cfg.auto_detect_ipad = self.cfg.usb_event_wakeup = True
+        self.bd.connect_sidecar.return_value = False
+        for usb_present in (False, True):
+            with self.subTest(usb_present=usb_present), patch("core.state_engine.notify_error") as notify:
+                self.bd.reset_mock()
+                engine = StateEngine(self.cfg, self.detector, self.bd)
+                engine.runtime.user_override = UserOverride(DisplayRole.IPAD_MAIN, 0)
+                actual = ActualState(resolved_ipad=self.cfg.ipad, main_display=self.virtual,
+                                     virtual_display_connected=True, sidecar_available=True,
+                                     ipad_usb_present=usb_present)
+                self.detector.observe.return_value = (actual, ((), usb_present))
+                engine.evaluate(async_transition=False)
+                deadline = engine.runtime.cooldown_until
+                # Simulate a day of watchdog scans and unrelated USB wakeups.
+                for hour in range(25):
+                    with patch("core.state_engine.time.time", return_value=deadline + hour * 3600):
+                        engine.evaluate("usb_event" if hour % 2 else "watchdog", async_transition=False)
+                self.assertEqual(self.bd.connect_sidecar.call_count, self.cfg.max_retries)
+                notify.assert_called_once()
+                self.assertEqual(engine.runtime.retry_count, self.cfg.max_retries)
+                self.assertIsNotNone(engine.runtime.last_error)
+                self.assertEqual(engine.desired.target_display_role, DisplayRole.VIRTUAL)
+                self.assertIn("paused", engine.desired.reason)
+
+    def test_retry_pause_survives_query_errors_and_only_rearms_on_ipad_arrival(self):
+        self.bd.connect_sidecar.return_value = False
+        for signal in ("ipad_usb_present", "sidecar_available"):
+            with self.subTest(signal=signal):
+                self.bd.reset_mock()
+                engine = StateEngine(self.cfg, self.detector, self.bd)
+                present = ActualState(main_display=self.virtual, virtual_display_connected=True,
+                                      sidecar_available=True, ipad_usb_present=True)
+                self.detector.observe.return_value = (present, ((), True))
+                engine.evaluate(async_transition=False)
+                with patch("core.state_engine.time.time", return_value=engine.runtime.cooldown_until + 1):
+                    unknown = replace(present, **{signal: False}, discovery_errors={"sidecar": "timeout"})
+                    for state in (unknown, present):
+                        self.detector.observe.return_value = (state, ((), state.ipad_usb_present))
+                        engine.evaluate("usb_event", async_transition=False)
+                    self.assertEqual(self.bd.connect_sidecar.call_count, self.cfg.max_retries)
+                    absent = replace(present, **{signal: False})
+                    for state in (absent, present):
+                        self.detector.observe.return_value = (state, ((), state.ipad_usb_present))
+                        engine.evaluate("usb_event", async_transition=False)
+                    self.assertEqual(self.bd.connect_sidecar.call_count, 2 * self.cfg.max_retries)
+
+    def test_retry_pause_keeps_failure_while_activating_physical_fallback(self):
+        actual = ActualState(main_display=self.virtual, virtual_display_connected=True,
+                             sidecar_available=True)
+        self.detector.observe.return_value = (actual, ((), False))
+        self.bd.connect_sidecar.return_value = False
+        self.engine.evaluate(async_transition=False)
+        failure = self.engine.runtime.last_error
+        physical = replace(actual, physical_displays=[self.physical])
+        self.detector.observe.return_value = (physical, ((1,), False))
+        def set_main(_):
+            physical.main_display = self.physical
+            return True
+        self.bd.set_main_display.side_effect = set_main
+        with patch("core.state_engine.time.time", return_value=self.engine.runtime.cooldown_until + 1):
+            self.engine.evaluate(async_transition=False)
+            self.engine.evaluate(async_transition=False)
+        self.assertEqual(self.engine.runtime.last_error, failure)
+        self.assertEqual(self.engine.runtime.retry_count, self.cfg.max_retries)
+        self.assertEqual(self.engine.desired.target_display_role, DisplayRole.PHYSICAL)
+        self.bd.set_main_display.assert_called_once_with(self.physical.name)
+        self.assertEqual(self.bd.connect_sidecar.call_count, self.cfg.max_retries)
+
+    def test_explicit_ipad_control_can_retry_after_pause(self):
+        actual = ActualState(main_display=self.virtual, virtual_display_connected=True, sidecar_available=True)
+        self.detector.observe.return_value = (actual, ((), False))
+        self.bd.connect_sidecar.return_value = False
+        for action in ("main", "secondary", "reconnect", "reset"):
+            with self.subTest(action=action):
+                self.bd.reset_mock()
+                engine = StateEngine(self.cfg, self.detector, self.bd)
+                engine.evaluate(async_transition=False)
+                with patch.object(engine, "_trigger_transition", side_effect=engine._run_transition):
+                    if action == "reconnect":
+                        self.assertTrue(engine.reconnect_sidecar())
+                    elif action == "reset":
+                        engine.reset_automation(async_transition=False)
+                    else:
+                        role = DisplayRole.IPAD_MAIN if action == "main" else DisplayRole.IPAD_SECONDARY
+                        engine.set_user_override(role, async_transition=False)
+                self.assertEqual(self.bd.connect_sidecar.call_count, 2 * self.cfg.max_retries)
+
+    def test_verified_late_sidecar_connection_clears_retry_pause(self):
+        actual = ActualState(main_display=self.virtual, virtual_display_connected=True, sidecar_available=True)
+        self.detector.observe.return_value = (actual, ((), False))
+        self.bd.connect_sidecar.return_value = False
+        self.engine.evaluate(async_transition=False)
+        ready = replace(actual, main_display=self.ipad, sidecar_connected=True, sidecar_display_online=True)
+        self.detector.observe.return_value = (ready, ((), False))
+        self.engine.evaluate(async_transition=False)
+        self.assertEqual(self.engine.runtime.retry_count, 0)
+        self.assertEqual(self.engine.runtime.cooldown_until, 0)
+        self.assertIsNone(self.engine.runtime.last_error)
+        self.assertEqual(self.bd.connect_sidecar.call_count, self.cfg.max_retries)
+
     def test_connected_session_without_display_also_obeys_cooldown(self):
         actual = ActualState(main_display=self.virtual, virtual_display_connected=True, sidecar_connected=True)
         self.detector.observe.return_value = (actual, ((), False))
@@ -258,6 +360,11 @@ class RegressionTests(unittest.TestCase):
                     self.engine.runtime.cooldown_until = time.time() + 30
                     desired = self.engine.policy(actual, self.cfg, self.engine.runtime)
                     self.assertFalse(desired.needs_sidecar_connect)
+                    self.engine.runtime.cooldown_until = 0
+                    self.engine.runtime.retry_count = self.cfg.max_retries
+                    desired = self.engine.policy(actual, self.cfg, self.engine.runtime)
+                    self.assertFalse(desired.needs_sidecar_connect)
+                    self.engine.runtime.retry_count = 0
 
     def test_headless_connected_ipad_survives_discovery_disappearance(self):
         actual = ActualState(main_display=self.ipad, sidecar_connected=True, sidecar_display_online=True)

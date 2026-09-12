@@ -42,7 +42,7 @@ Swift / AppKit + SwiftUI PadPilot.app
 
 ### 3. 螢幕瞬斷防抖與冷卻保護 (Debounce & Cooldown)
 - **4 秒瞬斷防抖 (Debounce)**：許多外接螢幕切換訊號源或休眠喚醒時會短暫掉訊 1~2 秒。PadPilot 在偵測到實體螢幕消失時，會啟動 4 秒防抖計時器；若螢幕在倒數結束前恢復，立即取消轉移動作，避免 iPad 被不必要地喚起。
-- **重試上限與 30 秒冷卻 (Cooldown)**：Sidecar 連線最多嘗試 3 次，間隔 3 秒；失敗後冷卻 30 秒，選單列顯示警告，降低高頻重試風險。
+- **重試上限與 30 秒冷卻 (Cooldown)**：Sidecar 連線最多嘗試 3 次，間隔 3 秒；耗盡後通知一次並保留備援。30 秒冷卻結束也不會自動重開重試；需觀察到目標 iPad 的 USB／Sidecar 可用狀態由無變有，或由使用者手動重連／重設。查詢錯誤、一般 USB 喚醒與實體螢幕插拔不會解除暫停。
 
 ### 4. 虛擬螢幕備援 (Headless Virtual Display Fallback)
 - 無實體螢幕時，使用已配置的 BetterDisplay 虛擬顯示器（預設 `PadPilotVirtual`）維持桌面備援；iPad 接管後也保留。Screen Sharing／VNC 或 SSH 必須事先自行設定，PadPilot 不啟用遠端存取；SSH 本身不依賴虛擬顯示器。
