@@ -20,127 +20,110 @@
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
 
-PadPilot is a macOS display automation tool built around **Apple Sidecar and BetterDisplay**, primarily for a Mac mini + iPad setup. When no physical monitor is connected, it attempts to connect your selected iPad and make it the main display. When a monitor returns, it adjusts display roles according to your operating mode and manual choices.
-
-Use the menu bar, graphical settings window, or command line to control connections, manage pairings, and see the current state and the reason for each transition.
+PadPilot lets you use an **iPad as your Mac display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections or automatic takeover when no physical monitor is available.
 
 > [!IMPORTANT]
-> **Early preview.** Test with a physical monitor or a working remote connection available.
-> PadPilot operates after user login. **It cannot make an iPad show FileVault unlock or pre-login screens.** Disabling FileVault is not required for installation; headless cold boots and different hardware combinations still require real-device validation.
+> **This is an early preview.** Keep a physical monitor or working remote connection available for your first setup.
+> PadPilot runs after you log into macOS. It **cannot show FileVault unlock or pre-login screens**; you do not need to disable FileVault to install it.
 
-GUI help, troubleshooting, and diagnostic links open the matching version of the documentation on GitHub in the interface language. Private repository documents require a GitHub account with access. These links stay pinned to that version when newer versions are published.
+## Have these three things ready
 
-## Features
+- **An Apple Silicon Mac running macOS 14+, and a Sidecar-compatible iPad.** Intel Macs are not supported.
+- **A working manual Sidecar connection.** Use the same Apple Account with two-factor authentication. For first setup, use a data-capable USB cable and trust the Mac on your iPad. Wireless also needs Wi-Fi, Bluetooth, and Handoff. [Check Apple's requirements](https://support.apple.com/en-us/102597).
+- **[BetterDisplay](https://github.com/waydabber/BetterDisplay), installed and running**, with its control features available under Pro or a valid trial, per its license. The standalone CLI alone is not enough; the app's built-in CLI is sufficient.
 
-- **Physical display priority**: Automatic mode does not initiate Sidecar when a physical monitor is available. An already-connected iPad can remain a secondary display.
-- **Main and secondary iPad controls**: Connect, disconnect, reconnect, and switch roles. Save multiple pairings and select one active control target.
-- **Virtual display fallback**: Use a BetterDisplay virtual screen for a headless desktop. The fallback display remains available after the iPad takes over.
-- **USB event wakeup**: Hardware events wake the background evaluation loop, with discovery windows, periodic checks, debounce, and failure cooldown.
-- **Visible decisions**: Search devices, manage pairings, and inspect status, diagnostics, and logs in the settings window. The menu bar reads snapshots produced by the background service.
-- **Three interface languages**: English, Traditional Chinese, and Japanese. The core uses Python's standard library without additional pip packages.
+## Follow the screenshots
 
-## How it works
+These are screenshots of the current native interface using **the project's sample devices**, not evidence of a real hardware connection test. Your device names and status will differ. Click an image to enlarge it.
 
-New installations default to `manual_only`, with “Connect iPad at boot when no monitor is attached” enabled. After login, discovery runs for up to three 30-second rounds (90 seconds total), stopping if none finds the target. Finding it without a physical monitor can request one connection round. Later connections require a menu or global shortcut request. If you switch to `automatic`, with no active manual override:
+### 1. Install and open the app
 
-| Current setup | Expected behavior |
+Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), open it, and drag **PadPilot.app into Applications**. Then open the app. Python is included; no Homebrew or compiler tools are needed.
+
+The settings window opens with the app. Closing the window keeps the menu bar icon available. Choose **Settings & pairing** from that menu, or double-click the app, to open it again.
+
+> This preview has no Developer ID signature or Apple notarization. If macOS blocks it, confirm the download source and follow [Apple's instructions](https://support.apple.com/en-us/102445) for “System Settings → Privacy & Security → Open Anyway.” If it says the app is damaged, download it again and verify `SHA256SUMS` first.
+
+### 2. Find your iPad and click Pair
+
+Choose **Find devices → Find devices** in the sidebar. Find your iPad and check its name. Select its USB device if needed, choose it as the primary managed iPad, then click **Pair**. Check the device before accepting any confirmation. Already paired? Go to the next step.
+
+[![Find devices: find an iPad, choose its USB mapping, and pair it](docs/images/quick-start/en-search.png)](docs/images/quick-start/en-search.png)
+
+Pairing lets PadPilot remember a device; it does not replace Apple's account or trust setup. You can save several iPads, but only one is the primary target at a time. With multiple iPads, select the target explicitly instead of relying only on auto-detection.
+
+### 3. Choose how to use your iPad
+
+Open **Paired iPads**. To change the primary managed iPad, expand that device's **Settings**, click “Set as primary iPad,” and confirm.
+
+[![Paired iPads: use as secondary, set as main, disconnect, or reconnect](docs/images/quick-start/en-paired.png)](docs/images/quick-start/en-paired.png)
+
+| What you want | Click |
 | --- | --- |
-| A physical monitor is available | Use a physical main display. Do not initiate Sidecar; keep an already-connected iPad as secondary. |
-| No physical monitor, but an iPad target is available | After debounce, attempt to connect Sidecar and make the iPad the main display. |
-| Neither a physical monitor nor an iPad target is available | Use the configured BetterDisplay virtual screen as fallback. |
+| Keep your Mac's main display and extend the desktop | **Secondary** |
+| Use the iPad as your main Mac screen | **Make main** |
+| Stop using the iPad screen for now | **Disconnect** |
+| Try again when the connection gets stuck | **Reconnect** |
 
-The `prefer_ipad` mode prioritizes an iPad main display. Manual choices take priority within the current hardware topology; a mode change, reset, or topology change triggers reevaluation.
+Wait for the desktop to appear, then check the roles in **Connected displays**. **“Sidecar detected” means the device was found, not that it is already showing your desktop.**
 
-Defaults are a **4-second** physical display disconnect debounce, up to **3** Sidecar connection attempts, **3 seconds** between retries, and a **30-second** failure cooldown. These timings are not a guarantee of connection completion time.
+### 4. Pick manual or automatic control
 
-## Requirements
+Open **Preferences**. Start with the default **Manual only** mode; switch modes when you want more automation.
 
-| Component | Requirement |
+[![Preferences: modes, launch at login, boot connection, and global shortcut](docs/images/quick-start/en-settings.png)](docs/images/quick-start/en-settings.png)
+
+| Mode | What it does |
 | --- | --- |
-| Mac | Apple Silicon (arm64), macOS 14+. Intel Macs are not supported; hardware combinations still need validation. |
-| iPad | A Sidecar-compatible iPad using the same Apple Account as the Mac, with two-factor authentication. |
-| Python | CPython is bundled in releases; external Python must be Apple Silicon 3.10+. |
-| [BetterDisplay](https://github.com/waydabber/BetterDisplay) | Provides Sidecar and display control. Use a release compatible with your macOS version and verify CLI access. Command-line control requires Pro or an active trial under the upstream licensing terms. |
-| Apple Command Line Tools | Required only to build from source or package releases, not to run a release. |
-| Connection | For initial setup, use a USB data cable and trust the Mac on the iPad. Wireless Sidecar additionally requires Wi-Fi, Bluetooth, and Handoff. |
+| **Manual only** (new-install default) | Connect when you use a button or shortcut. Does not reconnect on its own after disconnection. |
+| **Automatic mode** | Prefers a physical monitor when present; otherwise tries to let the iPad take over. An already-connected iPad can remain a secondary display. |
+| **Prefer iPad** | Tries to make the iPad the main display even with a physical monitor connected. |
 
-See [Apple's Sidecar guide](https://support.apple.com/en-us/102597) for device compatibility and wired/wireless requirements. BetterDisplay features and licensing are governed by its [upstream documentation](https://github.com/waydabber/BetterDisplay#key-features); PadPilot's license does not cover third-party software licenses.
+- **Start after login:** enable “Launch PadPilot at login.”
+- **Try once on a headless boot:** leave “Connect iPad at boot when no monitor is attached” enabled (the default). In Manual only mode, startup discovery runs for up to three 30-second rounds after login. If the target is found and no physical monitor is present, it attempts one connection cycle. Otherwise it stops; reopening the app during the same boot does not retry.
+- **Connect with your keyboard:** scroll to “Global Keyboard Shortcut,” click the recorder, press your key combination, then click “Save Shortcut.”
+- **Change language:** use the top-right selector for 繁體中文, English, or 日本語.
 
-## Quick start
+Manual choices take priority for the current display arrangement. Mode changes, resets, or display connection changes trigger reevaluation. Updates preserve existing preferences.
 
-### 1. Install
+### 5. No physical monitor? Set up a fallback
 
-First verify Sidecar works manually through macOS Screen Mirroring. Download the Apple Silicon `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), drag **PadPilot.app into Applications**, then open the installed app. Swift and CPython are included. No separate Python, Homebrew, or Apple build tools are required; the native GUI, CLI, daemon, USB detection, and launch-at-login features share the same core.
+Create a virtual display in BetterDisplay. In **Virtual fallback**, select it and click **Use as fallback**. Use `PadPilotVirtual` or an existing virtual display. If one was not created automatically, create it in BetterDisplay first.
 
-This is a **development preview with ad-hoc signing, without Developer ID signing or Apple notarization**. macOS may warn that the developer cannot be verified or that it cannot check for malicious software. After verifying the download source, follow [Apple’s instructions](https://support.apple.com/en-us/102445) for System Settings → Privacy & Security → Open Anyway. For a damaged-app warning, download again and verify `SHA256SUMS`; do not assume every warning is harmless.
+[![Virtual fallback: select a BetterDisplay virtual display and use it as fallback](docs/images/quick-start/en-virtual.png)](docs/images/quick-start/en-virtual.png)
 
-To choose Python yourself, download and run the [release installer](https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh), or run this from a source checkout:
+This keeps a desktop available while the iPad is not ready, and remains available after takeover. Set up Screen Sharing/VNC or SSH beforehand if you need remote recovery; PadPilot does not enable remote access for you.
 
-```bash
-bash scripts/install.sh --release
-```
+## If something gets stuck
 
-The script finds the newest published release, including prereleases, and lets you choose bundled CPython or your own Apple Silicon Python 3.10+. Options include `--tag v0.1.0-dev.1`, `--bundled`, and `--python /absolute/path/python3`. A maintainer must first push a tag to produce a release; the installer stops clearly if none is available. It verifies the download and installs while preserving settings. Open the installed app afterward.
+- **Can't find the iPad?** Check that macOS can connect through Sidecar, then search again. With multiple devices, check the primary target.
+- **Clicked Connect but no desktop?** Check Connected displays and Status & diagnostics. A successful command submission is not a completed connection.
+- **Displays keep switching?** Choose Manual only and check whether another tool is also changing the main display.
 
-The BetterDisplay **app must be installed and running**; `betterdisplaycli` alone is insufficient. The separate CLI is optional: PadPilot can use the app’s built-in interface and discover Applications, user Applications, and custom locations registered with macOS. A manually selected path takes priority.
+See [Troubleshooting](docs/TROUBLESHOOTING.en.md) for more help. In-app help opens version-specific GitHub documentation in the selected language; private repositories require an account with access.
 
-Save settings and quit PadPilot before installing, updating, or changing Python. Pairings and settings live outside the app. When migrating from a source installation or changing installation locations, uninstall the old copy first and keep settings. See the [installation guide](docs/INSTALLATION.en.md). Developers can still build locally with `bash scripts/install.sh`; source mode requires keeping the source and selected Python in place.
+<details>
+<summary>What do the menu bar icons mean?</summary>
 
-The CLI examples below assume `/Applications/PadPilot.app`; substitute your actual location if different.
+![Menu icons: Sidecar, physical display, virtual fallback, Manual only, stopped, warning, working](assets/menu-icons/preview.png)
 
-### 2. Select your iPad
+From left: Sidecar, physical display, virtual fallback, Manual only, service stopped, warning, working. **The hand means Manual only; pause means the service is stopped.** The hand may still appear with an iPad connected. You can also change languages from the menu bar.
 
-Run the interactive pairing wizard in Terminal and select the iPad to control:
+</details>
 
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" pair --interactive
-```
+<details>
+<summary>Advanced: USB discovery and connection timing</summary>
 
-Alternatively, open the settings window to discover devices, save pairings, and select the control target:
+Go to Preferences → Advanced options → USB & iPad auto-detection. USB event wakeup and auto-detection are enabled by default. USB events trigger evaluation, alongside a 30-second periodic check.
 
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
-```
+A selected pairing with a Sidecar UUID takes priority. Otherwise, PadPilot infers a target from a unique USB iPad and Sidecar candidate. This is not proof of identity; with multiple devices, disable auto-detection and pair explicitly. Selected pairings can use wireless Sidecar when available. Unpaired targets inferred only from USB do not initiate wireless connections after unplugging.
 
-PadPilot pairing records device identities; it does not replace Apple Account or “Trust This Computer” requirements. Multiple pairings can be saved, but only one iPad is managed as the active target at a time.
+Defaults: 4-second debounce, up to 3 connection attempts, 3 seconds between retries, and a 30-second cooldown after failure. These are control timings, not a guarantee of connection speed.
 
-### 3. Check fallback and status
+</details>
 
-`status` separately reports whether the daemon responded to a handshake. Without a response, saved snapshots are not live state. `status --json` includes `daemon_responding` and the version; absent snapshots leave display state unknown.
-
-For headless use, confirm that a virtual screen named `PadPilotVirtual` exists in BetterDisplay, or select an existing virtual screen in PadPilot's settings. If your version does not support automatic creation, create it once in BetterDisplay.
-
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" open-log
-```
-
-`open-log` opens the status and diagnostics window; `open-log --raw` opens the raw log. Configure Screen Sharing/VNC or SSH beforehand if you need remote recovery. PadPilot does not enable remote access, and SSH itself does not require a virtual display.
-
-## USB wakeup and automatic discovery
-
-Find these switches in **menu bar → Settings & Pairing → Operation & Preferences → Advanced options → USB & iPad Auto-detection**.
-
-- **USB event wakeup** is enabled by default. IOKit notifications wake background evaluation, with a 30-second periodic check retained. Ordinary startup and USB events open a discovery window of up to 30 seconds, checking every 2 seconds. Manual mode with boot connection enabled extends startup discovery to at most three rounds. If notification registration fails, diagnostics report it and periodic checks remain active.
-- **Automatic iPad detection** is enabled by default. An explicitly selected pairing with a Sidecar UUID takes priority. Without one, PadPilot infers a target from a unique USB iPad and Sidecar candidate, preferring saved identity mappings. Failed queries, missing candidates, or ambiguity prevent an iPad connection attempt.
-- **Explicit pairing suits multiple-device environments**. Unique candidates are a heuristic, not proof that the USB and Sidecar identities belong to the same iPad. Disable automatic detection and pair explicitly when other iPads may be nearby. Inferred targets do not create or modify saved pairings.
-- **Wired and wireless targets**: A selected pairing can continue to use Sidecar availability after USB is disconnected. An unpaired target inferred only from USB will not initiate a wireless fallback connection after unplugging.
-
-The current control target is shown in settings and the menu bar. Both switches apply live; previously saved disabled settings are preserved.
-
-## Menu bar and interface language
-
-The menu bar uses **18 × 18 pt, Retina-ready monochrome icons** that adapt to macOS light and dark appearances. Hover for the PadPilot name; open the menu for the main display, operating mode, devices, and diagnostics.
-
-<p align="center">
-  <img src="assets/menu-icons/preview.png" width="630" alt="PadPilot menu icons: Sidecar, physical display, virtual fallback, Manual Only, service stopped, warning, and working">
-</p>
-
-The icons represent Sidecar, physical display, virtual fallback, Manual Only, service stopped, warning, and working, respectively. The pointing-hand icon (`manual.png`) means the background service is running in Manual Only mode, even when an iPad is connected; the pause icon (`paused.png`) means the background service has stopped. Errors take priority with a warning icon; applying settings or switching displays shows the working icon, then returns to the corresponding state icon. Assets are included in the repository; developers can rebuild them with `swift scripts/build_menu_icons.swift` after changing the design.
-
-On first configuration, PadPilot selects a language from your macOS preferences, defaulting to English on non-Chinese/Japanese systems. Change it through the menu bar's Language menu, the GUI language selector, or `set-language`. GUI usage, troubleshooting, and diagnostic help links open local documents in the selected language. Device names, identifiers, and raw logs retain their original text.
-
-## Common commands
+<details>
+<summary>Advanced: Terminal commands and source updates</summary>
 
 Run these from any directory. If `~/bin` is on your PATH, you can also use `padpilot-cli` directly. Installation, update, and development scripts still run from the source directory.
 
@@ -179,34 +162,15 @@ Release updates: quit PadPilot, then replace the app at the same location or rer
 
 Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
-## Limitations and troubleshooting
+</details>
 
-- **Sidecar is a prerequisite**: PadPilot does not add Sidecar support to incompatible devices or control Universal Control's keyboard and pointer routing.
-- **Connection timing depends on macOS and the devices**: A USB notification, a 4-second debounce, or a successful command submission does not mean the iPad is displaying the desktop. Fallback takes priority during cooldown.
-- **Headless setups still need validation**: Cold boot, sleep/wake, hub, and multiple-device combinations have not been comprehensively tested. No iPad display is provided before user login. Disabling FileVault and enabling automatic login are not guaranteed setup steps.
-- **Other display controllers can conflict**: If another tool repeatedly changes the main display or Sidecar state, switch to `manual_only` and inspect the transition reasons and logs.
+## Updates, removal, and more
 
-Configuration and runtime state normally live in `~/Library/Application Support/PadPilot/`; logs are in `~/Library/Logs/PadPilot/`. When reporting a problem, include versions, connection type, reproduction steps, and relevant logs. Redact device serials, UUIDs, accounts, and personal paths first.
+Save and close settings before updating or uninstalling. For release updates, replace the app at the same location; settings and pairings remain. Before moving the app or migrating from a source installation, uninstall the old copy while keeping settings.
 
-Private directories use `0700`; configuration, status, sockets, and logs use `0600`. Foreign-owned or linked state paths are rejected. New IPC logs omit pairing payloads; existing historical logs are not erased. See the [release acceptance matrix (Traditional Chinese)](docs/development/2026-09-11-release-readiness.md) for tested environments and hardware scenarios still marked `unknown`.
+[Install, update, and uninstall](docs/INSTALLATION.en.md) · [Full documentation index](docs/README.en.md)
 
-## Uninstall
-
-For a release app, save and close settings, then run the command below. The app and launch-at-login entry move to Trash; settings, pairings, and logs remain unless you also pass `--purge`.
-
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
-```
-
-**Source installation**: Paste this into Terminal to choose what to remove:
-
-```bash
-/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
-```
-
-The uninstaller presents a removal summary for confirmation, then stops this checkout's service and menu and moves its app, LaunchAgent, and CLI entry to Trash. Configuration/pairings, logs, downloaded source, and third-party dependencies newly installed by the installer are separate choices, all kept by default. Existing Python, BetterDisplay, Homebrew, Apple tools, and virtual displays are not removed along with PadPilot.
-
-For noninteractive app-only removal, add `--yes`. To also remove settings and logs, add `--yes --purge`; source and third-party dependencies still remain. With a manually obtained source copy, run `./scripts/uninstall.sh` from its directory. See [uninstall options](docs/INSTALLATION.en.md#uninstall).
+Headless cold boot, sleep/wake, and different hardware combinations still need real-device validation. PadPilot does not add Sidecar compatibility or control Universal Control. Report your version, connection type, and reproduction steps; redact serials, UUIDs, accounts, and personal paths before sharing logs.
 
 ## Documentation and contributing
 

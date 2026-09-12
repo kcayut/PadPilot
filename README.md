@@ -20,127 +20,110 @@
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
 
-PadPilot 是搭配 **Apple Sidecar 與 BetterDisplay** 使用的 macOS 顯示器自動化工具，主要為 Mac mini + iPad 的使用情境設計。沒有實體螢幕時，它會嘗試連接指定 iPad，並將它設為主螢幕；接回實體螢幕時，則依運作模式與手動選擇調整顯示器角色。
-
-你可以透過選單列、圖形設定視窗或命令列控制連線、管理配對，以及查看目前狀態與切換原因。
-
-GUI 的「使用說明」、「疑難排解」與診斷說明會在 GitHub 開啟對應版本的文件，並跟隨介面語言。私人倉庫的文件需要登入有存取權限的 GitHub 帳號；文件連結固定版本，不會隨新版發布而改變內容。
+PadPilot 讓你用 **iPad 當 Mac 螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線，也能在沒有實體螢幕時嘗試自動接手。
 
 > [!IMPORTANT]
-> **目前為早期預覽版本。** 請先在保留實體螢幕或可用遠端連線的環境中測試。
-> PadPilot 在使用者登入後運作，**無法讓 iPad 顯示 FileVault 解鎖或登入前畫面**。安裝不需要關閉 FileVault；無實體螢幕冷開機與不同硬體組合仍需實機驗證。
+> **目前是早期預覽版。** 第一次使用，請保留實體螢幕或可用的遠端連線。
+> PadPilot 在登入 macOS 後才運作，**不能顯示 FileVault 解鎖或登入前畫面**；不需要為了安裝而關閉 FileVault。
 
-## 功能特色
+## 先準備好這三樣
 
-- **實體螢幕優先**：自動模式下，有實體螢幕時不主動建立 Sidecar；已連線的 iPad 可保留為副螢幕。
-- **iPad 主／副螢幕控制**：手動連線、斷線、重新連線及切換角色，支援儲存多台配對並指定一台控制目標。
-- **虛擬螢幕備援**：透過 BetterDisplay 的虛擬螢幕保留無頭桌面；iPad 接管後仍保留備援顯示器。
-- **USB 事件喚醒**：插拔事件喚醒背景評估，搭配探索期、定期檢查、防抖與失敗冷卻。
-- **可查看的決策**：設定視窗提供裝置搜尋、配對管理、狀態、診斷與日誌；選單列讀取背景服務產生的狀態快照。
-- **三種介面語言**：繁體中文、English、日本語。核心程式使用 Python 標準函式庫，沒有額外 pip 套件需求。
+- **Apple Silicon Mac、macOS 14+，以及支援 Sidecar 的 iPad**。目前不支援 Intel Mac。
+- **先讓 Sidecar 能手動連上**：兩台裝置使用相同 Apple Account 並開啟雙重認證。初次設定建議用資料傳輸線連接，在 iPad 上信任 Mac；無線另需 Wi-Fi、藍牙與 Handoff。[查看 Apple 的條件](https://support.apple.com/en-us/102597)。
+- **安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**，確認控制功能可用，依上游授權需 Pro 或有效試用。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
 
-## 如何運作
+## 跟著畫面開始用
 
-新安裝預設為 `manual_only`，並勾選「開機無螢幕時自動連線 iPad」。登入後最多偵測 3 輪，每輪 30 秒（合計最多 90 秒）；三輪都找不到目標便停止。找到目標且無實體螢幕時提出一輪連線要求；之後只接受選單或全域快速鍵的手動要求。若另行切換至 `automatic`，沒有有效手動覆寫時：
+以下是目前原生介面的實際截圖，使用專案內建的**示範裝置資料**，不代表實機連線驗收。你的裝置名稱與狀態會不同；點圖可放大。
 
-| 目前情境 | 預期行為 |
+### 1. 安裝，打開 App
+
+從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，打開後把 **PadPilot.app 拖進 Applications**，再開啟 App。已內建 Python，不必另裝 Homebrew 或編譯工具。
+
+開啟後就會看到設定視窗。關掉視窗，選單列仍會保留；要再開設定，點選單列的 **「設定與配對」**，或再雙擊 App。
+
+> 預覽版尚未經 Developer ID 簽署或 Apple 公證。若 macOS 擋下開啟，確認下載來源後，依 [Apple 說明](https://support.apple.com/en-us/102445) 到「系統設定 → 隱私權與安全性 → 仍要打開」。若顯示損毀，先重新下載並核對 `SHA256SUMS`。
+
+### 2. 找到你的 iPad，按「配對」
+
+左邊選 **「搜尋新裝置」→「搜尋可配對裝置」**。找到你的 iPad，確認名稱；需要時選擇對應 USB，勾選主要管理 iPad，再按 **「配對」**。若跳出確認視窗，核對裝置後再繼續；已配對的裝置直接到下一步。
+
+[![搜尋新裝置：搜尋 iPad、選擇對應 USB，再按配對](docs/images/quick-start/zh-Hant-search.png)](docs/images/quick-start/zh-Hant-search.png)
+
+配對只是讓 PadPilot 記住這台裝置，不會取代 Apple 的帳號或信任設定。可以儲存多台，但一次只管理一台主要目標；有多台 iPad 時，請明確指定，別只靠自動偵測。
+
+### 3. 想怎麼用，直接按
+
+左邊選 **「已配對 iPad」**。要更換主要管理的 iPad，展開該裝置的 **「設定」**，按「設為主要管理 iPad」，確認後套用。
+
+[![已配對 iPad：作為副螢幕、設為主螢幕、中斷連線與重新連線](docs/images/quick-start/zh-Hant-paired.png)](docs/images/quick-start/zh-Hant-paired.png)
+
+| 你想做的事 | 按這個 |
 | --- | --- |
-| 有實體螢幕 | 使用實體主螢幕；不主動連接 iPad，已連線的 iPad 保留為副螢幕。 |
-| 沒有實體螢幕，有可用的 iPad 目標 | 等待防抖後，嘗試連接 Sidecar 並將 iPad 設為主螢幕。 |
-| 沒有實體螢幕，也沒有可用的 iPad 目標 | 使用已配置的 BetterDisplay 虛擬螢幕作為備援。 |
+| 保留 Mac 原本的主螢幕，讓 iPad 延伸桌面 | **作為副螢幕** |
+| 主要在 iPad 上操作 Mac | **設為主螢幕** |
+| 暫時不用 iPad 畫面 | **中斷連線** |
+| 連線卡住，想再試一次 | **重新連線** |
 
-亦提供 `prefer_ipad`（優先嘗試使用 iPad 主螢幕）模式。手動選擇在目前硬體拓撲內優先；切換模式、重設或拓撲改變後會重新評估。
+按下後等畫面出現，再到 **「連線螢幕狀態」**確認主／副螢幕。**「已偵測到 Sidecar」只代表找到裝置，還不等於已經顯示桌面。**
 
-預設的實體螢幕斷線防抖為 **4 秒**，Sidecar 連線最多嘗試 **3 次**，重試間隔 **3 秒**，失敗後冷卻 **30 秒**。這些是控制時序，並非連線完成時間的保證。
+### 4. 決定要自己控制，還是自動連線
 
-## 使用需求
+左邊選 **「運作與偏好」**。剛開始可維持預設的 **「僅手動模式」**；想更自動，再切換模式。
 
-| 項目 | 說明 |
+[![運作與偏好：選擇模式、登入啟動、開機連線與全域快速鍵](docs/images/quick-start/zh-Hant-settings.png)](docs/images/quick-start/zh-Hant-settings.png)
+
+| 模式 | 怎麼運作 |
 | --- | --- |
-| Mac | Apple Silicon（arm64）、macOS 14+；不支援 Intel Mac。硬體組合仍需實機驗證。 |
-| iPad | 支援 Sidecar 的 iPad，與 Mac 登入相同 Apple Account 並啟用雙重認證。 |
-| Python | Release 已內建 CPython；自行選用時需 Apple Silicon Python 3.10+。 |
-| [BetterDisplay](https://github.com/waydabber/BetterDisplay) | 提供 Sidecar 與顯示器控制。請選擇相容於 macOS 的版本，並確認 CLI 可用；命令列控制依上游授權需要 Pro 或有效試用。 |
-| Apple Command Line Tools | 只有原始碼安裝／建置發行包需要；Release 使用者不需要。 |
-| 連線 | 初次設定建議使用可傳輸資料的 USB 線，並在 iPad 上信任 Mac。無線 Sidecar 另需 Wi-Fi、藍牙與 Handoff。 |
+| **僅手動模式**（新安裝預設） | 平時由你按按鈕或快速鍵連線，斷線後不自行重連。 |
+| **自動模式** | 有實體螢幕就以它為主；沒有時嘗試讓 iPad 接手。已連上的 iPad 可保留為副螢幕。 |
+| **偏好 iPad 模式** | 即使有實體螢幕，也優先嘗試讓 iPad 當主螢幕。 |
 
-裝置相容性及有線／無線條件請參閱 [Apple Sidecar 說明](https://support.apple.com/en-us/102597)。BetterDisplay 的功能與授權以[上游說明](https://github.com/waydabber/BetterDisplay#key-features)為準；PadPilot 的授權不包含第三方軟體授權。
+- **想登入後就啟動**：勾選「登入時自動啟動 PadPilot」。
+- **想無螢幕開機時先試一次**：保留「開機無螢幕時自動連線 iPad」（預設勾選）。在手動模式下，登入後最多找 3 輪、每輪 30 秒；找到目標且無實體螢幕時，嘗試一輪連線。找不到就停止，同次開機重開 App 不會再試。
+- **想用鍵盤連線**：往下找到「全域快速鍵」，按錄製按鈕、按下組合鍵，再按「儲存快速鍵」。
+- **想換語言**：用視窗右上角選單，支援繁體中文、English、日本語。
 
-## 快速開始
+手動選擇會在目前螢幕連接組合內優先；切換模式、重設或插拔螢幕後會重新評估。更新會保留既有偏好。
 
-### 1. 安裝
+### 5. 沒有實體螢幕？先準備備援
 
-先確認 macOS「螢幕鏡像輸出」可以手動使用 Sidecar。從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 Apple Silicon 的 `.dmg`，打開後將 **PadPilot.app 拖入 Applications**，再從「應用程式」開啟。Swift 與 CPython 已封裝，無需另裝 Python、Homebrew 或 Apple 編譯工具；全部原生 GUI、CLI、背景服務、USB 偵測與登入啟動功能均使用同一套核心。
+先在 BetterDisplay 準備虛擬螢幕，再到 **「虛擬備援螢幕」**選取它，按 **「指定為備援螢幕」**。可使用 `PadPilotVirtual` 或你已有的虛擬螢幕；若沒有自動建立，請在 BetterDisplay 手動建立一次。
 
-目前是**開發預覽版，只有 ad-hoc 簽章，沒有 Developer ID 簽章或 Apple 公證**。macOS 可能顯示無法驗證開發者或無法檢查惡意軟體；確認下載來源後，可依 [Apple 說明](https://support.apple.com/en-us/102445) 到「系統設定 → 隱私權與安全性 → 仍要打開」。若顯示損毀，先重新下載並核對 `SHA256SUMS`，不要一律視為誤報。
+[![虛擬備援螢幕：選擇 BetterDisplay 虛擬螢幕並指定為備援](docs/images/quick-start/zh-Hant-virtual.png)](docs/images/quick-start/zh-Hant-virtual.png)
 
-想自行選擇 Python，可下載並執行[發行版安裝腳本](https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh)，或在原始碼目錄執行：
+它能在 iPad 尚未接手時保留桌面，iPad 接手後也會保留。需要遠端救援的話，請事先自行設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你開啟遠端存取。
 
-```bash
-bash scripts/install.sh --release
-```
+## 卡住時，先看這裡
 
-腳本預設取得最新已發布版本（包含預覽版），讓你選擇內建 CPython 或自己的 Apple Silicon Python 3.10+；也支援 `--tag v0.1.0-dev.1`、`--bundled`、`--python /absolute/path/python3`。發行包必須先由維護者推送 tag 產生，尚未發布時會明確停止。腳本驗證下載、安裝並保留設定，完成後請自行開啟 App。
+- **找不到 iPad**：先確認 macOS 本身能用 Sidecar，再回「搜尋新裝置」搜尋。多台裝置時確認主要管理目標。
+- **按了卻沒畫面**：到「連線螢幕狀態」和「狀態與診斷」看原因；連線需要時間，命令送出成功不代表已完成。
+- **畫面一直切來切去**：先改成「僅手動模式」，檢查是否有其他工具也在調整主螢幕。
 
-BetterDisplay **App 必須安裝並執行**；只裝 `betterdisplaycli` 不夠。獨立 CLI 是可選項，PadPilot 能使用 BetterDisplay App 內建的控制介面，並搜尋 Applications、使用者 Applications 與 macOS 登記的自訂安裝位置。手動指定路徑仍優先。
+更多問題看[疑難排解](docs/TROUBLESHOOTING.md)。GUI 內的說明連結會開啟 GitHub 上對應版本、對應語言的文件；私人倉庫需登入有權限的帳號。
 
-安裝、更新或切換 Python 前，請儲存設定並離開 PadPilot。設定與配對保存在 App 外；若由原始碼安裝遷移或更換安裝位置，先用舊版本解除安裝並保留設定。詳細選項見[安裝指南](docs/INSTALLATION.md)。開發者仍可使用 `bash scripts/install.sh` 本機編譯；此模式需保留原始碼與選定的 Python。
+<details>
+<summary>選單列圖示怎麼看？</summary>
 
-以下 CLI 指令以 `/Applications/PadPilot.app` 為例；自訂安裝位置請替換為實際路徑。
+![選單列圖示：Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告、處理中](assets/menu-icons/preview.png)
 
-### 2. 指定 iPad
+由左至右：Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告、處理中。**手指代表僅手動模式，暫停代表服務已停止**；iPad 連上時仍可能顯示手指。語言也可從選單列切換。
 
-在終端機執行互動式配對，選取要控制的 iPad：
+</details>
 
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" pair --interactive
-```
+<details>
+<summary>進階：USB 自動偵測與連線等待</summary>
 
-也可開啟圖形設定視窗，搜尋裝置、儲存配對並選定控制目標：
+位置：「運作與偏好 → 進階選項 → USB 與 iPad 自動偵測」。USB 插拔喚醒與自動偵測預設開啟；USB 事件會喚醒評估，並保留 30 秒定期檢查。
 
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
-```
+有指定且具 Sidecar UUID 的配對時，優先使用它；沒有時才從唯一 USB iPad 與 Sidecar 候選推定。推定不是身分確認，多台裝置時請停用自動偵測並明確配對。指定配對可依 Sidecar 可用性使用無線；只靠 USB 推定的未配對目標，拔線後不會主動建立無線連線。
 
-PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任這部電腦」設定。雖然可以儲存多台 iPad，目前一次管理一台控制目標。
+預設防抖 4 秒、連線最多 3 次、間隔 3 秒，失敗後冷卻 30 秒。這些是等待規則，不是連線完成時間的保證。
 
-### 3. 確認備援與狀態
+</details>
 
-若要使用無實體螢幕情境，請確認 BetterDisplay 中存在名為 `PadPilotVirtual` 的虛擬螢幕，或在 PadPilot 設定中選擇既有的虛擬螢幕。若版本不支援自動建立，請先在 BetterDisplay 中手動建立一次。
-
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" open-log
-```
-
-`open-log` 會開啟狀態與診斷視窗；`open-log --raw` 可開啟原始日誌。遠端救援需自行事先設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你啟用遠端存取，SSH 本身也不依賴虛擬螢幕。
-
-`status` 會另外顯示是否收到服務握手；無回應時顯示的是已儲存快照，不能當成即時狀態。`status --json` 提供 `daemon_responding` 與版本資訊，沒有快照時螢幕狀態仍為未知。
-
-## USB 喚醒與自動偵測
-
-設定位置：**選單列 → 設定與配對 → 運作與偏好 → 進階選項 → USB 與 iPad 自動偵測**。
-
-- **USB 插拔即時喚醒**：預設啟用。使用 IOKit 通知喚醒背景評估，並保留 30 秒定期檢查。一般啟動與 USB 事件後有最長 30 秒、每 2 秒的探索期；手動模式啟用開機連線時，開機探索最多持續 3 輪。通知註冊失敗時會顯示診斷並退回定期檢查。
-- **自動偵測 iPad**：預設啟用。優先使用已指定且具有 Sidecar UUID 的配對；沒有有效指定配對時，才依唯一 USB iPad 與 Sidecar 候選推定目標。有已儲存的裝置對應時優先使用；查詢失敗、候選未出現或有歧義時，不發起 iPad 連線。
-- **明確配對適合多裝置環境**：唯一候選只是推定，不能證明 USB 與 Sidecar 身分屬於同一台 iPad。附近可能有其他 iPad 時，請停用自動偵測並明確配對。推定結果不會新增或改寫已儲存配對。
-- **有線與無線目標**：指定配對可以在 USB 拔除後繼續依 Sidecar 可用性處理；僅靠 USB 推定的未配對目標，拔線後不會主動建立無線備援連線。
-
-本次控制目標會顯示在設定頁與選單列。兩個開關可即時套用；已儲存的停用設定會保留。
-
-## 選單列與介面語言
-
-選單列使用 **18 × 18 pt、支援 Retina 的單色圖示**，隨 macOS 深淺色外觀調整。滑鼠停留可見 PadPilot 名稱，展開後可查看主螢幕、運作模式、裝置與診斷。
-
-<p align="center">
-  <img src="assets/menu-icons/preview.png" width="630" alt="PadPilot 選單列圖示：Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告與處理中">
-</p>
-
-圖示依序表示 Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告與處理中。手指圖示（`manual.png`）表示背景服務運作中的「僅手動」模式，即使 iPad 已連線也會顯示；暫停圖示（`paused.png`）表示背景服務已停止。發生錯誤時優先顯示警告，套用設定或切換螢幕時顯示處理中，完成後恢復對應圖示。圖檔隨專案提供；修改設計時可執行 `swift scripts/build_menu_icons.swift` 重建。
-
-首次建立設定會依 macOS 語言選擇介面，非中文／日文系統預設為 English。之後可從選單列的 Language 選單、GUI 右上角的語言選單，或 `set-language` 指令切換。GUI 的使用說明、疑難排解與診斷說明連結會開啟對應語言的本機文件；裝置名稱、識別碼與原始日誌保留原文。
-
-## 常用指令
+<details>
+<summary>進階：終端機指令與原始碼更新</summary>
 
 以下指令可從任何目錄執行。若 `~/bin` 位於 PATH，也可直接使用 `padpilot-cli`。安裝、更新及開發腳本仍須在原始碼目錄執行。
 
@@ -179,34 +162,15 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub 入口與贊助區，收款連結未設定前按鈕停用。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
-## 限制與疑難排解
+</details>
 
-- **Sidecar 是必要條件**：PadPilot 不會讓原本不相容的 Mac／iPad 支援 Sidecar，也不控制 Universal Control 的鍵盤滑鼠跨裝置行為。
-- **連線時間取決於系統與裝置**：USB 通知、4 秒防抖或命令送出成功，都不等於 iPad 已完成顯示。冷卻期間會優先維持備援。
-- **無頭環境仍需驗證**：冷開機、睡眠喚醒、集線器與多裝置組合尚未全面驗收；使用者登入前不提供 iPad 畫面。不要把關閉 FileVault／開啟自動登入當成保證可用的安裝步驟。
-- **第三方控制可能互相影響**：若另有工具持續更改主螢幕或 Sidecar，請先切至 `manual_only`，再檢查切換原因與日誌。
+## 更新、移除與其他說明
 
-設定與執行狀態預設位於 `~/Library/Application Support/PadPilot/`，日誌位於 `~/Library/Logs/PadPilot/`。回報問題時請附上版本、連線方式、重現步驟與相關日誌，並先遮蔽裝置序號、UUID、帳號及個人路徑。
+更新或解除安裝前，請先儲存並關閉設定視窗。Release 更新可用新版替換同位置的 App，設定與配對會保留；更換安裝位置或由原始碼版遷移，請先用舊版解除安裝並保留設定。
 
-私人目錄使用 `0700`，設定、狀態、socket 與日誌使用 `0600`；不接受其他使用者擁有或符號連結的狀態路徑。新的 IPC 日誌不記錄配對 payload，但歷史日誌不會自動清除。已測環境與仍為 `unknown` 的硬體情境見[發布驗收表](docs/development/2026-09-11-release-readiness.md)。
+[安裝、更新與解除安裝](docs/INSTALLATION.md) · [完整文件索引](docs/README.md)
 
-## 解除安裝
-
-Release 版本先儲存並關閉設定視窗，再執行下列指令。App 與登入啟動項目移至垃圾桶，預設保留設定、配對與日誌；加 `--purge` 也會將這些資料移至垃圾桶。
-
-```bash
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
-```
-
-**原始碼安裝**：複製至終端機，即可逐項選擇要移除的內容：
-
-```bash
-/bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
-```
-
-解除安裝會先顯示移除摘要並確認，再停止本專案服務與選單，將 App、LaunchAgent 與屬於此專案的 CLI 入口移到垃圾桶。設定／配對、日誌、下載的原始碼，以及由安裝器新增的第三方依賴會分別詢問；預設保留。既有 Python、BetterDisplay、Homebrew、Apple 工具與虛擬螢幕不會一併刪除。
-
-免互動只移除 PadPilot 主體：加 `--yes`。同時清理設定與日誌：加 `--yes --purge`；仍保留原始碼與第三方依賴。手動取得原始碼者在其專案目錄執行 `./scripts/uninstall.sh`。詳見[解除安裝選項](docs/INSTALLATION.md#解除安裝)。
+無實體螢幕冷開機、睡眠喚醒與不同硬體組合仍需實機驗證。PadPilot 不會讓不相容的機器支援 Sidecar，也不控制 Universal Control。回報問題請附版本、連線方式與重現步驟；分享日誌前先遮蔽序號、UUID、帳號及個人路徑。
 
 ## 文件與貢獻
 
