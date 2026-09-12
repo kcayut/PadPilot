@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from uuid import UUID
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,18 +28,18 @@ from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.detector import DisplayDetector
 from core.logger import get_logger
 from core.models import DisplayRole, OperationMode, pairing_key
-from core.state_engine import StateEngine
+from core.state_engine import StateEngine, STATE_QUERY_ERRORS
 from core.settings import ConflictError, apply_change
 from core.usb_events import USBEventMonitor
-from core.storage import private_directory, remove_state_file
+from core.storage import private_directory, remove_state_file, read_private_json, atomic_write
 
 logger = get_logger("Daemon")
 
 SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 IPC_COMMANDS = frozenset(('set_mode', 'set_autostart', 'save_pairing', 'delete_pairing',
     'set_virtual_display', 'set_betterdisplaycli_path', 'set_usb_event_wakeup', 'set_auto_detect_ipad',
-    'set_language', 'status', 'use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad',
-    'reconnect_sidecar', 'refresh', 'reset', 'stop'))
+    'set_connection_hotkey', 'set_connect_on_boot', 'set_language', 'status', 'use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad',
+    'connect_ipad', 'reconnect_sidecar', 'refresh', 'reset', 'stop'))
 
 
 def create_ipc_socket(path):
@@ -112,7 +113,7 @@ class PadPilotDaemon:
                     self.detector.config = new_config
                 if hasattr(self, "engine") and self.engine is not None:
                     self.engine.config = new_config
-                    if action == 'set_language':
+                    if action in ('set_language', 'set_connection_hotkey', 'set_connect_on_boot'):
                         self.engine.republish_language_status(previous_revision)
             return needs_transition, self.config
 
@@ -169,7 +170,7 @@ class PadPilotDaemon:
             arg = parts[1] if len(parts) > 1 else ""
             if command == "set_mode":
                 params = {"mode": arg}
-            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):
+            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
                 try:
                     params = json.loads(arg) if arg else {}
                 except Exception:
@@ -183,7 +184,7 @@ class PadPilotDaemon:
             return json.dumps({'id': req_id, 'ok': False, 'error': 'UNKNOWN_COMMAND'}) if is_json else 'ERROR: Unknown command'
 
         # Keep the target check and the action in the same config transaction.
-        if command in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar') and is_json:
+        if command in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar', 'connect_ipad') and is_json:
             if not isinstance(params, dict):
                 return json.dumps({'id': req_id, 'ok': False, 'error': 'INVALID_REQUEST'})
             if expected_rev is not None or 'target_key' in params:
@@ -198,7 +199,7 @@ class PadPilotDaemon:
                     return json.dumps({'id': req_id, 'ok': message.startswith('OK'), 'message': message})
 
         # Handle config mutation actions
-        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language"):
+        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
             try:
                 changed, cfg = self.apply_config_change(command, params, expected_rev)
             except ConflictError as e:
@@ -239,6 +240,10 @@ class PadPilotDaemon:
             msg = "OK: Disconnect requested; automatic reconnection paused for this topology"
             resp = {"id": req_id, "ok": True, "message": msg}
             return json.dumps(resp, ensure_ascii=False) if is_json else msg
+        elif command == "connect_ipad":
+            ok = self.engine.request_sidecar_connection()
+            msg = "OK: Connection requested" if ok else f"ERROR: {self.engine.runtime.last_error}"
+            return json.dumps({'id': req_id, 'ok': ok, 'message': msg}) if is_json else msg
         elif command == "reconnect_sidecar":
             if not self.engine.reconnect_sidecar():
                 msg = "ERROR: Sidecar disconnect failed; reconnect was not started"
@@ -329,17 +334,23 @@ class PadPilotDaemon:
 
         open_menu_app()
 
+        boot_pending = self.claim_boot_connection()
+
         # Start IPC server thread
         ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
         ipc_thread.start()
 
         # Events and Watchdog share one consumer; notifications coalesce while busy.
-        warmup_end = time.monotonic() + 30.0
+        discovery_start = time.monotonic()
+        warmup_end = discovery_start + 30.0
+        boot_deadline = discovery_start + 3 * 30.0  # Three discovery rounds; USB events cannot extend them.
         try:
             self.sync_usb_monitor()
             self.engine.evaluate(trigger="startup")
+            if boot_pending:
+                boot_pending = self.try_boot_connection(boot_deadline)
             while self.running:
-                timeout = 2.0 if time.monotonic() < warmup_end else 30.0
+                timeout = 2.0 if time.monotonic() < warmup_end or boot_pending else 30.0
                 debounce = self.engine.runtime.debounce_until - time.time()
                 if debounce > 0:
                     timeout = min(timeout, debounce)
@@ -353,8 +364,45 @@ class PadPilotDaemon:
                     warmup_end = time.monotonic() + 30.0
                 self.detector.usb_monitor_error = self.usb_monitor.error if self.usb_monitor_enabled else ''
                 self.engine.evaluate(trigger="usb_event" if event else "watchdog")
+                if boot_pending:
+                    boot_pending = self.try_boot_connection(boot_deadline)
         finally:
             self.usb_monitor.stop()
+
+    def claim_boot_connection(self) -> bool:
+        """Consume this boot before attempting anything, including on service restart."""
+        path = APP_SUPPORT_DIR / 'boot-connection.json'
+        try:
+            boot = str(UUID(subprocess.check_output(
+                ['/usr/sbin/sysctl', '-n', 'kern.bootsessionuuid'], text=True, timeout=2).strip()))
+            try:
+                if read_private_json(path) == boot:
+                    return False
+            except FileNotFoundError:
+                pass
+            atomic_write(path, json.dumps(boot).encode())
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            logger.warning('Boot connection disabled: cannot verify boot marker (%s)', error)
+            return False
+        return self.config.mode == OperationMode.MANUAL_ONLY and self.config.connect_on_boot
+
+    def try_boot_connection(self, deadline: float) -> bool:
+        """Search for up to three 30-second rounds, then submit at most one connection round."""
+        with self.engine._eval_lock:
+            if (time.monotonic() >= deadline or self.config.mode != OperationMode.MANUAL_ONLY
+                    or not self.config.connect_on_boot or self.engine.runtime.user_override
+                    or self.engine._transition_revision):
+                return False
+            actual = self.engine.actual
+            if actual is None:
+                return True
+            if actual.physical_displays:
+                return False
+            target = self.engine.target_ipad(actual)
+            if STATE_QUERY_ERRORS.intersection(actual.discovery_errors) or not (target.sidecar_uuid or target.name):
+                return True
+            self.engine.request_sidecar_connection(require_headless=True)
+            return False
 
     def sync_usb_monitor(self):
         enabled = self.config.usb_event_wakeup

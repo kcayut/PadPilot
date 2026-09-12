@@ -19,7 +19,7 @@ APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
 STATUS_FILE_FALLBACK = Path("/tmp/PadPilot/runtime/status.json")
 PLIST_PATH = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
-MODES = {"automatic": "自動", "manual_only": "僅手動", "prefer_ipad": "偏好 iPad"}
+MODES = {"manual_only": "僅手動", "automatic": "自動", "prefer_ipad": "偏好 iPad"}
 
 
 def load_json(*paths: Path, strict=False) -> dict:
@@ -96,7 +96,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     is_applying = bool(status and status_cfg_rev < cfg_rev)
     is_out_of_sync = bool(status and status_cfg_rev > cfg_rev)
 
-    mode = config.get('mode') or status.get('mode', 'automatic')
+    mode = config.get('mode') or status.get('mode', 'manual_only')
     known_target = bool(target.get('sidecar_uuid') or target.get('usb_serial'))
     controls = service_running is True and fresh and known_target and not (is_applying or is_out_of_sync) and (auto_detect or same_device(target, status.get('configured_ipad') or {}))
     main = actual.get('main_display') or {}
@@ -226,7 +226,9 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     item(tr('重新整理螢幕狀態'), args=('action', 'refresh'))
     separator()
     item(tr('Exit'), args=('exit',))
-    return {'schema_version': 1, 'hidden': False, 'icon': icon_name, 'items': items}
+    return {'schema_version': 1, 'hidden': False, 'icon': icon_name, 'items': items,
+            'connection_hotkey': config.get('connection_hotkey', ''),
+            'hotkey_error_message': tr('無法啟用快速鍵，請改用其他組合。')}
 
 
 

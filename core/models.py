@@ -79,12 +79,14 @@ class UserOverride:
     target_role: DisplayRole
     topology_generation: int
     timestamp: float = field(default_factory=time.time)
+    one_shot: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "target_role": self.target_role.value,
             "topology_generation": self.topology_generation,
             "timestamp": self.timestamp,
+            "one_shot": self.one_shot,
         }
 
     @classmethod
@@ -95,6 +97,7 @@ class UserOverride:
             target_role=DisplayRole(data["target_role"]),
             topology_generation=int(data["topology_generation"]),
             timestamp=float(data.get("timestamp", time.time())),
+            one_shot=data.get('one_shot') is True,
         )
 
 

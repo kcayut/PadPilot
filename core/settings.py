@@ -1,6 +1,6 @@
 """Validated settings changes shared by the daemon and offline CLI."""
 from core.betterdisplay import BetterDisplayCLI
-from core.config import Config
+from core.config import Config, validate_connection_hotkey
 from core.models import OperationMode
 
 
@@ -17,18 +17,23 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
     """Return whether the state engine needs to re-evaluate its target."""
     if not isinstance(payload, dict):
         raise ValueError('無效的設定資料')
+    if action == 'set_connection_hotkey':
+        if set(payload) != {'shortcut'}:
+            raise ValueError('Invalid connection hotkey')
+        cfg.connection_hotkey = validate_connection_hotkey(payload['shortcut'])
+        return False  # Register in the menu app; never initiate a display transition.
     if action == 'set_language':
         if set(payload) != {'language'} or payload['language'] not in ('zh-Hant', 'en', 'ja'):
             raise ValueError('Unsupported language')
         cfg.language = payload['language']
         return False  # Presentation only; never re-evaluate display connections.
-    if action in ('set_usb_event_wakeup', 'set_auto_detect_ipad'):
+    if action in ('set_usb_event_wakeup', 'set_auto_detect_ipad', 'set_connect_on_boot'):
         if set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
             raise ValueError('請提供布林值 enabled')
         field = action.removeprefix('set_')
         changed = getattr(cfg, field) != payload['enabled']
         setattr(cfg, field, payload['enabled'])
-        return changed
+        return changed and action != 'set_connect_on_boot'
     if action == 'set_mode':
         mode_val = payload.get('mode')
         if not isinstance(mode_val, str):

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Carbon
 
 final class Actions: NSObject {
     @objc func perform(_ item: NSMenuItem) {}
@@ -13,6 +14,70 @@ struct NativeMenuCheck {
             from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
         precondition(model.schema_version == 1 && !model.hidden)
         let actions = Actions()
+        precondition(validAction(["action", "connect_ipad"]))
+        precondition(ConnectionHotKey.label("ctrl+alt+cmd+i") == "⌃⌥⌘I")
+        for invalid in ["i", "alt+i", "ctrl+ctrl+i", "ctrl+cmd+unknown", "ctrl+cmd+i;exit"] {
+            precondition(ConnectionHotKey.parse(invalid) == nil)
+        }
+        // Exercise the actual Carbon callback with local synthetic hotkey events.
+        // No keyboard input is injected and no Sidecar action is installed.
+        let hotkey = ConnectionHotKey()
+        var presses = 0
+        hotkey.onPress = { presses += 1 }
+        hotkey.configure("ctrl+alt+shift+cmd+9")
+        precondition(hotkey.isRegistered, "Native shortcut registration failed: \(hotkey.errorCode)")
+        let conflict = ConnectionHotKey()
+        conflict.configure("ctrl+alt+shift+cmd+9")
+        precondition(!conflict.isRegistered && conflict.errorCode != noErr)
+        func send(_ kind: Int, id: UInt32 = 1) {
+            var event: EventRef?
+            precondition(CreateEvent(nil, OSType(kEventClassKeyboard), UInt32(kind), 0, 0, &event) == noErr)
+            var identifier = EventHotKeyID(signature: ConnectionHotKey.signature, id: id)
+            precondition(SetEventParameter(event!, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                           MemoryLayout<EventHotKeyID>.size, &identifier) == noErr)
+            _ = SendEventToEventTarget(event!, GetApplicationEventTarget())
+            ReleaseEvent(event!)
+        }
+        send(kEventHotKeyPressed, id: 2)
+        send(kEventHotKeyPressed); send(kEventHotKeyPressed)
+        precondition(presses == 1)
+        send(kEventHotKeyReleased); send(kEventHotKeyPressed)
+        precondition(presses == 2)
+        precondition(!hotkey.configure("ctrl+alt+shift+cmd+9"))
+        hotkey.configure("")
+        precondition(!hotkey.isRegistered)
+        conflict.stop()
+        conflict.configure("ctrl+alt+shift+cmd+9")
+        precondition(conflict.isRegistered)
+        conflict.stop()
+        let shared = ConnectionHotKey.shared
+        shared.configure("ctrl+alt+shift+cmd+8")
+        let recorderWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 80),
+                                      styleMask: [.titled], backing: .buffered, defer: false)
+        recorderWindow.isReleasedWhenClosed = false
+        let recorder = HotKeyRecorderButton(frame: NSRect(x: 10, y: 20, width: 250, height: 30))
+        recorderWindow.contentView!.addSubview(recorder)
+        var recorded: String?
+        recorder.onCapture = { recorded = $0 }
+        func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                             windowNumber: recorderWindow.windowNumber, context: nil, characters: "",
+                             charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
+        }
+        recorder.beginRecording()
+        precondition(recorder.recording && !shared.isRegistered)
+        recorder.keyDown(with: key(34)) // A plain letter must not become a global shortcut.
+        precondition(recorder.recording && recorded == nil)
+        precondition(recorder.performKeyEquivalent(with: key(122, [.control, .command])))
+        precondition(recorded == "ctrl+cmd+f1" && !recorder.recording && shared.isRegistered)
+        recorder.beginRecording(); recorder.keyDown(with: key(53))
+        precondition(!recorder.recording && shared.isRegistered && recorded == "ctrl+cmd+f1")
+        recorder.beginRecording()
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: recorderWindow)
+        precondition(!recorder.recording && shared.isRegistered)
+        recorder.beginRecording(); recorderWindow.makeFirstResponder(nil)
+        precondition(!recorder.recording && shared.isRegistered)
+        recorderWindow.close(); shared.configure("")
         func flattened(_ menu: NSMenu) -> [NSMenuItem] {
             menu.items.flatMap { item in [item] + (item.submenu.map(flattened) ?? []) }
         }

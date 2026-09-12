@@ -30,6 +30,8 @@ The menu checks snapshot file changes every second and calls `menu-json` only af
 
 If a user chooses an iPad secondary display while no monitor exists, ordinary polling must not immediately force it back to main. Manual overrides are attached to a hardware generation. Topology changes, mode changes, or reset invalidate them. When a physical monitor exists, loss of the iPad connection can also clear its main/secondary override.
 
+Global shortcuts and main/secondary connection requests in Manual only mode last for one round. The request is then cleared while the established connection remains. Manual only mode never reconnects automatically after a later disconnection or device reappearance.
+
 ### 2. Single-flight transitions
 
 USB detection, display events, and the 30-second watchdog may arrive together. A shared lock serializes evaluation and configuration transactions; duplicate wakeups are coalesced so PadPilot does not run competing transitions. Other applications may still control displays concurrently.
@@ -65,3 +67,19 @@ Native notification references: [Apple IOServiceAddMatchingNotification](https:/
 Primary configuration/status files and `/tmp/PadPilot` fallbacks share last-write-time selection, with ownership and file-type checks before reading. Invalid configuration prevents startup instead of applying defaults; the GUI disables saving and preserves the original file. GUI transactions send `expected_revision`; rename drafts retain their editing-start revision and require review after a conflict.
 
 The detector keeps a verified Sidecar session UUID/display UUID mapping only for its current process. It reuses the mapping during discovery loss and clears it when the target changes or disconnection is confirmed. `ActualState.sidecar_display_id` is shared by main-display selection and satisfaction checks. A connected session with an unidentified display is unknown and leaves displays unchanged. A later successful identifiers query does not erase an earlier failure in the same observation.
+
+## Global connection shortcut
+
+Open Settings & Pairing → Operation & Preferences → Global Keyboard Shortcut. Click the key field, press a combination, then Save Shortcut; include Control or Command. Letters, digits, common punctuation, arrow/navigation keys, and F1–F20 are supported. Escape or switching windows cancels recording. The existing global shortcut is suspended during recording and restored on cancellation. No shortcut is registered until saved; change or disable it as needed. Use a keyboard connected directly to the Mac, with the Mac logged in and unlocked and the PadPilot menu app and background service running. The shortcut is unavailable on the lock screen. Neither a physical monitor nor an open settings window is required.
+
+- Manual mode normally accepts only explicit shortcut or menu commands. Its optional “Connect iPad at boot when no monitor is attached” checkbox permits one round after the service first starts in each boot session. Discovery runs for up to three 30-second rounds (90 seconds total), retaining the roughly two-second scan interval. If none finds a target, the boot connection flow stops. Connecting requires no physical monitor and an identifiable iPad target. A physical monitor, user operation, disabled setting, or deadline cancels the request. Restarting the app or service within the same boot does not retry. Enable launch at login to run this on login; it cannot connect before login.
+- New installations default to Manual mode with boot connection enabled; updates preserve the existing mode. Settings and the menu bar list Manual before Automatic.
+- Automatic mode keeps its existing automatic connections; the shortcut requests an additional bounded connection round.
+- In Manual mode, completion, failure, or cancellation ends the round. Later disconnection, USB events, or iPad arrival never starts another connection.
+- A round uses the existing maximum of three attempts and retry interval. Holding the key or repeating a request while busy does not replenish retries. A new press after completion can request another round.
+- Without a physical monitor the iPad becomes primary; with one it becomes secondary. Prefer iPad mode keeps the iPad primary. An already connected, online iPad is not disconnected or reassigned.
+- Saving the shortcut uses existing revision checks and CLI/IPC, without scanning or connecting hardware. Registration conflicts ask for another combination without a failure dialog. Sidecar itself may still display a system warning when connection fails.
+
+Registration uses native macOS hotkeys, with no extra package or keyboard-monitoring Accessibility permission. Keys use physical keyboard positions and remain stable across input-source changes.
+
+PadPilot cannot determine in advance whether an iPad can successfully connect through Sidecar. A separate warning below Automatic mode explains that automatic attempts may frequently trigger macOS warning dialogs when the iPad cannot connect. Neither the available-device list nor USB detection guarantees a successful connection.

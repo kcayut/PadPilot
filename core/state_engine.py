@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any, Optional, Tuple
 
@@ -52,6 +53,7 @@ class StateEngine:
         self.desired: Optional[DesiredState] = None
 
         self._transition_lock = threading.Lock()
+        self._transition_revision = 0
         # ponytail: serialize one display topology; use a command queue if IPC latency matters.
         self._eval_lock = threading.RLock()
         self.status_revision = 0
@@ -73,7 +75,7 @@ class StateEngine:
             self.runtime.user_override = None
             self.evaluate(trigger="mode_change")
 
-    def set_user_override(self, target_role: DisplayRole, async_transition: bool = True) -> None:
+    def set_user_override(self, target_role: DisplayRole, async_transition: bool = True, *, one_shot: bool = False) -> None:
         """Set a user manual override bound to current topology generation."""
         with self._eval_lock:
             self._observe()
@@ -84,12 +86,70 @@ class StateEngine:
                 target_role=target_role,
                 topology_generation=self.runtime.topology_generation,
                 timestamp=time.time(),
+                one_shot=one_shot or (self.runtime.mode == OperationMode.MANUAL_ONLY
+                                     and target_role in (DisplayRole.IPAD_MAIN, DisplayRole.IPAD_SECONDARY)),
             )
             logger.info(
                 f"User override registered: {target_role.value} at generation {self.runtime.topology_generation}"
             )
             self.runtime.user_override = override
             self.evaluate(trigger=f"override_{target_role.value.lower()}", async_transition=async_transition)
+
+    def request_sidecar_connection(self, async_transition: bool = True, *, require_headless: bool = False) -> bool:
+        """Explicit one-shot request; repeated presses never queue another retry budget."""
+        revision = self._transition_revision
+        if self._transition_lock.locked() or (self.runtime.user_override and self.runtime.user_override.one_shot):
+            return True
+        with self._eval_lock:
+            # Wait for a normal scan, but coalesce with any transition that ran meanwhile.
+            if revision != self._transition_revision or (self.runtime.user_override and self.runtime.user_override.one_shot):
+                return True
+            actual = self._observe()
+            if require_headless and (actual.physical_displays or self.runtime.mode != OperationMode.MANUAL_ONLY
+                                     or not self.config.connect_on_boot):
+                return False
+            target = self.target_ipad(actual)
+            errors = STATE_QUERY_ERRORS.intersection(actual.discovery_errors)
+            if errors or not (target.sidecar_uuid or target.name):
+                if errors:
+                    key = sorted(errors)[0]
+                    template = {
+                        'sidecar_connection': 'Cannot read Sidecar connection status (BetterDisplay: {0}); no connection was started.',
+                        'sidecar_identity': 'Cannot identify the Sidecar display ({0}); no connection was started.',
+                        'sidecar': 'Cannot read available Sidecar devices (BetterDisplay: {0}); no connection was started.',
+                        'usb': 'Cannot read USB devices ({0}); no connection was started.',
+                        'displays': 'Cannot read display status ({0}); no connection was started.',
+                        'identifiers': 'Cannot read display identifiers (BetterDisplay: {0}); no connection was started.',
+                    }[key]
+                    if key == 'sidecar_connection' and not actual.sidecar_available:
+                        template = 'Selected iPad is missing from the Sidecar device list (BetterDisplay status query: {0}); no connection was started.'
+                    self.runtime.last_error = template.format(actual.discovery_errors[key])
+                else:
+                    self.runtime.last_error = 'No iPad connection target is configured. Select or pair an iPad in Settings & Pairing.'
+                logger.warning(self.runtime.last_error)
+                self._export_status(satisfied=False)
+                return False
+            if actual.sidecar_connected and actual.sidecar_display_online:
+                return True  # Already connected: do not disconnect or change its role.
+            role = (DisplayRole.IPAD_SECONDARY if actual.physical_displays
+                    and self.runtime.mode != OperationMode.PREFER_IPAD else DisplayRole.IPAD_MAIN)
+            self.set_user_override(role, async_transition=async_transition, one_shot=True)
+            return True
+
+    def _complete_one_shot(self, request) -> None:
+        if request and request.one_shot and self.runtime.user_override is request:
+            self.runtime.user_override = None
+            if self.actual:
+                self.desired = self.policy(self.actual, self.config, self.runtime)
+                self._export_status(satisfied=self.is_satisfied(self.actual, self.desired))
+
+    @contextmanager
+    def _one_shot_scope(self):
+        request = self.runtime.user_override
+        try:
+            yield
+        finally:
+            self._complete_one_shot(request)
 
     def clear_user_override(self, async_transition: bool = True) -> None:
         """Clear active user manual override."""
@@ -439,7 +499,7 @@ class StateEngine:
             self._export_status(satisfied=satisfied)
 
             if satisfied:
-                # DO NOTHING
+                self._complete_one_shot(self.runtime.user_override)
                 return
 
             # If not satisfied, trigger transition under lock
@@ -514,7 +574,8 @@ class StateEngine:
 
     def _run_transition(self) -> None:
         """Single-flight transition execution thread."""
-        with self._eval_lock, self._transition_lock:
+        with self._eval_lock, self._transition_lock, self._one_shot_scope():
+            self._transition_revision += 1
             while True:
                 self.runtime.dirty = False
                 actual = self.actual

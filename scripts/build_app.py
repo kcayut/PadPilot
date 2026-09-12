@@ -50,7 +50,7 @@ def build(output, *, python_home=None, version=None, revision=None):
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-O',
                         '-target', f'{platform.machine()}-apple-macosx14.0',
                         '-module-cache-path', str(ROOT / 'build' / 'swift-cache'),
-                        str(ROOT / 'native' / 'PadPilot.swift'), str(ROOT / 'native' / 'Settings.swift'),
+                        str(ROOT / 'native' / 'PadPilot.swift'), str(ROOT / 'native' / 'Settings.swift'), str(ROOT / 'native' / 'ConnectionHotKey.swift'),
                         '-o', str(contents / 'MacOS' / 'PadPilot')],
                        check=True)
         (contents / 'Info.plist').write_bytes(plistlib.dumps({

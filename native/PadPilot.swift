@@ -103,6 +103,8 @@ struct MenuSnapshot: Codable {
     let hidden: Bool
     let icon: String
     let items: [MenuRow]
+    var connection_hotkey: String? = nil
+    var hotkey_error_message: String? = nil
 }
 
 // These are CLI argument arrays, never shell commands or device-provided code.
@@ -110,7 +112,7 @@ func validAction(_ args: [String]) -> Bool {
     if args.count == 1 { return ["start", "stop", "exit", "gui"].contains(args[0]) }
     if args.count == 2 {
         switch args[0] {
-        case "action": return ["use_ipad_main", "use_ipad_secondary", "disconnect_ipad", "reconnect_sidecar", "refresh"].contains(args[1])
+        case "action": return ["use_ipad_main", "use_ipad_secondary", "disconnect_ipad", "reconnect_sidecar", "connect_ipad", "refresh"].contains(args[1])
         case "set-mode": return ["automatic", "manual_only", "prefer_ipad"].contains(args[1])
         case "set-language": return ["en", "zh-Hant", "ja"].contains(args[1])
         case "autostart": return args[1] == "toggle"
@@ -248,6 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 NSApp.terminate(nil); return
             }
             ready = true
+            ConnectionHotKey.shared.onPress = { [weak self] in self?.requestConnection() }
             let settingsOnly = CommandLine.arguments.contains("--settings") || !pendingSettings.isEmpty
             awaitingSettingsRequest = settingsOnly && pendingSettings.isEmpty
             for request in pendingSettings { showSettings(request.page, delete: request.delete, select: request.select) }
@@ -329,6 +332,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard model.schema_version == 1 else { throw NSError(domain: "PadPilot", code: 2,
                     userInfo: [NSLocalizedDescriptionKey: "Unsupported menu schema. Rebuild PadPilot.app."]) }
                 self.statusItem.isVisible = !model.hidden
+                if ConnectionHotKey.shared.configure(model.hidden ? "" : model.connection_hotkey ?? ""),
+                   ConnectionHotKey.shared.errorCode != noErr {
+                    self.shortcutNotice(model.hotkey_error_message ?? "Cannot register connection shortcut.")
+                }
                 if model.hidden && !self.awaitingSettingsRequest,
                    self.settingsController?.window?.isVisible != true,
                    self.settingsController?.window?.isMiniaturized != true {
@@ -341,6 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     if !self.menuOpen { self.rebuildMenu() }
                 }
             } catch {
+                ConnectionHotKey.shared.configure("")
                 self.snapshotData = nil
                 self.snapshot = nil
                 self.setIcon("warning")
@@ -378,6 +386,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuDidClose(_ menu: NSMenu) {
         menuOpen = false
         DispatchQueue.main.async { self.rebuildMenu() }
+    }
+
+    private func requestConnection() {
+        guard !busy, runtime != nil, snapshot?.hidden == false else { return }
+        busy = true
+        runCLI(["action", "connect_ipad"], timeout: 75) { result in
+            self.busy = false
+            if case .failure(let error) = result {
+                self.shortcutNotice(error.localizedDescription)
+            }
+            self.refresh(force: true)
+        }
+    }
+
+    private func shortcutNotice(_ message: String) {
+        // Connection errors never use showError's modal NSAlert.
+        statusItem.button?.toolTip = message
+        let notification = NSUserNotification()
+        notification.identifier = "padpilot-connection-shortcut"
+        notification.title = "PadPilot"
+        notification.informativeText = message
+        NSUserNotificationCenter.default.deliver(notification)
     }
 
     @objc private func performAction(_ item: NSMenuItem) {
@@ -458,6 +488,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate()
+        ConnectionHotKey.shared.stop()
         if lockFD >= 0 { Darwin.close(lockFD) }
     }
 }

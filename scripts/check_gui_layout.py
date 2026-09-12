@@ -97,7 +97,7 @@ application.run()
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-D', 'PADPILOT_GUI_CHECKS',
                         '-target', f'{platform.machine()}-apple-macosx14.0',
                         '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                        str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/SettingsChecks.swift'),
+                        str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'), str(ROOT / 'native/SettingsChecks.swift'),
                         str(main), '-o', str(executable)], check=True)
         subprocess.run([str(executable), str(fixture_path), str(ROOT), mode, str(output)], check=True, timeout=90)
 

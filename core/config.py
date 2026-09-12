@@ -27,6 +27,30 @@ from core.models import (
 
 logger = get_logger("Config")
 
+HOTKEY_NAMED_KEYS = {
+    'space', 'tab', 'return', 'delete', 'forwarddelete', 'escape',
+    'home', 'end', 'pageup', 'pagedown', 'left', 'right', 'up', 'down',
+    'equal', 'minus', 'leftbracket', 'rightbracket', 'quote', 'semicolon',
+    'backslash', 'comma', 'slash', 'period', 'grave',
+    *(f'f{i}' for i in range(1, 21)),
+}
+
+def validate_connection_hotkey(value: str) -> str:
+    """A supported physical key with explicit modifiers; empty disables registration."""
+    if not isinstance(value, str):
+        raise ValueError('Invalid connection hotkey')
+    if not value:
+        return value
+    parts = value.split('+')
+    modifiers = parts[:-1]
+    order = ('ctrl', 'alt', 'shift', 'cmd')
+    if ((not re.fullmatch('[a-z0-9]', parts[-1]) and parts[-1] not in HOTKEY_NAMED_KEYS) or not modifiers
+            or len(set(modifiers)) != len(modifiers)
+            or any(item not in order for item in modifiers)
+            or not {'ctrl', 'cmd'}.intersection(modifiers)):
+        raise ValueError('Invalid connection hotkey')
+    return '+'.join([item for item in order if item in modifiers] + [parts[-1]])
+
 APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "PadPilot"
 CONFIG_FILE = APP_SUPPORT_DIR / "config.json"
 RUNTIME_DIR = APP_SUPPORT_DIR / "runtime"
@@ -47,12 +71,14 @@ except (PermissionError, OSError):
 @dataclass
 class Config:
     language: str = 'zh-Hant'
-    mode: OperationMode = OperationMode.AUTOMATIC
+    mode: OperationMode = OperationMode.MANUAL_ONLY
     ipad: IpadConfig = field(default_factory=IpadConfig)
     paired_ipads: List[IpadConfig] = field(default_factory=list)
     autostart_on_login: bool = True
     usb_event_wakeup: bool = True
     auto_detect_ipad: bool = True
+    connection_hotkey: str = ''
+    connect_on_boot: bool = True
     debounce_seconds: float = 4.0
     max_retries: int = 3
     retry_interval: float = 3.0
@@ -72,6 +98,8 @@ class Config:
             "autostart_on_login": self.autostart_on_login,
             "usb_event_wakeup": self.usb_event_wakeup,
             "auto_detect_ipad": self.auto_detect_ipad,
+            "connection_hotkey": self.connection_hotkey,
+            "connect_on_boot": self.connect_on_boot,
             "debounce_seconds": self.debounce_seconds,
             "max_retries": self.max_retries,
             "retry_interval": self.retry_interval,
@@ -108,7 +136,7 @@ class Config:
                 for key in ('name', 'sidecar_uuid', 'usb_serial')
             ):
                 raise ValueError('Invalid iPad configuration')
-        for key in ('autostart_on_login', 'usb_event_wakeup', 'auto_detect_ipad'):
+        for key in ('autostart_on_login', 'usb_event_wakeup', 'auto_detect_ipad', 'connect_on_boot'):
             if key in data and type(data[key]) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         for key in ('debounce_seconds', 'retry_interval', 'cooldown_seconds', 'updated_at', 'max_retries', 'revision'):
@@ -126,7 +154,7 @@ class Config:
             raise ValueError('Invalid virtual_display_name')
         if data.get('betterdisplaycli_path') is not None and not isinstance(data['betterdisplaycli_path'], str):
             raise ValueError('Invalid betterdisplaycli_path')
-        mode_str = data.get("mode", OperationMode.AUTOMATIC.value)
+        mode_str = data.get("mode", OperationMode.MANUAL_ONLY.value)
         mode = OperationMode(mode_str)
 
         ipad_data = data.get("ipad", {})
@@ -148,6 +176,8 @@ class Config:
             autostart_on_login=bool(data.get("autostart_on_login", True)),
             usb_event_wakeup=data.get("usb_event_wakeup", True) is True,
             auto_detect_ipad=data.get("auto_detect_ipad", True) is True,
+            connection_hotkey=validate_connection_hotkey(data.get('connection_hotkey', '')),
+            connect_on_boot=data.get('connect_on_boot', True),
             debounce_seconds=float(data.get("debounce_seconds", 4.0)),
             max_retries=int(data.get("max_retries", 3)),
             retry_interval=float(data.get("retry_interval", 3.0)),

@@ -37,8 +37,8 @@ private let settingsPages: [(String, String, String)] = [
     ("about", "關於", "info.circle")
 ]
 private let settingsModes: [(String, String, String)] = [
+    ("manual_only", "僅手動模式", "平時只接受選單或全域快速鍵的手動要求；斷線後不自行重連。可另外啟用開機時的一次連線。"),
     ("automatic", "自動模式", "無實體螢幕時自動連線 iPad 並設為主螢幕；有實體螢幕時以實體為主，已連線的 iPad 保持為副螢幕。"),
-    ("manual_only", "僅手動模式", "自動化程序暫停，不主動連線或斷開，完全由使用者自 Menu Bar 手動操控。"),
     ("prefer_ipad", "偏好 iPad 模式", "即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。")
 ]
 
@@ -239,7 +239,7 @@ private final class SettingsModel: ObservableObject {
             switch result {
             case .success:
                 if let key = draftKey { self.drafts.removeValue(forKey: key); self.draftRevisions.removeValue(forKey: key) }
-                self.refresh(scan: operation != "set_language" && operation != "set_mode" && operation != "set_autostart")
+                self.refresh(scan: !["set_language", "set_mode", "set_autostart", "set_connection_hotkey", "set_connect_on_boot"].contains(operation))
             case .failure(let error):
                 let conflict = error.localizedDescription.contains("CONFIG_CONFLICT")
                 self.showError(conflict ? self.tr("此設定已被其他來源（如 Menu Bar 或 CLI）修改。\n\n您輸入的內容已保留，請檢視最新狀態後再次儲存。") : error.localizedDescription) {
@@ -763,6 +763,63 @@ private struct SettingsCandidateCard: View {
     }
 }
 
+private struct SettingsHotKeyRecorder: NSViewRepresentable {
+    @ObservedObject var model: SettingsModel
+    let shortcut: String
+    func makeNSView(context: Context) -> HotKeyRecorderButton { HotKeyRecorderButton(frame: .zero) }
+    func updateNSView(_ button: HotKeyRecorderButton, context: Context) {
+        button.idleTitle = shortcut.isEmpty ? model.tr("點選設定快速鍵") : ConnectionHotKey.label(shortcut)
+        button.waitingTitle = model.tr("請按下快速鍵…（Esc 取消）")
+        button.invalidTitle = model.tr("請搭配 Control 或 Command")
+        button.isEnabled = !model.disabled
+        if !button.recording { button.title = button.idleTitle }
+        button.setAccessibilityHelp(model.tr("點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。"))
+        button.onBegin = {
+            if model.drafts["connection_hotkey"] == nil { model.draftRevisions["connection_hotkey"] = model.revision }
+        }
+        button.onCapture = { value in
+            model.drafts["connection_hotkey"] = value
+        }
+    }
+}
+
+private struct SettingsConnectionHotKey: View {
+    @ObservedObject var model: SettingsModel
+    @ObservedObject private var hotkey = ConnectionHotKey.shared
+    private var shortcut: String {
+        model.drafts["connection_hotkey"] ?? model.config.text("connection_hotkey")
+    }
+    var body: some View {
+        SettingsCard(title: model.tr("全域快速鍵")) {
+            Text(model.tr("按一次發起一輪連線；自動模式保留自動連線，手動模式不會在斷線後自行重連。"))
+                .font(settingsFont(.callout)).foregroundStyle(.secondary)
+            Text(model.tr("Mac 必須已登入並解鎖，才能使用全域快速鍵；鎖定畫面時無法使用。"))
+                .font(settingsFont(.callout)).foregroundStyle(.orange)
+            SettingsHotKeyRecorder(model: model, shortcut: shortcut)
+                .frame(width: 250, height: 32)
+a            Text(model.tr("點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。"))
+                .font(settingsFont(.callout)).foregroundStyle(.secondary)
+            HStack {
+                Button(model.tr("儲存快速鍵")) {
+                    model.change("set_connection_hotkey", ["shortcut": shortcut], draftKey: "connection_hotkey")
+                }.disabled(model.disabled || ConnectionHotKey.parse(shortcut) == nil)
+                Button(model.tr("停用快速鍵")) {
+                    model.change("set_connection_hotkey", ["shortcut": ""], draftKey: "connection_hotkey")
+                }.disabled(model.disabled || model.config.text("connection_hotkey").isEmpty)
+            }
+            Text(model.tr("至少選擇 Control 或 Command。使用連到 Mac 的鍵盤；沒有實體螢幕時連為主螢幕，有實體螢幕時連為副螢幕。"))
+                .font(settingsFont(.callout)).foregroundStyle(.secondary)
+            if model.config.text("connection_hotkey").isEmpty {
+                Text(model.tr("快速鍵尚未啟用，儲存後生效。"))
+            } else if hotkey.configuration == model.config.text("connection_hotkey") && hotkey.errorCode != 0 {
+                Text(model.tr("無法啟用快速鍵，請改用其他組合。")).foregroundStyle(.orange)
+            } else {
+                Text(model.tr("已儲存：{0}", ConnectionHotKey.label(model.config.text("connection_hotkey"))))
+            }
+        }
+    }
+}
+
 private struct SettingsPreferencesView: View {
     @ObservedObject var model: SettingsModel
     @SettingsState private var advanced = false
@@ -782,10 +839,22 @@ private struct SettingsPreferencesView: View {
                         }
                     }
                     Text(model.tr(mode.2)).font(settingsFont(.callout)).foregroundStyle(.secondary)
+                    if mode.0 == "manual_only" {
+                        Toggle(model.tr("開機無螢幕時自動連線 iPad"), isOn: Binding(
+                            get: { model.config.flag("connect_on_boot") },
+                            set: { model.change("set_connect_on_boot", ["enabled": $0]) }
+                        )).disabled(model.disabled)
+                        Text(model.tr("登入後最多偵測 3 輪，每輪 30 秒；找到目標就嘗試連線，三輪都找不到便停止。同次開機不重複，須啟用登入自動啟動。"))
+                            .font(settingsFont(.callout)).foregroundStyle(.secondary)
+                    } else if mode.0 == "automatic" {
+                        Text(model.tr("目前技術無法事先確認 iPad 是否能成功連線 Sidecar；iPad 無法連線時，自動嘗試可能頻繁觸發 macOS 的警告視窗。"))
+                            .font(settingsFont(.callout)).foregroundStyle(.orange)
+                    }
                 }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
                     .background(model.config.text("mode") == mode.0 ? Color.accentColor.opacity(0.07) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             }
         }
+        SettingsConnectionHotKey(model: model)
         SettingsCard(title: model.tr("🚀 登入時自動啟動 PadPilot：")) {
             Toggle(model.tr("（隨 macOS 登入背景自動執行）"), isOn: Binding(get: { model.config.flag("autostart_on_login") }, set: { enabled in
                 model.confirm(model.tr("確定{0}登入時自動啟動?", model.tr(enabled ? "啟用" : "停用")), model.tr(enabled ? "登入 macOS 時自動執行 PadPilot。" : "登入 macOS 時不自動執行 PadPilot。")) {

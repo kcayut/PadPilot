@@ -29,13 +29,13 @@ ORANGE = '#ff9500'
 RED = '#ff3b30'
 
 MODES = {
-    'automatic': '自動模式',
     'manual_only': '僅手動模式',
+    'automatic': '自動模式',
     'prefer_ipad': '偏好 iPad 模式'
 }
 MODE_DESCS = {
     'automatic': '無實體螢幕時自動連線 iPad 並設為主螢幕；有實體螢幕時以實體為主，已連線的 iPad 保持為副螢幕。',
-    'manual_only': '自動化程序暫停，不主動連線或斷開，完全由使用者自 Menu Bar 手動操控。',
+    'manual_only': '平時只接受選單或全域快速鍵的手動要求；斷線後不自行重連。可另外啟用開機時的一次連線。',
     'prefer_ipad': '即使已接上實體螢幕，依然優先連線 iPad 並將其作為主要顯示器。'
 }
 

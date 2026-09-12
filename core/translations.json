@@ -1774,5 +1774,170 @@
   "自動更新": {
     "en": "Auto-update",
     "ja": "自動更新"
+  },
+  "全域快速鍵": {
+    "en": "Global Keyboard Shortcut",
+    "zh-Hant": "全域快速鍵",
+    "ja": "グローバルショートカット"
+  },
+  "按一次發起一輪連線；自動模式保留自動連線，手動模式不會在斷線後自行重連。": {
+    "en": "Press once to request a connection. Automatic mode keeps automatic connections; manual mode never reconnects after a drop.",
+    "zh-Hant": "按一次發起一輪連線；自動模式保留自動連線，手動模式不會在斷線後自行重連。",
+    "ja": "1 回押すと接続を要求します。自動モードは自動接続を維持し、手動モードは切断後に自動再接続しません。"
+  },
+  "按鍵": {
+    "en": "Key",
+    "zh-Hant": "按鍵",
+    "ja": "キー"
+  },
+  "儲存快速鍵": {
+    "en": "Save Shortcut",
+    "zh-Hant": "儲存快速鍵",
+    "ja": "ショートカットを保存"
+  },
+  "停用快速鍵": {
+    "en": "Disable Shortcut",
+    "zh-Hant": "停用快速鍵",
+    "ja": "ショートカットを無効化"
+  },
+  "至少選擇 Control 或 Command。使用連到 Mac 的鍵盤；沒有實體螢幕時連為主螢幕，有實體螢幕時連為副螢幕。": {
+    "en": "Include Control or Command. Use a keyboard connected to the Mac. The iPad becomes primary without a physical monitor, otherwise secondary.",
+    "zh-Hant": "至少選擇 Control 或 Command。使用連到 Mac 的鍵盤；沒有實體螢幕時連為主螢幕，有實體螢幕時連為副螢幕。",
+    "ja": "Control または Command を含めてください。Mac に接続したキーボードを使用します。物理モニターがなければ iPad を主画面、あれば副画面にします。"
+  },
+  "快速鍵尚未啟用，儲存後生效。": {
+    "en": "Shortcut is disabled until saved.",
+    "zh-Hant": "快速鍵尚未啟用，儲存後生效。",
+    "ja": "保存するとショートカットが有効になります。"
+  },
+  "無法啟用快速鍵，請改用其他組合。": {
+    "en": "Cannot register the shortcut. Choose another combination.",
+    "zh-Hant": "無法啟用快速鍵，請改用其他組合。",
+    "ja": "ショートカットを登録できません。別の組み合わせを選んでください。"
+  },
+  "已儲存：{0}": {
+    "en": "Saved: {0}",
+    "zh-Hant": "已儲存：{0}",
+    "ja": "保存済み：{0}"
+  },
+  "無法發出連線要求，請檢查 iPad 目標與背景服務狀態。": {
+    "en": "Cannot request a connection. Check the iPad target and background service.",
+    "zh-Hant": "無法發出連線要求，請檢查 iPad 目標與背景服務狀態。",
+    "ja": "接続を要求できません。対象 iPad とバックグラウンドサービスを確認してください。"
+  },
+  "只接受選單或全域快速鍵的手動要求；每輪結束後停止，斷線或裝置重新出現都不會自行連線。": {
+    "en": "Connect only on a menu or global shortcut request. Each request ends after completion; disconnection or device arrival never starts a connection.",
+    "zh-Hant": "只接受選單或全域快速鍵的手動要求；每輪結束後停止，斷線或裝置重新出現都不會自行連線。",
+    "ja": "メニューまたはグローバルショートカットの操作時のみ接続します。各要求の完了後は停止し、切断やデバイスの再検出で自動接続しません。"
+  },
+  "Invalid connection hotkey": {
+    "en": "Invalid connection hotkey",
+    "zh-Hant": "無效的連線快速鍵",
+    "ja": "接続ショートカットが無効です"
+  },
+  "Cannot start connection: verify the iPad target and device status.": {
+    "en": "Cannot start connection: verify the iPad target and device status.",
+    "zh-Hant": "無法開始連線，請確認 iPad 目標與裝置狀態。",
+    "ja": "接続できません。対象 iPad とデバイスの状態を確認してください。"
+  },
+  "Cannot read Sidecar connection status (BetterDisplay: {0}); no connection was started.": {
+    "en": "Cannot read Sidecar connection status (BetterDisplay: {0}); no connection was started.",
+    "zh-Hant": "無法查詢 Sidecar 連線狀態（BetterDisplay 回覆：{0}）；尚未發起連線。",
+    "ja": "Sidecar の接続状態を確認できません（BetterDisplay: {0}）。接続は開始していません。"
+  },
+  "Cannot identify the Sidecar display ({0}); no connection was started.": {
+    "en": "Cannot identify the Sidecar display ({0}); no connection was started.",
+    "zh-Hant": "無法確認 Sidecar 螢幕身分（{0}）；尚未發起連線。",
+    "ja": "Sidecar ディスプレイを特定できません（{0}）。接続は開始していません。"
+  },
+  "Cannot read available Sidecar devices (BetterDisplay: {0}); no connection was started.": {
+    "en": "Cannot read available Sidecar devices (BetterDisplay: {0}); no connection was started.",
+    "zh-Hant": "無法取得可用的 Sidecar 裝置（BetterDisplay 回覆：{0}）；尚未發起連線。",
+    "ja": "利用可能な Sidecar デバイスを取得できません（BetterDisplay: {0}）。接続は開始していません。"
+  },
+  "Cannot read USB devices ({0}); no connection was started.": {
+    "en": "Cannot read USB devices ({0}); no connection was started.",
+    "zh-Hant": "無法讀取 USB 裝置（{0}）；尚未發起連線。",
+    "ja": "USB デバイスを取得できません（{0}）。接続は開始していません。"
+  },
+  "Cannot read display status ({0}); no connection was started.": {
+    "en": "Cannot read display status ({0}); no connection was started.",
+    "zh-Hant": "無法讀取螢幕狀態（{0}）；尚未發起連線。",
+    "ja": "ディスプレイの状態を取得できません（{0}）。接続は開始していません。"
+  },
+  "Cannot read display identifiers (BetterDisplay: {0}); no connection was started.": {
+    "en": "Cannot read display identifiers (BetterDisplay: {0}); no connection was started.",
+    "zh-Hant": "無法取得螢幕識別資料（BetterDisplay 回覆：{0}）；尚未發起連線。",
+    "ja": "ディスプレイ識別情報を取得できません（BetterDisplay: {0}）。接続は開始していません。"
+  },
+  "No iPad connection target is configured. Select or pair an iPad in Settings & Pairing.": {
+    "en": "No iPad connection target is configured. Select or pair an iPad in Settings & Pairing.",
+    "zh-Hant": "尚未設定連線用的 iPad。請在「設定與配對」選擇或配對 iPad。",
+    "ja": "接続先の iPad が未設定です。「設定とペアリング」で iPad を選択またはペアリングしてください。"
+  },
+  "PadPilot background service is stopped. Start it from the menu, then try again.": {
+    "en": "PadPilot background service is stopped. Start it from the menu, then try again.",
+    "zh-Hant": "PadPilot 背景服務已停止。請先從選單啟動服務，再重試。",
+    "ja": "PadPilot のバックグラウンドサービスが停止しています。メニューから起動して再試行してください。"
+  },
+  "Daemon response timed out; the command may still be running.": {
+    "en": "Daemon response timed out; the command may still be running.",
+    "zh-Hant": "PadPilot 背景服務回應逾時；連線要求可能仍在處理，請先檢查「狀態與診斷」。",
+    "ja": "PadPilot の応答がタイムアウトしました。要求は処理中の可能性があります。「状態と診断」を確認してください。"
+  },
+  "Daemon communication failed: {0}": {
+    "en": "Daemon communication failed: {0}",
+    "zh-Hant": "無法與 PadPilot 背景服務通訊：{0}",
+    "ja": "PadPilot のバックグラウンドサービスと通信できません: {0}"
+  },
+  "Selected iPad is missing from the Sidecar device list (BetterDisplay status query: {0}); no connection was started.": {
+    "en": "Selected iPad is missing from the Sidecar device list (BetterDisplay status query: {0}); no connection was started.",
+    "zh-Hant": "目前 Sidecar 裝置清單沒有選定的 iPad（BetterDisplay 狀態查詢回覆：{0}）；尚未發起連線。",
+    "ja": "選択した iPad が Sidecar デバイス一覧にありません（BetterDisplay の状態確認: {0}）。接続は開始していません。"
+  },
+  "平時只接受選單或全域快速鍵的手動要求；斷線後不自行重連。可另外啟用開機時的一次連線。": {
+    "zh-Hant": "平時只接受選單或全域快速鍵的手動要求；斷線後不自行重連。可另外啟用開機時的一次連線。",
+    "en": "Normally responds only to menu or shortcut requests; does not reconnect after a drop. A one-time boot connection can be enabled separately.",
+    "ja": "通常はメニューやショートカットの要求時のみ接続し、切断後は自動再接続しません。起動時の接続を別途有効にできます。"
+  },
+  "開機無螢幕時自動連線 iPad": {
+    "zh-Hant": "開機無螢幕時自動連線 iPad",
+    "en": "Connect iPad at boot when no monitor is attached",
+    "ja": "起動時にモニターがなければ iPad に自動接続"
+  },
+  "登入後最多偵測 3 輪，每輪 30 秒；找到目標就嘗試連線，三輪都找不到便停止。同次開機不重複，須啟用登入自動啟動。": {
+    "zh-Hant": "登入後最多偵測 3 輪，每輪 30 秒；找到目標就嘗試連線，三輪都找不到便停止。同次開機不重複，須啟用登入自動啟動。",
+    "en": "After login, search for up to three 30-second rounds. Connect when the target is found; stop if all three rounds find nothing. Once per boot; requires launch at login.",
+    "ja": "ログイン後、1 回 30 秒で最大 3 回探索します。対象が見つかれば接続を試み、3 回とも見つからなければ停止します。同じ起動では繰り返しません。ログイン時の起動を有効にしてください。"
+  },
+  "目前技術無法事先確認 iPad 是否能成功連線 Sidecar；iPad 無法連線時，自動嘗試可能頻繁觸發 macOS 的警告視窗。": {
+    "zh-Hant": "目前技術無法事先確認 iPad 是否能成功連線 Sidecar；iPad 無法連線時，自動嘗試可能頻繁觸發 macOS 的警告視窗。",
+    "en": "Current technology cannot confirm in advance whether an iPad can connect to Sidecar. Automatic attempts may repeatedly trigger macOS warning dialogs when the iPad cannot connect.",
+    "ja": "現在の技術では iPad が Sidecar に接続できるか事前に確認できません。接続できない場合、自動試行で macOS の警告ダイアログが頻繁に表示される可能性があります。"
+  },
+  "點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。": {
+    "zh-Hant": "點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。",
+    "en": "Click the shortcut field, press your combination, then save. Escape or switching windows cancels. The global shortcut is paused while recording.",
+    "ja": "キー欄をクリックし、組み合わせを押して保存します。Esc またはウインドウの切り替えでキャンセルします。記録中はグローバルショートカットを一時停止します。"
+  },
+  "Mac 必須已登入並解鎖，才能使用全域快速鍵；鎖定畫面時無法使用。": {
+    "zh-Hant": "Mac 必須已登入並解鎖，才能使用全域快速鍵；鎖定畫面時無法使用。",
+    "en": "The Mac must be logged in and unlocked to use the global shortcut. It is unavailable on the lock screen.",
+    "ja": "グローバルショートカットを使うには、Mac にログインしてロックを解除してください。ロック画面では使用できません。"
+  },
+  "點選設定快速鍵": {
+    "zh-Hant": "點選設定快速鍵",
+    "en": "Click to record shortcut",
+    "ja": "クリックしてキーを設定"
+  },
+  "請按下快速鍵…（Esc 取消）": {
+    "zh-Hant": "請按下快速鍵…（Esc 取消）",
+    "en": "Press shortcut… (Esc to cancel)",
+    "ja": "キーを押す…（Esc でキャンセル）"
+  },
+  "請搭配 Control 或 Command": {
+    "zh-Hant": "請搭配 Control 或 Command",
+    "en": "Include Control or Command",
+    "ja": "Control または Command を含めてください"
   }
 }

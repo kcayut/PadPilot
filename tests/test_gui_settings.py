@@ -22,7 +22,7 @@ TWO = dict(ONE, sidecar_uuid='22222222-2222-4222-8222-222222222222', usb_serial=
 
 class GuiSettingsTests(unittest.TestCase):
     def config(self):
-        return Config.from_dict({'ipad': ONE, 'paired_ipads': [ONE, TWO]})
+        return Config.from_dict({'mode': 'automatic', 'ipad': ONE, 'paired_ipads': [ONE, TWO]})
 
     def test_delete_exact_profile_preserves_namesake_and_current_connection_policy(self):
         cfg = self.config()

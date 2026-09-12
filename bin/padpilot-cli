@@ -151,7 +151,7 @@ def cmd_action(args: argparse.Namespace) -> None:
     command = json.dumps({'command': args.action, 'expected_revision': expected,
                           'params': {'target_key': target_key}}) if guarded else args.action
     resp = send_daemon_cmd(command, timeout=60.0)
-    if "Daemon is not running" in resp:
+    if "Daemon is not running" in resp and args.action != 'connect_ipad':
         if guarded:
             cfg = load_config()
             if type(expected) is not int or cfg.revision != expected:
@@ -170,6 +170,13 @@ def cmd_action(args: argparse.Namespace) -> None:
         print(result.get('message', 'OK'))
         return
     if not resp.startswith("OK"):
+        if args.action == 'connect_ipad':
+            from core.i18n import set_language, tr_message
+            set_language(load_config().language)
+            reason = resp.removeprefix('ERROR: ')
+            if resp.startswith('Daemon is not running'):
+                reason = 'PadPilot background service is stopped. Start it from the menu, then try again.'
+            raise RuntimeError(tr_message(reason))
         raise RuntimeError(resp)
     print(resp)
 
@@ -452,7 +459,7 @@ def main() -> None:
     p_gui.add_argument("--select", help="Show confirmation for a saved target key")
     p_gui.set_defaults(func=cmd_gui)
     p_change = subparsers.add_parser("change-settings", help="Apply a validated JSON settings command from stdin")
-    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_mode"])
+    p_change.add_argument("operation", choices=["save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_mode", "set_connection_hotkey", "set_connect_on_boot"])
     p_change.set_defaults(func=cmd_change_settings)
     p_data = subparsers.add_parser('gui-data', help='Read native settings presentation data as JSON')
     for flag in ('scan', 'diagnostics', 'admin-checks', 'logs', 'refresh'):
@@ -513,6 +520,7 @@ def main() -> None:
             "use_ipad_main",
             "disconnect_ipad",
             "reconnect_sidecar",
+            "connect_ipad",
             "refresh",
             "reset",
         ],
@@ -564,7 +572,11 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, EOFError):
         print("\n已取消。")
     except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
-        print(f"錯誤：{error}", file=sys.stderr)
-        from core.notifier import notify_error
-        notify_error(str(error), subtitle="PadPilot Operation Failed")
+        shortcut_request = sys.argv[1:3] == ['action', 'connect_ipad']
+        print(str(error) if shortcut_request else f"錯誤：{error}", file=sys.stderr)
+        # The native shortcut owns its error banner; a second CLI notification
+        # would duplicate it and use the generic "Operation Failed" subtitle.
+        if not shortcut_request:
+            from core.notifier import notify_error
+            notify_error(str(error), subtitle="PadPilot Operation Failed")
         sys.exit(1)

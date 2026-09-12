@@ -28,7 +28,7 @@ DEVICE = {'name': 'Live iPad', 'uuid': UUID}
 
 class DiscoveryTests(unittest.TestCase):
     def setUp(self):
-        self.cfg = Config(auto_detect_ipad=True)
+        self.cfg = Config(mode=OperationMode.AUTOMATIC, auto_detect_ipad=True)
         self.bd = MagicMock(sidecar_error='', connection_error='', identifiers_error='')
         self.bd.check_virtual_display.return_value = (True, True)
         self.bd.get_sidecar_list.return_value = [DEVICE]
@@ -211,6 +211,7 @@ class EventSettingsTests(unittest.TestCase):
 
     def test_event_wakes_existing_loop_and_stop_cleans_monitor(self):
         daemon = DAEMON['PadPilotDaemon'].__new__(DAEMON['PadPilotDaemon'])
+        daemon.claim_boot_connection = MagicMock(return_value=False)
         daemon.running = True
         daemon.config = Config()
         daemon.wakeup = threading.Event()

@@ -96,6 +96,40 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                 try require(nodes.contains { $0.role == "AXButton" && $0.label == strings["配對"] && $0.enabled }, "The unpaired candidate has no enabled native Pair button")
             }
             if page == "settings" {
+                try require(nodes.contains { $0.label == strings["全域快速鍵"] }, "Missing global shortcut settings")
+                guard let recorder = views(content).compactMap({ $0 as? HotKeyRecorderButton }).first else {
+                    throw NSError(domain: "Missing shortcut recorder", code: 22)
+                }
+                recorder.beginRecording()
+                let recordingRevision = controller.checkSnapshot()["config_revision"] as? Int ?? 0
+                var newer = fixture
+                var newerConfig = newer["config"] as? CheckObject ?? [:]
+                newerConfig["revision"] = recordingRevision + 1; newer["config"] = newerConfig
+                controller.checkApplyFixture(newer)
+                let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.control, .option, .command],
+                                           timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "i",
+                                           charactersIgnoringModifiers: "i", isARepeat: false, keyCode: 34)!
+                try require(recorder.performKeyEquivalent(with: key), "Recorder did not capture the combination")
+                try require((controller.checkSnapshot()["draft_revisions"] as? [String: Int])?["connection_hotkey"] == recordingRevision,
+                            "Recording lost the editing-start revision after a background update")
+                controller.checkApplyFixture(fixture)
+                await settle(); nodes = elements(content)
+                try require(nodes.contains { $0.label == strings["儲存快速鍵"] && $0.enabled }, "Recorded shortcut cannot be saved")
+                try require(nodes.contains { $0.label == strings["開機無螢幕時自動連線 iPad"] && $0.checked == true }, "Boot connection default is not checked")
+                let beforeShortcut = commands(controller).count
+                controller.checkAction("set_connection_hotkey", payload: ["shortcut": "ctrl+alt+cmd+i"])
+                await settle()
+                let shortcutCommands = Array(commands(controller).dropFirst(beforeShortcut))
+                try require(shortcutCommands.contains { $0["args"] as? [String] == ["change-settings", "set_connection_hotkey"] },
+                            "Shortcut setting bypassed the CLI transaction")
+                try require(!shortcutCommands.contains { ($0["args"] as? [String] ?? []).contains("--scan") },
+                            "Saving a shortcut must not scan or connect displays")
+                let beforeBoot = commands(controller).count
+                controller.checkAction("set_connect_on_boot", payload: ["enabled": false])
+                await settle()
+                let bootCommands = Array(commands(controller).dropFirst(beforeBoot))
+                try require(bootCommands.contains { $0["args"] as? [String] == ["change-settings", "set_connect_on_boot"] }, "Boot option bypassed the CLI")
+                try require(!bootCommands.contains { ($0["args"] as? [String] ?? []).contains("--scan") }, "Boot option scanned hardware")
                 guard let cli = nodes.first(where: { $0.label == "BetterDisplay CLI" && $0.role == "AXStaticText" }) else { throw NSError(domain: "Missing CLI integration label", code: 15) }
                 var previous = cli
                 for key in ["自動偵測", "手動設定", "恢復預設"] {

@@ -185,7 +185,7 @@ class NativeAppTests(unittest.TestCase):
             binary = Path(directory) / 'native-menu-test'
             subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
                             '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'tests/native_menu.swift'),
+                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'), str(ROOT / 'tests/native_menu.swift'),
                             '-o', str(binary)], check=True, capture_output=True)
             fixture = Path(directory) / 'menu.json'
             device = {'name': 'Test | --exit " iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111'}
@@ -228,7 +228,7 @@ else: sys.exit(1)
             binary = contents / 'MacOS/LaunchChecks'
             subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
                             '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'),
+                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'),
                             str(ROOT / 'tests/native_launch.swift'), '-o', str(binary)], check=True, capture_output=True)
             for arguments in ([], ['--menu-only']):
                 home = root / ('background' if arguments else 'foreground')

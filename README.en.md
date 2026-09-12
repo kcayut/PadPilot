@@ -41,7 +41,7 @@ GUI help, troubleshooting, and diagnostic links open the matching version of the
 
 ## How it works
 
-In the default `automatic` mode, with no active manual override:
+New installations default to `manual_only`, with “Connect iPad at boot when no monitor is attached” enabled. After login, discovery runs for up to three 30-second rounds (90 seconds total), stopping if none finds the target. Finding it without a physical monitor can request one connection round. Later connections require a menu or global shortcut request. If you switch to `automatic`, with no active manual override:
 
 | Current setup | Expected behavior |
 | --- | --- |
@@ -49,7 +49,7 @@ In the default `automatic` mode, with no active manual override:
 | No physical monitor, but an iPad target is available | After debounce, attempt to connect Sidecar and make the iPad the main display. |
 | Neither a physical monitor nor an iPad target is available | Use the configured BetterDisplay virtual screen as fallback. |
 
-Two additional modes are available: `manual_only` pauses automatic switching while keeping manual controls, and `prefer_ipad` prioritizes an iPad main display. Manual choices take priority within the current hardware topology; a mode change, reset, or topology change triggers reevaluation.
+The `prefer_ipad` mode prioritizes an iPad main display. Manual choices take priority within the current hardware topology; a mode change, reset, or topology change triggers reevaluation.
 
 Defaults are a **4-second** physical display disconnect debounce, up to **3** Sidecar connection attempts, **3 seconds** between retries, and a **30-second** failure cooldown. These timings are not a guarantee of connection completion time.
 
@@ -121,7 +121,7 @@ For headless use, confirm that a virtual screen named `PadPilotVirtual` exists i
 
 Find these switches in **menu bar → Settings & Pairing → Operation & Preferences → Advanced options → USB & iPad Auto-detection**.
 
-- **USB event wakeup** is enabled by default. IOKit notifications wake background evaluation, with a 30-second periodic check retained. Startup and USB events open a discovery window of up to 30 seconds, checking every 2 seconds. If notification registration fails, diagnostics report it and periodic checks remain active.
+- **USB event wakeup** is enabled by default. IOKit notifications wake background evaluation, with a 30-second periodic check retained. Ordinary startup and USB events open a discovery window of up to 30 seconds, checking every 2 seconds. Manual mode with boot connection enabled extends startup discovery to at most three rounds. If notification registration fails, diagnostics report it and periodic checks remain active.
 - **Automatic iPad detection** is enabled by default. An explicitly selected pairing with a Sidecar UUID takes priority. Without one, PadPilot infers a target from a unique USB iPad and Sidecar candidate, preferring saved identity mappings. Failed queries, missing candidates, or ambiguity prevent an iPad connection attempt.
 - **Explicit pairing suits multiple-device environments**. Unique candidates are a heuristic, not proof that the USB and Sidecar identities belong to the same iPad. Disable automatic detection and pair explicitly when other iPads may be nearby. Inferred targets do not create or modify saved pairings.
 - **Wired and wireless targets**: A selected pairing can continue to use Sidecar availability after USB is disconnected. An unpaired target inferred only from USB will not initiate a wireless fallback connection after unplugging.

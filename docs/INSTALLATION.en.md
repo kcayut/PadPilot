@@ -8,6 +8,8 @@ Releases support Apple Silicon and macOS 14+, with no Intel build. Download the 
 
 Double-click the installed app to open its control window and menu bar icon together. Closing the window keeps the menu bar icon available; double-click again to reopen the window. Login and background startup show only the menu bar icon.
 
+New installations default to Manual only with “Connect iPad at boot when no monitor is attached” enabled. With launch at login enabled, it searches after login for up to three 30-second rounds (90 seconds total), stopping if none finds the target. Finding it without a physical monitor requests at most one connection round (up to three attempts). Later connections require a menu command or global shortcut; disconnection does not trigger reconnection. Restarting the app within the same boot does not retry. Updates preserve the existing mode and shortcut. This option cannot guarantee that the iPad will connect; see the [connection rules](ARCHITECTURE.en.md#global-connection-shortcut).
+
 **Development releases use ad-hoc signing without Developer ID signing or Apple notarization.** For developer-verification or malware-check warnings, verify the source and follow [Apple’s instructions](https://support.apple.com/en-us/102445) for Privacy & Security → Open Anyway. For a damaged-app warning, download again and check SHA-256. Do not disable Gatekeeper globally or assume every warning is harmless.
 
 The BetterDisplay app must still be installed and running with the required control license. The separate `betterdisplaycli` is optional; the app’s built-in CLI is sufficient. Discovery covers `/Applications`, `~/Applications`, and locations registered with LaunchServices. Advanced settings also accept a custom app or CLI path.

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ControlsTests(unittest.TestCase):
     def test_renamed_profile_resolves_live_sidecar_and_distinct_display_uuid(self):
-        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='自訂標籤', sidecar_uuid='SESSION'))
+        cfg = Config(mode=OperationMode.AUTOMATIC, auto_detect_ipad=False, ipad=IpadConfig(name='自訂標籤', sidecar_uuid='SESSION'))
         bd = MagicMock(spec=BetterDisplayCLI)
         bd.check_virtual_display.return_value = (True, True)
         bd.get_sidecar_list.return_value = [{'uuid': 'SESSION', 'name': 'ky iPad pro m2'}]
@@ -42,7 +42,7 @@ class ControlsTests(unittest.TestCase):
         bd.set_main_display.assert_called_once_with('DISPLAY')
 
     def test_session_connected_without_display_is_not_offline(self):
-        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='Label', sidecar_uuid='SESSION'))
+        cfg = Config(mode=OperationMode.AUTOMATIC, auto_detect_ipad=False, ipad=IpadConfig(name='Label', sidecar_uuid='SESSION'))
         bd = MagicMock(spec=BetterDisplayCLI)
         bd.get_sidecar_list.return_value = []
         bd.check_virtual_display.return_value = (False, False)
@@ -77,7 +77,7 @@ class ControlsTests(unittest.TestCase):
                 self.assertIs(bd.get_sidecar_connected('SESSION'), expected)
 
     def test_late_connection_clears_error_and_cooldown_without_transition(self):
-        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
+        cfg = Config(mode=OperationMode.AUTOMATIC, auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
         detector, bd = MagicMock(), MagicMock()
         engine = StateEngine(cfg, detector, bd)
         actual = ActualState(main_display=DisplayInfo(2, 'iPad', is_sidecar=True, is_main=True),
@@ -108,7 +108,7 @@ class ControlsTests(unittest.TestCase):
         self.assertEqual(engine.runtime.last_error, 'connection failed')
 
     def test_reconnect_preserves_secondary_override_after_intentional_disconnect(self):
-        cfg = Config(auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
+        cfg = Config(mode=OperationMode.AUTOMATIC, auto_detect_ipad=False, ipad=IpadConfig(name='iPad', sidecar_uuid='SESSION'))
         detector, bd = MagicMock(), MagicMock()
         engine = StateEngine(cfg, detector, bd)
         physical = DisplayInfo(1, 'Monitor', is_main=True)
