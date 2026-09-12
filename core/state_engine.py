@@ -701,7 +701,7 @@ class StateEngine:
         if self.runtime.cooldown_until > time.time() or self.runtime.last_error or (self.actual and self.actual.discovery_errors):
             return IconStatus.WARNING.value
         if self.runtime.mode == OperationMode.MANUAL_ONLY:
-            return IconStatus.PAUSED.value
+            return IconStatus.MANUAL.value
 
         if self.actual:
             if self.actual.sidecar_connected:

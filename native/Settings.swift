@@ -797,7 +797,7 @@ private struct SettingsConnectionHotKey: View {
                 .font(settingsFont(.callout)).foregroundStyle(.orange)
             SettingsHotKeyRecorder(model: model, shortcut: shortcut)
                 .frame(width: 250, height: 32)
-a            Text(model.tr("點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。"))
+            Text(model.tr("點選按鍵欄，按下組合後儲存；Esc 或切換視窗可取消。錄製期間暫停全域快速鍵。"))
                 .font(settingsFont(.callout)).foregroundStyle(.secondary)
             HStack {
                 Button(model.tr("儲存快速鍵")) {

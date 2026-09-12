@@ -12,7 +12,8 @@ from unittest.mock import MagicMock, patch
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config
 from core.detector import DisplayDetector
-from core.models import DisplayInfo
+from core.models import ActualState, DisplayInfo, OperationMode
+from core.state_engine import StateEngine
 
 ROOT = Path(__file__).resolve().parents[1]
 MENU = runpy.run_path(str(ROOT / 'core/menu.py'))
@@ -31,7 +32,7 @@ class MenuPairingTests(unittest.TestCase):
     def test_template_icons_match_snapshot_and_transition(self):
         import struct
         for icon, name in [('📱', 'ipad'), ('🖥️', 'physical'), ('◻️', 'virtual'),
-                           ('⏸️', 'paused'), ('⚠️', 'warning')]:
+                           ('☝️', 'manual'), ('⏸️', 'paused'), ('⚠️', 'warning')]:
             status = {'icon': icon, 'actual': {'timestamp': 1000, 'sidecar_devices': []}}
             self.assertEqual(rendered(status, {})['icon'], name)
             header = next(row for row in rendered(status, {})['items'] if row['title'] == 'PadPilot')
@@ -39,11 +40,52 @@ class MenuPairingTests(unittest.TestCase):
             data = (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes()
             self.assertEqual(struct.unpack('>II', data[16:24]), (36, 36))
         self.assertEqual(rendered({}, {})['icon'], 'warning')
+        self.assertEqual(rendered({'actual': {'timestamp': 1000, 'sidecar_devices': []}}, {})['icon'], 'warning')
         status = {'icon': '📱', 'actual': {'timestamp': 1000, 'sidecar_devices': []},
                   'runtime': {'transition_state': 'CONNECTING'}}
         self.assertEqual(rendered(status, {})['icon'], 'working')
         status['runtime']['last_error'] = 'failed'
         self.assertEqual(rendered(status, {})['icon'], 'warning')
+
+    def test_manual_snapshot_keeps_menu_icon_priorities(self):
+        cfg = Config(mode=OperationMode.MANUAL_ONLY, auto_detect_ipad=False)
+        engine = StateEngine(cfg, MagicMock(), MagicMock())
+        engine.actual = ActualState(timestamp=1000, sidecar_connected=True, sidecar_display_online=True)
+        engine.desired = engine.policy(engine.actual, cfg, engine.runtime)
+        with patch('core.state_engine.write_atomic_status') as write:
+            engine._export_status(satisfied=True)
+        status = write.call_args.args[0].to_dict()
+        self.assertEqual(status['icon'], '☝️')
+        for running, now, revision, runtime, expected in [
+            (True, 1000, cfg.revision, {}, 'manual'),
+            (False, 1000, cfg.revision, {}, 'paused'),
+            (False, 1201, cfg.revision, {}, 'paused'),
+            (None, 1000, cfg.revision, {}, 'warning'),
+            (True, 1201, cfg.revision, {}, 'warning'),
+            (True, 1000, cfg.revision, {'transition_state': 'CONNECTING_SIDECAR'}, 'working'),
+            (True, 1000, cfg.revision + 1, {}, 'working'),
+            (True, 1000, cfg.revision - 1, {}, 'warning'),
+            (True, 1000, cfg.revision, {'last_error': 'failed'}, 'warning'),
+            (False, 1000, cfg.revision, {'last_error': 'failed'}, 'warning'),
+        ]:
+            with self.subTest(running=running, now=now, revision=revision, runtime=runtime):
+                model = MENU['render'](dict(status, runtime=dict(status['runtime'], **runtime)),
+                                       dict(cfg.to_dict(), revision=revision), True,
+                                       now=now, service_running=running)
+                self.assertEqual(model['icon'], expected)
+                self.assertEqual(next(row['icon'] for row in model['items'] if 'icon' in row), expected)
+        engine.actual.sidecar_connected = False
+        self.assertEqual(engine._determine_icon(True), '☝️')
+        engine.runtime.cooldown_until = time.time() + 60
+        self.assertEqual(engine._determine_icon(True), '⚠️')
+        engine.runtime.cooldown_until = 0
+        engine.actual.discovery_errors = {'sidecar': 'timeout'}
+        self.assertEqual(engine._determine_icon(True), '⚠️')
+        engine.actual.discovery_errors = {}
+        engine.actual.sidecar_connected = True
+        for mode in (OperationMode.AUTOMATIC, OperationMode.PREFER_IPAD):
+            engine.runtime.mode = mode
+            self.assertEqual(engine._determine_icon(True), '📱')
 
     def test_hidden_menu_does_not_load_state(self):
         function = MENU['read_menu']

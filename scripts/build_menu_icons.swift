@@ -4,7 +4,7 @@ import AppKit
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
 let output = root.appendingPathComponent("assets/menu-icons")
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-let states = ["ipad", "physical", "virtual", "paused", "warning", "working"]
+let states = ["ipad", "physical", "virtual", "manual", "paused", "warning", "working"]
 
 func draw(_ state: String) {
     NSColor.black.set()
@@ -21,6 +21,9 @@ func draw(_ state: String) {
         arrow.line(to: NSPoint(x: 12.5, y: 6.5))
         arrow.close()
         arrow.fill()
+    case "manual":
+        NSImage(systemSymbolName: "hand.point.up.fill", accessibilityDescription: nil)!
+            .draw(in: NSRect(x: 5.5, y: 5.5, width: 7, height: 9))
     case "paused":
         for x in [6.0, 10.0] { NSBezierPath(rect: NSRect(x: x, y: 7, width: 2, height: 6)).fill() }
     case "warning":
@@ -52,9 +55,9 @@ for state in states {
     try png(width: 36, height: 36, scale: 2) { draw(state) }
         .write(to: output.appendingPathComponent("\(state).png"))
 }
-try png(width: 720, height: 128, scale: 4) {
+try png(width: states.count * 120, height: 128, scale: 4) {
     NSColor.white.setFill()
-    NSRect(x: 0, y: 0, width: 180, height: 32).fill()
+    NSRect(x: 0, y: 0, width: states.count * 30, height: 32).fill()
     for (index, state) in states.enumerated() {
         NSGraphicsContext.saveGraphicsState()
         let move = NSAffineTransform()

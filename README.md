@@ -133,10 +133,10 @@ PadPilot 配對只記錄裝置對應，不會取代 Apple Account 或「信任�
 選單列使用 **18 × 18 pt、支援 Retina 的單色圖示**，隨 macOS 深淺色外觀調整。滑鼠停留可見 PadPilot 名稱，展開後可查看主螢幕、運作模式、裝置與診斷。
 
 <p align="center">
-  <img src="assets/menu-icons/preview.png" width="540" alt="PadPilot 選單列圖示：Sidecar、實體螢幕、虛擬備援、暫停、警告與處理中">
+  <img src="assets/menu-icons/preview.png" width="630" alt="PadPilot 選單列圖示：Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告與處理中">
 </p>
 
-圖示依序表示 Sidecar、實體螢幕、虛擬備援、暫停、警告與處理中。圖檔隨專案提供；修改設計時可執行 `swift scripts/build_menu_icons.swift` 重建。
+圖示依序表示 Sidecar、實體螢幕、虛擬備援、僅手動、服務停止、警告與處理中。手指圖示（`manual.png`）表示背景服務運作中的「僅手動」模式，即使 iPad 已連線也會顯示；暫停圖示（`paused.png`）表示背景服務已停止。發生錯誤時優先顯示警告，套用設定或切換螢幕時顯示處理中，完成後恢復對應圖示。圖檔隨專案提供；修改設計時可執行 `swift scripts/build_menu_icons.swift` 重建。
 
 首次建立設定會依 macOS 語言選擇介面，非中文／日文系統預設為 English。之後可從選單列的 Language 選單、GUI 右上角的語言選單，或 `set-language` 指令切換。GUI 的使用說明、疑難排解與診斷說明連結會開啟對應語言的本機文件；裝置名稱、識別碼與原始日誌保留原文。
 

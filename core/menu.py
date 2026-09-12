@@ -100,12 +100,13 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     known_target = bool(target.get('sidecar_uuid') or target.get('usb_serial'))
     controls = service_running is True and fresh and known_target and not (is_applying or is_out_of_sync) and (auto_detect or same_device(target, status.get('configured_ipad') or {}))
     main = actual.get('main_display') or {}
-    icon = status.get('icon', '⏸️') if fresh else '⚠️'
+    icon = status.get('icon', '⚠️') if fresh else '⚠️'
     if errors or runtime.get('last_error') or is_out_of_sync or service_running is None:
         icon = '⚠️'
     elif service_running is False:
         icon = '⏸️'
-    icon_name = {'📱': 'ipad', '🖥️': 'physical', '◻️': 'virtual', '⏸️': 'paused', '⚠️': 'warning'}.get(icon, 'warning')
+    icon_name = {'📱': 'ipad', '🖥️': 'physical', '◻️': 'virtual', '☝️': 'manual',
+                 '⏸️': 'paused', '⚠️': 'warning'}.get(icon, 'warning')
     if service_running is not False and icon_name != 'warning' and (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'):
         icon_name = 'working'
     separator()

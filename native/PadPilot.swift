@@ -88,7 +88,7 @@ struct MenuRow: Codable {
 }
 
 func menuIcon(_ name: String) -> NSImage? {
-    let allowed = ["ipad", "physical", "virtual", "paused", "working", "warning"]
+    let allowed = ["ipad", "physical", "virtual", "manual", "paused", "working", "warning"]
     let name = allowed.contains(name) ? name : "warning"
     let url = Bundle.main.resourceURL?.appendingPathComponent("menu-icons/\(name).png")
     let image = url.flatMap { NSImage(contentsOf: $0) }

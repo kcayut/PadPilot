@@ -44,6 +44,7 @@ class IconStatus(str, Enum):
     PHYSICAL = "🖥️"
     IPAD = "📱"
     VIRTUAL = "◻️"
+    MANUAL = "☝️"
     WARNING = "⚠️"
     PAUSED = "⏸️"
 

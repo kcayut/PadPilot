@@ -133,10 +133,10 @@ The current control target is shown in settings and the menu bar. Both switches 
 The menu bar uses **18 × 18 pt, Retina-ready monochrome icons** that adapt to macOS light and dark appearances. Hover for the PadPilot name; open the menu for the main display, operating mode, devices, and diagnostics.
 
 <p align="center">
-  <img src="assets/menu-icons/preview.png" width="540" alt="PadPilot menu icons: Sidecar, physical display, virtual fallback, paused, warning, and working">
+  <img src="assets/menu-icons/preview.png" width="630" alt="PadPilot menu icons: Sidecar, physical display, virtual fallback, Manual Only, service stopped, warning, and working">
 </p>
 
-The icons represent Sidecar, physical display, virtual fallback, paused, warning, and working, respectively. Assets are included in the repository; developers can rebuild them with `swift scripts/build_menu_icons.swift` after changing the design.
+The icons represent Sidecar, physical display, virtual fallback, Manual Only, service stopped, warning, and working, respectively. The pointing-hand icon (`manual.png`) means the background service is running in Manual Only mode, even when an iPad is connected; the pause icon (`paused.png`) means the background service has stopped. Errors take priority with a warning icon; applying settings or switching displays shows the working icon, then returns to the corresponding state icon. Assets are included in the repository; developers can rebuild them with `swift scripts/build_menu_icons.swift` after changing the design.
 
 On first configuration, PadPilot selects a language from your macOS preferences, defaulting to English on non-Chinese/Japanese systems. Change it through the menu bar's Language menu, the GUI language selector, or `set-language`. GUI usage, troubleshooting, and diagnostic help links open local documents in the selected language. Device names, identifiers, and raw logs retain their original text.
 
