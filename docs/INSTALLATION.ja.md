@@ -194,7 +194,7 @@ python3 scripts/check_gui_layout.py
 python3 scripts/check_release.py --gui
 ```
 
-リリース検査では Shell、plist、バージョン整合性、ResourceWarning、現行ファイルと Git 履歴のプライバシーパターンも確認します。結果は `build/release-check.json` と `build/privacy-scan.json` に出力し、一致した値は含めません。審査済みの履歴例外は別欄に残し、新たな一致はテスト成功時でも終了コード 1 になります。デスクトップセッションがなければ `--gui` を付けず、GUI は未検証とします。[実機受け入れ検証（繁体字中国語）](development/2026-09-11-release-readiness.md)の代わりにはなりません。
+リリース検査では Shell、plist、バージョン整合性、ResourceWarning、現行ファイルと Git 履歴のプライバシーパターンも確認します。結果は `build/release-check.json` と `build/privacy-scan.json` に出力し、一致した値は含めません。審査済みの履歴例外は別欄に残し、新たな一致はテスト成功時でも終了コード 1 になります。デスクトップセッションがなければ `--gui` を付けず、GUI は未検証とします。実機受け入れ検証の代わりにはなりません。
 
 ## アンインストール
 

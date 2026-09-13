@@ -194,7 +194,7 @@ python3 scripts/check_gui_layout.py
 python3 scripts/check_release.py --gui
 ```
 
-本機發布檢查另含 Shell、plist、版本一致性、ResourceWarning 與目前原始碼／Git 歷史的隱私模式掃描；輸出在 `build/release-check.json`、`build/privacy-scan.json`，匹配值不寫進掃描報告。已審核的歷史例外獨立列出；新匹配仍使結束碼為 1，即使程式測試全數通過。無桌面工作階段時不要加 `--gui`，GUI 會標為未驗證。這不取代實機測試，詳見[發布驗收表](development/2026-09-11-release-readiness.md)。
+本機發布檢查另含 Shell、plist、版本一致性、ResourceWarning 與目前原始碼／Git 歷史的隱私模式掃描；輸出在 `build/release-check.json`、`build/privacy-scan.json`，匹配值不寫進掃描報告。已審核的歷史例外獨立列出；新匹配仍使結束碼為 1，即使程式測試全數通過。無桌面工作階段時不要加 `--gui`，GUI 會標為未驗證。這不取代實機測試。
 
 ## 解除安裝
 

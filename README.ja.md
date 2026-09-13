@@ -88,7 +88,11 @@ PadPilot は **iPad を Mac の画面として使う**ためのツールです�
 
 ### 5. 物理モニターがないなら、代替画面を用意
 
-BetterDisplay で仮想ディスプレイを用意し、**「仮想ディスプレイ」**で選んで **「予備に指定」**を押します。`PadPilotVirtual` または既存の仮想ディスプレイを使えます。自動作成されていなければ、BetterDisplay で一度作成してください。
+通常は自分で作成する必要はありません。BetterDisplay をインストールしてから PadPilot を初めて開くと、バックグラウンドサービスの起動時に BetterDisplay を通じて `PadPilotVirtual` の自動作成を試みます。同名の仮想ディスプレイがあれば、そのまま使います。これは既定の代替画面なので、作成に成功すれば改めて指定する必要はありません。DMG から「アプリケーション」にドラッグするだけでは作成されません。
+
+自動作成されなかった場合や、別の仮想ディスプレイを使いたい場合は、BetterDisplay で作成してください。その後、**「仮想ディスプレイ」**で一覧を更新し、対象を選んで **「予備に指定」**を押します。
+
+一覧の更新では作成を再試行しません。PadPilot を開いた後に BetterDisplay をインストールした場合は、PadPilot のメニューから「終了」を選んで開き直すと、バックグラウンドサービスが再び作成を試みます。
 
 [![仮想ディスプレイ：BetterDisplay の仮想画面を選んで代替に指定](docs/images/quick-start/ja-virtual.png)](docs/images/quick-start/ja-virtual.png)
 
@@ -178,7 +182,6 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 - [トラブルシューティング・FAQ](docs/TROUBLESHOOTING.ja.md)
 - [アーキテクチャ](docs/ARCHITECTURE.ja.md)
 - [文書一覧と言語版](docs/README.ja.md)
-- [開発記録（繁体字中国語）](docs/development/README.md) — 保守用の履歴
 - [変更履歴](CHANGELOG.md)
 - [貢献ガイド](CONTRIBUTING.md)と[セキュリティ方針](SECURITY.md)
 

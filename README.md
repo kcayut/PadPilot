@@ -88,7 +88,11 @@ PadPilot 讓你用 **iPad 當 Mac 螢幕**，主要為 Mac mini 設計。搭配 
 
 ### 5. 沒有實體螢幕？先準備備援
 
-先在 BetterDisplay 準備虛擬螢幕，再到 **「虛擬備援螢幕」**選取它，按 **「指定為備援螢幕」**。可使用 `PadPilotVirtual` 或你已有的虛擬螢幕；若沒有自動建立，請在 BetterDisplay 手動建立一次。
+通常不需要自己建立。先安裝 BetterDisplay，再首次開啟 PadPilot；背景服務啟動時，會嘗試透過 BetterDisplay 自動建立 `PadPilotVirtual`。已有同名虛擬螢幕就會沿用。它也是 PadPilot 的預設備援，建立成功後不必再指定。只把 App 從 DMG 拖到「應用程式」還不會建立。
+
+若沒有自動建立，或想使用其他虛擬螢幕，請先在 BetterDisplay 建立，再回 **「虛擬備援螢幕」**按 **「重新探測」**，選取它並按 **「指定為備援螢幕」**。
+
+「重新探測」只更新清單，不會重試建立。若是開啟 PadPilot 後才安裝 BetterDisplay，可從 PadPilot 選單選「結束」再重新開啟，讓背景服務再次嘗試。
 
 [![虛擬備援螢幕：選擇 BetterDisplay 虛擬螢幕並指定為備援](docs/images/quick-start/zh-Hant-virtual.png)](docs/images/quick-start/zh-Hant-virtual.png)
 
@@ -180,7 +184,6 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 - [疑難排解與常見問答](docs/TROUBLESHOOTING.md)
 - [系統架構](docs/ARCHITECTURE.md)
 - [文件索引與語言版本](docs/README.md)
-- [開發紀錄](docs/development/README.md)（僅繁體中文，供維護者追溯歷史）
 - [更新紀錄](CHANGELOG.md)
 - [貢獻指南](CONTRIBUTING.md)與[安全政策](SECURITY.md)
 

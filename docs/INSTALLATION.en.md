@@ -194,7 +194,7 @@ python3 scripts/check_gui_layout.py
 python3 scripts/check_release.py --gui
 ```
 
-Local release checks also cover shell syntax, plist validity, version consistency, ResourceWarning, and privacy patterns in current files and Git history. Reports are written to `build/release-check.json` and `build/privacy-scan.json`, without matched values. Reviewed historical exceptions are listed separately; new findings still return exit code 1 even if software tests pass. Omit `--gui` without a desktop session; GUI validation is then unverified. These checks do not replace [physical acceptance (Traditional Chinese)](development/2026-09-11-release-readiness.md).
+Local release checks also cover shell syntax, plist validity, version consistency, ResourceWarning, and privacy patterns in current files and Git history. Reports are written to `build/release-check.json` and `build/privacy-scan.json`, without matched values. Reviewed historical exceptions are listed separately; new findings still return exit code 1 even if software tests pass. Omit `--gui` without a desktop session; GUI validation is then unverified. These checks do not replace physical acceptance testing.
 
 ## Uninstall
 

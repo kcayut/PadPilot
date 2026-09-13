@@ -88,7 +88,11 @@ Manual choices take priority for the current display arrangement. Mode changes, 
 
 ### 5. No physical monitor? Set up a fallback
 
-Create a virtual display in BetterDisplay. In **Virtual fallback**, select it and click **Use as fallback**. Use `PadPilotVirtual` or an existing virtual display. If one was not created automatically, create it in BetterDisplay first.
+You usually do not need to create one yourself. Install BetterDisplay, then open PadPilot for the first time. When its background service starts, it tries to create `PadPilotVirtual` through BetterDisplay, or reuses an existing virtual display with that name. This is also PadPilot's default fallback, so no extra selection is needed after creation succeeds. Dragging the app from the DMG into Applications alone does not create it.
+
+If automatic creation fails, or you prefer another virtual display, create it in BetterDisplay first. Then refresh the list in **Virtual fallback**, select it and click **Use as fallback**.
+
+Refreshing the list does not retry creation. If you installed BetterDisplay after opening PadPilot, choose Quit from PadPilot's menu and reopen it so the background service can try again.
 
 [![Virtual fallback: select a BetterDisplay virtual display and use it as fallback](docs/images/quick-start/en-virtual.png)](docs/images/quick-start/en-virtual.png)
 
@@ -180,7 +184,6 @@ Headless cold boot, sleep/wake, and different hardware combinations still need r
 - [Troubleshooting and FAQ](docs/TROUBLESHOOTING.en.md)
 - [Architecture](docs/ARCHITECTURE.en.md)
 - [Documentation index and languages](docs/README.en.md)
-- [Development notes (Traditional Chinese)](docs/development/README.md) — maintainer history
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
