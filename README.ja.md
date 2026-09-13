@@ -30,7 +30,7 @@ PadPilot は **iPad を Mac の画面として使う**ためのツールです�
 
 - **Apple Silicon Mac（macOS 14 以降）と Sidecar 対応 iPad。** Intel Mac には対応していません。
 - **macOS から手動で Sidecar に接続できる状態。** 同じ Apple Account と2ファクタ認証を使います。初回はデータ通信対応の USB ケーブルでつなぎ、iPad で Mac を信頼してください。無線では Wi-Fi、Bluetooth、Handoff も必要です。[Apple の条件を確認](https://support.apple.com/en-us/102597)。
-- **[BetterDisplay](https://github.com/waydabber/BetterDisplay) をインストールして起動。** 制御機能には上流のライセンスに従い Pro または有効な試用が必要です。単体 CLI だけでは動きません。App があれば、内蔵 CLI を使えます。
+- **[BetterDisplay](https://github.com/waydabber/BetterDisplay) を別途インストールして起動。** 現在の PadPilot の機能は無料版で利用でき、機能上 Pro や有効な試用期間は必要ありません。単体 CLI だけでは動きません。App があれば、内蔵 CLI を使えます。
 
 ## 画面を見ながら始めよう
 
@@ -197,3 +197,5 @@ README と `docs/` 内のユーザー向けガイドは繁体字中国語、英�
 ソースを入手できる非商用ライセンスであり、OSI の定義によるオープンソースライセンスではありません。この変更は本ライセンスを添えて提供する版に適用され、以前に MIT で取得した版の権利を取り消しません。
 
 画面制御機能を提供する [BetterDisplay](https://github.com/waydabber/BetterDisplay) に感謝します。PadPilot は独立したプロジェクトであり、Apple や BetterDisplay との提携・公式サポートを示すものではありません。
+
+BetterDisplay はユーザーが別途インストールするもので、PadPilot には同梱していません。[BetterDisplay のライセンス条件](https://github.com/waydabber/BetterDisplay/discussions/739)は引き続き適用されます。非企業ユーザーは無料機能を利用でき、企業での利用は原則として Pro が必要です。個人の業務利用に関する例外は公式条件に従ってください。

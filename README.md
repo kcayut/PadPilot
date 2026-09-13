@@ -30,7 +30,7 @@ PadPilot 讓你用 **iPad 當 Mac 螢幕**，主要為 Mac mini 設計。搭配 
 
 - **Apple Silicon Mac、macOS 14+，以及支援 Sidecar 的 iPad**。目前不支援 Intel Mac。
 - **先讓 Sidecar 能手動連上**：兩台裝置使用相同 Apple Account 並開啟雙重認證。初次設定建議用資料傳輸線連接，在 iPad 上信任 Mac；無線另需 Wi-Fi、藍牙與 Handoff。[查看 Apple 的條件](https://support.apple.com/en-us/102597)。
-- **安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**，確認控制功能可用，依上游授權需 Pro 或有效試用。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
+- **自行安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**。目前 PadPilot 的功能可搭配免費版使用，功能上不要求 Pro 或試用資格。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
 
 ## 跟著畫面開始用
 
@@ -197,3 +197,5 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 這是可取得原始碼的非商業授權，並非 OSI 定義的開源授權。本次變更適用於附帶此授權提供的版本；不撤回先前已依 MIT 授權取得之版本的權利。
 
 感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。
+
+BetterDisplay 由使用者另行安裝，未隨 PadPilot 散佈。使用者仍須遵守其[授權條款](https://github.com/waydabber/BetterDisplay/discussions/739)：非企業使用者可使用免費功能；企業使用原則上需要 Pro，個人工作用途的例外以官方條款為準。

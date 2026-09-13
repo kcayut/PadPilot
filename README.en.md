@@ -30,7 +30,7 @@ PadPilot lets you use an **iPad as your Mac display**, with Mac mini setups in m
 
 - **An Apple Silicon Mac running macOS 14+, and a Sidecar-compatible iPad.** Intel Macs are not supported.
 - **A working manual Sidecar connection.** Use the same Apple Account with two-factor authentication. For first setup, use a data-capable USB cable and trust the Mac on your iPad. Wireless also needs Wi-Fi, Bluetooth, and Handoff. [Check Apple's requirements](https://support.apple.com/en-us/102597).
-- **[BetterDisplay](https://github.com/waydabber/BetterDisplay), installed and running**, with its control features available under Pro or a valid trial, per its license. The standalone CLI alone is not enough; the app's built-in CLI is sufficient.
+- **Install and open [BetterDisplay](https://github.com/waydabber/BetterDisplay) separately.** PadPilot's current features work with the free version; they do not require Pro or an active trial. The standalone CLI alone is not enough; the app's built-in CLI is sufficient.
 
 ## Follow the screenshots
 
@@ -197,3 +197,5 @@ Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Author: **kc
 This is a source-available noncommercial license, not an OSI open-source license. The change applies to versions provided with this license; it does not revoke rights to versions previously obtained under MIT.
 
 Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) for display control. PadPilot is an independent project, not affiliated with or endorsed by Apple or BetterDisplay.
+
+BetterDisplay is installed separately by the user and is not bundled with PadPilot. Its [license terms](https://github.com/waydabber/BetterDisplay/discussions/739) still apply: non-business users may use free features; business use generally requires Pro, subject to the official exceptions for individual work use.
