@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/padpilot-icon.png" width="160" height="160" alt="PadPilot アイコン：タブレット内のナビゲーション矢印">
+  <img src="assets/padpilot-icon.png" width="96" height="96" alt="PadPilot アイコン：タブレット内のナビゲーション矢印">
 </p>
 
 <h1 align="center">PadPilot</h1>
@@ -13,6 +13,16 @@
   <a href="README.md">繁體中文</a> | <a href="README.en.md">English</a> | <b>日本語</b>
 </p>
 
+PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
+
+**実機デモ：物理モニターなしで起動**
+
+[![実機デモ：物理モニターなしで Mac mini を起動し、ログイン後に iPad をメイン画面として自動接続](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
+
+初期設定済みの実機で撮影。起動の待ち時間は8倍速、最後の画面は1秒長く表示しています。[高画質の MP4 を見る](docs/videos/headless-boot-demo.mp4)。
+
+**[macOS 版をダウンロード（.dmg）](https://github.com/kcayut/PadPilot/releases)**
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
@@ -20,13 +30,11 @@
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
 
-PadPilot は **iPad を Mac の画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続や、物理モニターがないときの自動切り替えを行います。
+## 先に、この3つを用意
 
 > [!IMPORTANT]
 > **現在は初期プレビュー版です。** 初回設定では、物理モニターか使えるリモート接続を残しておいてください。
 > PadPilot は macOS へのログイン後に動作します。**FileVault の解除画面やログイン前の画面は表示できません。** インストールのために FileVault を無効にする必要はありません。
-
-## 先に、この3つを用意
 
 - **Apple Silicon Mac（macOS 14 以降）と Sidecar 対応 iPad。** Intel Mac には対応していません。
 - **macOS から手動で Sidecar に接続できる状態。** 同じ Apple Account と2ファクタ認証を使います。初回はデータ通信対応の USB ケーブルでつなぎ、iPad で Mac を信頼してください。無線では Wi-Fi、Bluetooth、Handoff も必要です。[Apple の条件を確認](https://support.apple.com/en-us/102597)。

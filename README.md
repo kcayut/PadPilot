@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/padpilot-icon.png" width="160" height="160" alt="PadPilot 圖標：平板中的導航箭頭">
+  <img src="assets/padpilot-icon.png" width="96" height="96" alt="PadPilot 圖標：平板中的導航箭頭">
 </p>
 
 <h1 align="center">PadPilot</h1>
@@ -13,6 +13,16 @@
   <b>繁體中文</b> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
 </p>
 
+PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
+
+**實機示範：無實體螢幕開機**
+
+[![實機示範：Mac mini 無實體螢幕開機，登入後自動連線 iPad 作為主螢幕](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
+
+實機示範，已完成首次設定。開機等待段加速 8 倍，最後畫面多停 1 秒。[觀看清晰版 MP4](docs/videos/headless-boot-demo.mp4)。
+
+**[下載 macOS 版（.dmg）](https://github.com/kcayut/PadPilot/releases)**
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
@@ -20,13 +30,11 @@
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
 
-PadPilot 讓你用 **iPad 當 Mac 螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線，也能在沒有實體螢幕時嘗試自動接手。
+## 先準備好這三樣
 
 > [!IMPORTANT]
 > **目前是早期預覽版。** 第一次使用，請保留實體螢幕或可用的遠端連線。
 > PadPilot 在登入 macOS 後才運作，**不能顯示 FileVault 解鎖或登入前畫面**；不需要為了安裝而關閉 FileVault。
-
-## 先準備好這三樣
 
 - **Apple Silicon Mac、macOS 14+，以及支援 Sidecar 的 iPad**。目前不支援 Intel Mac。
 - **先讓 Sidecar 能手動連上**：兩台裝置使用相同 Apple Account 並開啟雙重認證。初次設定建議用資料傳輸線連接，在 iPad 上信任 Mac；無線另需 Wi-Fi、藍牙與 Handoff。[查看 Apple 的條件](https://support.apple.com/en-us/102597)。
@@ -172,7 +180,7 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 更新或解除安裝前，請先儲存並關閉設定視窗。Release 更新可用新版替換同位置的 App，設定與配對會保留；更換安裝位置或由原始碼版遷移，請先用舊版解除安裝並保留設定。
 
-**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可，不需要解除安裝按鈕。** 登入服務封裝於 App，由 macOS 管理；垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
+**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可。** 登入服務封裝於 App，由 macOS 管理；垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
 
 [安裝、更新與解除安裝](docs/INSTALLATION.md) · [完整文件索引](docs/README.md)
 

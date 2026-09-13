@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/padpilot-icon.png" width="160" height="160" alt="PadPilot icon: a navigation arrow inside a tablet">
+  <img src="assets/padpilot-icon.png" width="96" height="96" alt="PadPilot icon: a navigation arrow inside a tablet">
 </p>
 
 <h1 align="center">PadPilot</h1>
@@ -13,6 +13,16 @@
   <a href="README.md">繁體中文</a> | <b>English</b> | <a href="README.ja.md">日本語</a>
 </p>
 
+PadPilot lets you use an **iPad as your Mac's main or secondary display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections, switching between main and secondary displays, and automatic takeover when no physical monitor is available, depending on your settings.
+
+**Real-device demo: booting without a physical monitor**
+
+[![Real-device demo: a Mac mini boots without a physical monitor and automatically connects an iPad as its main display after login](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
+
+Filmed on real hardware after initial setup. The boot wait is sped up 8×, and the final frame is held for one extra second. [Watch the higher-quality MP4](docs/videos/headless-boot-demo.mp4).
+
+**[Download for macOS (.dmg)](https://github.com/kcayut/PadPilot/releases)**
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
@@ -20,13 +30,11 @@
   <img src="https://img.shields.io/badge/status-early%20preview-orange.svg" alt="Status: Early Preview">
 </p>
 
-PadPilot lets you use an **iPad as your Mac display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections or automatic takeover when no physical monitor is available.
+## Have these three things ready
 
 > [!IMPORTANT]
 > **This is an early preview.** Keep a physical monitor or working remote connection available for your first setup.
 > PadPilot runs after you log into macOS. It **cannot show FileVault unlock or pre-login screens**; you do not need to disable FileVault to install it.
-
-## Have these three things ready
 
 - **An Apple Silicon Mac running macOS 14+, and a Sidecar-compatible iPad.** Intel Macs are not supported.
 - **A working manual Sidecar connection.** Use the same Apple Account with two-factor authentication. For first setup, use a data-capable USB cable and trust the Mac on your iPad. Wireless also needs Wi-Fi, Bluetooth, and Handoff. [Check Apple's requirements](https://support.apple.com/en-us/102597).
@@ -172,7 +180,7 @@ Keep a backup of the prior source, save and close settings, then update the sour
 
 Save and close settings before updating or uninstalling. For release updates, replace the app at the same location; settings and pairings remain. Before moving the app or migrating from a source installation, uninstall the old copy while keeping settings.
 
-**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash. No uninstall button is needed.** The login service lives inside the app and is managed by macOS; the trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
+**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash.** The login service lives inside the app and is managed by macOS; the trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
 
 [Install, update, and uninstall](docs/INSTALLATION.en.md) · [Full documentation index](docs/README.en.md)
 
