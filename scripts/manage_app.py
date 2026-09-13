@@ -17,11 +17,10 @@ import time
 from pathlib import Path
 
 from build_app import ROOT, build
-from core.autostart import (daemon_pids, get_launch_agent_plist_path, job_loaded, start_standalone,
-                            stop_daemon, validate_plist, wait_for_daemon)
+from core.autostart import daemon_pids, job_loaded, service_command
 from core.config import APP_SUPPORT_DIR, FALLBACK_CONFIG_FILE, load_config, save_config
 from core.settings import apply_change
-from core.storage import atomic_write, private_directory, state_file_exists
+from core.storage import private_directory, state_file_exists
 from core.runtime import app_runtime, bundled_app
 
 
@@ -64,7 +63,7 @@ def stop_menu_apps(apps=None):
                 if command.returncode:
                     continue
                 if any(command.stdout.strip().startswith(executable + ' ' + flag)
-                       for flag in ('--cli', '--bundled-cli', '--runtime-info', '--locate-betterdisplay')):
+                       for flag in ('--cli', '--bundled-cli', '--runtime-info', '--locate-betterdisplay', '--service', '--daemon')):
                     continue
                 menu_pids.append(pid)
             if not menu_pids:
@@ -112,6 +111,15 @@ def ensure_settings_closed():
             os.close(fd)
 
 
+def installation_service(app):
+    """Inspect before stopping anything; this pre-release has no legacy migration."""
+    legacy = Path.home() / 'Library/LaunchAgents/com.padpilot.daemon.plist'
+    if legacy.exists() or legacy.is_symlink():
+        raise RuntimeError(f'Remove the old development LaunchAgent manually first: {legacy}')
+    job_loaded(app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
+    return service_command(app=app) if app.exists() else 'notRegistered'
+
+
 def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=False, betterdisplay_path=None):
     remove_config = remove_config or purge
     remove_logs = remove_logs or purge
@@ -120,8 +128,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
         raise RuntimeError('Use install_release.sh to update a bundled app')
     if (app.exists() or app.is_symlink()) and (app.is_symlink() or not owned_app(app)):
         raise RuntimeError(f'Refusing to replace/remove an app from another checkout: {app}')
-    plist = get_launch_agent_plist_path()
-    validate_plist(plist)
+    previous_service = installation_service(app)
     ensure_settings_closed()
     if not uninstall:
         cfg = load_config()  # Invalid configuration must fail before stopping anything.
@@ -129,8 +136,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
             candidate = copy.deepcopy(cfg)
             apply_change(candidate, 'set_betterdisplaycli_path', {'path': betterdisplay_path})
         build(ROOT / 'build/PadPilot.app')
-        was_loaded, was_running = job_loaded(plist), bool(daemon_pids())
-        previous_plist = plist.read_bytes() if plist.exists() else None
+        was_running = bool(daemon_pids())
     if remove_config:
         # Validate before any removal, including a fallback left by an earlier run.
         fallback_exists = state_file_exists(FALLBACK_CONFIG_FILE)
@@ -156,6 +162,8 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
             try:
                 subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
                 stop_menu_apps()
+                if app.exists():
+                    service_command('unregister', app)
                 if betterdisplay_path is not None:
                     # Use the same validated offline settings transaction as the GUI/CLI.
                     path_changed = True
@@ -166,34 +174,26 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
                     previous_app = trash(app)
                 staging.rename(app)
                 replaced = True
-                if not cfg.autostart_on_login:
-                    plist.unlink(missing_ok=True)
+                if previous_service == 'enabled':
+                    service_command('register', app)
                 subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
             except Exception as error:
                 try:
-                    stop_daemon(plist)
-                    stop_menu_apps()
                     if replaced:
+                        service_command('unregister', app)
+                        subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                        stop_menu_apps()
                         trash(app)
                     if previous_app is not None:
                         previous_app.rename(app)
                     if path_changed:
                         save_config(cfg)
-                    if previous_plist is None:
-                        plist.unlink(missing_ok=True)
-                    else:
-                        atomic_write(plist, previous_plist, private_parent=False)
-                    if was_loaded:
-                        subprocess.run(['launchctl', 'load', str(plist)], check=True, capture_output=True, timeout=10)
-                        wait_for_daemon()
-                    elif was_running:
-                        if previous_python == sys.executable:
-                            start_standalone()
-                        else:
-                            subprocess.run([previous_python, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
-                    if was_running or was_loaded:
-                        # start clears the hidden-menu marker and reopens the restored app.
+                    if previous_service == 'enabled':
+                        service_command('register', app)
+                    if was_running:
                         subprocess.run([previous_python, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
+                    elif previous_service == 'enabled':
+                        subprocess.run([previous_python, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
                 except Exception as restore_error:
                     raise RuntimeError(f'Installation failed: {error}. Rollback incomplete: {restore_error}') from error
                 raise RuntimeError(f'Installation failed: {error}. Previous app and service state restored.') from error
@@ -206,19 +206,18 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
         except OSError as error:
             print(f'App installed; optional CLI shortcut unavailable ({error}). Use: {launcher}')
         print(f'Installed: {app}\nPython: {sys.executable}\nKeep source folder: {ROOT}\nCLI: {launcher}')
-        if cfg.autostart_on_login:
-            print('登入自動啟動已啟用：重新開機並登入後，背景服務與選單列會自動啟動。 / Daemon and menu bar will start automatically after login, including after a restart.')
+        if service_command(app=app) == 'enabled':
+            print('登入自動啟動已啟用。 / Login startup enabled.')
         else:
-            print('保留已停用的登入自動啟動設定。 / Launch at login remains disabled.')
+            print('登入自動啟動尚未啟用；請查看系統登入項目。 / Login startup is off or awaiting approval; check System Settings.')
         return
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
     subprocess.run([sys.executable] + (['-I', '-B'] if bundled_app() else [])
                    + [str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
     stop_menu_apps()
     if uninstall:
-        if plist.exists():
-            trash(plist)
         if app.exists():
+            service_command('unregister', app)
             trash(app)
         if shortcut.is_symlink() and shortcut.resolve() == launcher.resolve():
             trash(shortcut)

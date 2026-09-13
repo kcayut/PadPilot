@@ -110,20 +110,6 @@ class NativeBridgeTests(unittest.TestCase):
         self.assertTrue(json.loads(response)['ok'])
         obj.engine.set_user_override.assert_called_once()
 
-    def test_autostart_conflict_stops_before_service_or_plist_mutation(self):
-        with tempfile.TemporaryDirectory() as directory:
-            plist = Path(directory) / 'com.padpilot.daemon.plist'
-            with patch.object(autostart, 'load_config', return_value=Config(revision=4)), \
-                 patch.object(autostart, 'validate_plist'), patch.object(autostart, 'job_loaded', return_value=False), \
-                 patch.object(autostart, 'is_daemon_running', return_value=False), \
-                 patch.object(autostart, 'stop_daemon') as stop, patch.object(autostart, 'save_config') as save:
-                for method in (autostart.enable_autostart, autostart.disable_autostart):
-                    ok, message = method(plist_path=plist, expected_revision=3)
-                    self.assertFalse(ok)
-                    self.assertIn('CONFIG_CONFLICT', message)
-                stop.assert_not_called()
-                save.assert_not_called()
-                self.assertFalse(plist.exists())
 
     def test_unsafe_config_resolution_still_returns_readonly_window(self):
         with patch.object(gui, 'get_config_file_path', side_effect=gui.UnsafePathError('unsafe')), \
@@ -134,46 +120,6 @@ class NativeBridgeTests(unittest.TestCase):
             self.assertEqual(payload['paths']['config'], '')
             hardware.assert_not_called()
 
-    def test_late_autostart_conflict_restores_loaded_job_without_overwriting_files(self):
-        for running in (False, True):
-            with self.subTest(running=running), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                plist = root / 'com.padpilot.daemon.plist'
-                plist.write_bytes(b'original launch agent')
-                config = root / 'config.json'
-                config.write_text(json.dumps(Config(revision=3).to_dict()))
-                concurrent = json.dumps(Config(revision=4, language='ja').to_dict())
-                state = {'loaded': True}
-                def stop(target):
-                    self.assertEqual(target, plist)
-                    state['loaded'] = False
-                    config.write_text(concurrent)  # Queued settings commit finishes during shutdown.
-                def launch(command, **kwargs):
-                    self.assertEqual(command, ['launchctl', 'load', str(plist)])
-                    self.assertFalse(state['loaded'])
-                    state['loaded'] = True
-                    return subprocess.CompletedProcess(command, 0)
-                def handshake():
-                    self.assertTrue(state['loaded'])
-                with patch.object(autostart, 'load_config', side_effect=lambda: Config.from_dict(json.loads(config.read_text()))), \
-                     patch.object(autostart, 'validate_plist'), \
-                     patch.object(autostart, 'job_loaded', side_effect=lambda _: state['loaded']), \
-                     patch.object(autostart, 'is_daemon_running', return_value=running), \
-                     patch.object(autostart, 'stop_daemon', side_effect=stop), \
-                     patch.object(autostart.subprocess, 'run', side_effect=launch) as restore, \
-                     patch.object(autostart, 'wait_for_daemon', side_effect=handshake) as wait, \
-                     patch.object(autostart, 'start_standalone') as standalone, \
-                     patch.object(autostart, 'save_config') as save:
-                    ok, message = autostart.disable_autostart(plist_path=plist, expected_revision=3)
-                    self.assertFalse(ok)
-                    self.assertIn('CONFIG_CONFLICT', message)
-                    self.assertTrue(state['loaded'])
-                    restore.assert_called_once()
-                    wait.assert_called_once()
-                    standalone.assert_not_called()
-                    save.assert_not_called()
-                self.assertEqual(plist.read_bytes(), b'original launch agent')
-                self.assertEqual(config.read_text(), concurrent)
 
 
 if __name__ == '__main__':

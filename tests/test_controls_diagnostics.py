@@ -174,7 +174,8 @@ class ControlsTests(unittest.TestCase):
             ['/usr/sbin/sysadminctl', '-autologin', 'status'], ['/usr/bin/fdesetup', 'status']])
         self.assertNotIn('BetterDisplay 登入啟動', [label for label, _ in checks])
 
-    def test_automatic_login_uses_live_status_instead_of_residual_username(self):
+    @patch('core.diagnostics.autostart_status', return_value='notRegistered')
+    def test_automatic_login_uses_live_status_instead_of_residual_username(self, _startup):
         from core.diagnostics import collect_system_checks
         from core.gui import get_check_light, GREEN, RED, ORANGE
         for output, code, expected, color in [

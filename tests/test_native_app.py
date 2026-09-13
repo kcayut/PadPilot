@@ -23,132 +23,75 @@ from core.i18n import set_language
 
 
 class NativeAppTests(unittest.TestCase):
-    def test_new_user_install_persists_login_startup_and_opens_installed_menu(self):
-        start = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['cmd_start']
+    def test_new_user_install_bundles_service_without_external_agent(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             source = home / 'source checkout'
             (source / 'assets/menu-icons').mkdir(parents=True)
             for name in ('LICENSE', 'NOTICE'):
-                (source / name).write_text('test package resource')
-            support = home / 'Library/Application Support/PadPilot'
-            configuration = support / 'config.json'
-            agents = home / 'Library/LaunchAgents'
-            plist = agents / 'com.padpilot.daemon.plist'
-            app = home / 'Applications/PadPilot.app'
-            open_menu = ['open', '-g', '-a', str(app), 'padpilot://menu', '--args', '--menu-only']
-            python = str(home / 'Python runtime/python3')
-            cli = [python, str(source / 'bin/padpilot-cli')]
+                (source / name).write_text('test resource')
+            cfg = config.Config()
             commands = []
-
             def run(command, **kwargs):
                 commands.append(command)
-                if command == cli + ['start']:
-                    start(argparse.Namespace(no_menu=False))
-                elif command == cli + ['exit']:
-                    pass  # No prior daemon exists in this isolated user's home.
-                elif command[0] not in ('xcrun', 'codesign'):
-                    self.assertIn(command, (['launchctl', 'load', str(plist)], open_menu))
                 return subprocess.CompletedProcess(command, 0)
-
             with contextlib.ExitStack() as stack:
                 for context in (
-                    patch('pathlib.Path.home', return_value=home),
-                    patch.object(sys, 'executable', python), patch.object(sys, 'platform', 'darwin'),
+                    patch.object(Path, 'home', return_value=home),
                     patch.object(build_app, 'ROOT', source), patch.object(build_app, 'build_icon'),
-                    patch.object(manage_app, 'ROOT', source),
-                    patch.object(manage_app, 'job_loaded', return_value=False),
+                    patch.object(manage_app, 'ROOT', source), patch.object(manage_app, 'load_config', return_value=cfg),
+                    patch.object(manage_app, 'installation_service', return_value='notFound'),
+                    patch.object(manage_app, 'service_command', return_value='enabled'),
                     patch.object(manage_app, 'daemon_pids', return_value=[]),
                     patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app, 'stop_menu_apps'),
-                    patch.object(config, 'CONFIG_FILE', configuration),
-                    patch.object(config, 'FALLBACK_CONFIG_FILE', home / 'fallback/config.json'),
-                    patch.object(config, 'detect_system_language', return_value='en'), patch.object(config.logger, 'info'),
-                    patch.object(autostart, 'PROJECT_ROOT', source),
-                    patch.object(autostart, 'USER_LAUNCH_AGENTS_DIR', agents),
-                    patch.object(autostart, 'job_loaded', return_value=False),
-                    patch.object(autostart, 'is_daemon_running', return_value=False),
-                    patch.object(autostart, 'stop_daemon'), patch.object(autostart, 'wait_for_daemon'),
-                    patch.dict(start.__globals__, daemon_pids=lambda: [], remove_state_file=lambda _: None),
-                    patch.object(subprocess, 'run', side_effect=run),
-                    patch.object(subprocess, 'Popen', side_effect=AssertionError('Unexpected process launch')),
-                    contextlib.redirect_stdout(io.StringIO()),
-                ):
-                    stack.enter_context(context)
-                self.assertFalse(configuration.exists())
-                self.assertIs(config.Config().autostart_on_login, True)
+                    patch.object(subprocess, 'run', side_effect=run), contextlib.redirect_stdout(io.StringIO()),
+                ): stack.enter_context(context)
                 manage_app.manage()
-
-            saved = json.loads(configuration.read_text())
-            self.assertIs(saved['autostart_on_login'], True)
-            installed = plistlib.loads(plist.read_bytes())
-            self.assertIs(installed['RunAtLoad'], True)
-            self.assertIs(installed['KeepAlive'], True)
-            self.assertEqual(installed['ProgramArguments'], [python, str(source / 'bin/padpilotd')])
-            runtime = json.loads((app / 'Contents/Resources/runtime.json').read_text())
-            self.assertEqual(runtime, {'python': python, 'project_root': str(source), 'locator': 1})
-            self.assertEqual([command for command in commands if command[:2] == cli],
-                             [cli + ['exit'], cli + ['start']])
-            self.assertEqual(commands.count(['launchctl', 'load', str(plist)]), 1)
-            self.assertEqual(commands[-1], open_menu)
+            app = home / 'Applications/PadPilot.app'
+            plist = app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+            self.assertEqual(plistlib.loads(plist.read_bytes()), plistlib.loads(autostart.generate_plist_content().encode()))
+            self.assertFalse((home / 'Library/LaunchAgents').exists())
+            self.assertFalse(any(command[0] == 'launchctl' for command in commands))
+            self.assertIn([sys.executable, str(source / 'bin/padpilot-cli'), 'start'], commands)
             self.assertEqual((home / 'bin/padpilot-cli').resolve(), app / 'Contents/Resources/padpilot-cli')
 
     def test_install_failure_restores_app_and_previous_service_state(self):
-        for loaded, running in ((True, True), (False, True), (False, False)):
-            with self.subTest(loaded=loaded, running=running), tempfile.TemporaryDirectory() as directory:
+        for registered, running in ((True, True), (True, False), (False, True), (False, False)):
+            with self.subTest(registered=registered, running=running), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
                 source = home / 'source'
-                built = source / 'build/PadPilot.app'
-                built.mkdir(parents=True)
-                (built / 'version').write_text('new')
-                app = home / 'Applications/PadPilot.app'
-                app.mkdir(parents=True)
-                (app / 'version').write_text('old')
-                plist = home / 'daemon.plist'
-                original = autostart.generate_plist_content().encode()
-                plist.write_bytes(original)
-                cfg = config.Config(autostart_on_login=loaded)
-                state = {'loaded': loaded, 'running': running, 'starts': 0}
-                def stop(*args):
-                    state.update(loaded=False, running=False)
-                def standalone():
-                    state['running'] = True
+                built, app = source / 'build/PadPilot.app', home / 'Applications/PadPilot.app'
+                for path, version in ((built, 'new'), (app, 'old')):
+                    path.mkdir(parents=True)
+                    (path / 'version').write_text(version)
+                original = 'enabled' if registered else 'notRegistered'
+                state = {'service': original, 'running': running, 'starts': 0}
+                def service(action='status', target=None, **kwargs):
+                    if action == 'register': state.update(service='enabled', running=True)
+                    elif action == 'unregister': state.update(service='notRegistered', running=False)
+                    return state['service']
                 def run(command, **kwargs):
-                    if command[-1] == 'exit':
-                        stop()
-                    elif command[0] == 'launchctl':
-                        state.update(loaded=True, running=True)
+                    if command[-1] == 'exit': state['running'] = False
                     elif command[-1] == 'start':
                         state['starts'] += 1
-                        if state['starts'] == 1:
-                            if loaded:
-                                ok, _ = autostart.enable_autostart(plist_path=plist, log_dir=home / 'logs')
-                                self.assertFalse(ok)
-                            raise subprocess.CalledProcessError(1, command)
-                        self.assertTrue(state['running'])
+                        if state['starts'] == 1: raise subprocess.CalledProcessError(1, command)
+                        state['running'] = True
                         self.assertEqual((app / 'version').read_text(), 'old')
                     return subprocess.CompletedProcess(command, 0)
                 with contextlib.ExitStack() as stack:
                     for context in (
-                        patch('pathlib.Path.home', return_value=home), patch.object(manage_app, 'ROOT', source),
+                        patch.object(Path, 'home', return_value=home), patch.object(manage_app, 'ROOT', source),
                         patch.object(manage_app, 'owned_app', return_value=True), patch.object(manage_app, 'build'),
-                        patch.object(manage_app, 'get_launch_agent_plist_path', return_value=plist),
-                        patch.object(manage_app, 'load_config', return_value=cfg),
-                        patch.object(manage_app, 'job_loaded', side_effect=lambda _: state['loaded']),
-                        patch.object(manage_app, 'daemon_pids', side_effect=lambda: [123] if state['running'] else []),
-                        patch.object(manage_app, 'stop_daemon', side_effect=stop), patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'),
-                        patch.object(manage_app, 'start_standalone', side_effect=standalone),
-                        patch.object(manage_app, 'wait_for_daemon'), patch.object(manage_app.subprocess, 'run', side_effect=run),
-                        patch.object(autostart, 'job_loaded', side_effect=lambda _: state['loaded']),
-                        patch.object(autostart, 'is_daemon_running', side_effect=lambda: state['running']),
-                        patch.object(autostart, 'load_config', return_value=cfg), patch.object(autostart, 'save_config'),
-                        patch.object(autostart, 'stop_daemon', side_effect=stop),
-                        patch.object(autostart, 'wait_for_daemon', side_effect=RuntimeError('failed new handshake')),
-                    ):
-                        stack.enter_context(context)
+                        patch.object(manage_app, 'installation_service', return_value=original),
+                        patch.object(manage_app, 'service_command', side_effect=service),
+                        patch.object(manage_app, 'load_config', return_value=config.Config()),
+                        patch.object(manage_app, 'daemon_pids', return_value=[123] if running else []),
+                        patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'),
+                        patch.object(manage_app.subprocess, 'run', side_effect=run),
+                    ): stack.enter_context(context)
                     with self.assertRaisesRegex(RuntimeError, 'Previous app and service state restored'):
                         manage_app.manage()
-                self.assertEqual((state['loaded'], state['running']), (loaded, running))
-                self.assertEqual(plist.read_bytes(), original)
+                self.assertEqual((state['service'], state['running']), (original, running))
                 self.assertEqual((app / 'version').read_text(), 'old')
                 self.assertTrue(any(p.read_text() == 'new' for p in (home / '.Trash').glob('*/PadPilot.app/version')))
 
@@ -166,7 +109,7 @@ class NativeAppTests(unittest.TestCase):
                 with patch('pathlib.Path.home', return_value=home), \
                      patch.object(manage_app, 'APP_SUPPORT_DIR', primary.parent), \
                      patch.object(manage_app, 'FALLBACK_CONFIG_FILE', fallback), \
-                     patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'missing.plist'), \
+                     patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
                      patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app.subprocess, 'run') as run:
                     if unsafe:
                         with self.assertRaises(RuntimeError):
@@ -266,7 +209,7 @@ else: sys.exit(1)
                 user_data.mkdir(parents=True)
                 (user_data / 'config.json').write_text('keep')
                 with patch('pathlib.Path.home', return_value=home), \
-                     patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'missing.plist'), \
+                     patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
                      patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), \
                      patch.object(manage_app.subprocess, 'run') as run:
                     manage_app.manage(uninstall=True)

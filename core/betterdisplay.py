@@ -28,9 +28,9 @@ class BetterDisplayCapabilities:
 class BetterDisplayCLI:
     """Wrapper for BetterDisplay CLI with capability probing and safety fallbacks."""
 
-    def __init__(self, custom_path: Optional[str] = None) -> None:
+    def __init__(self, custom_path: Optional[str] = None, *, probe: bool = True) -> None:
         self.cli_path = self._resolve_cli_path(custom_path)
-        self.capabilities = self.probe_capabilities()
+        self.capabilities = self.probe_capabilities() if probe else BetterDisplayCapabilities()
 
     @classmethod
     def resolve_cli_path(cls, custom_path: Optional[str] = None) -> Optional[str]:

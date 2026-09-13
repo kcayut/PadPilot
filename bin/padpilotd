@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import errno
 import json
+import re
 import signal
 import socket
 import stat
@@ -78,8 +79,8 @@ class PadPilotDaemon:
         self.usb_monitor_enabled = False
         self.config_lock = threading.RLock()
         self.config = load_config()
-        self.ensure_betterdisplay_running()
-        self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path)
+        # Publish IPC before waiting for another app or hardware discovery at login.
+        self.bd_cli = BetterDisplayCLI(self.config.betterdisplaycli_path, probe=False)
         self.detector = DisplayDetector(self.config, self.bd_cli)
         self.engine = StateEngine(self.config, self.detector, self.bd_cli)
 
@@ -311,34 +312,42 @@ class PadPilotDaemon:
         bd_app = BetterDisplayCLI.resolve_app_path(self.config.betterdisplaycli_path)
         if not bd_app:
             return
-        res = subprocess.run(["pgrep", "-f", "BetterDisplay"], capture_output=True, text=True, check=False)
-        if res.returncode != 0:
-            logger.info("BetterDisplay not running; launching BetterDisplay app...")
-            try:
-                subprocess.Popen(["open", "-a", bd_app])
-                time.sleep(2.0)
-            except Exception as e:
-                logger.warning(f"Could not auto-launch BetterDisplay: {e}")
+        # CLI helpers use the same binary and can also occupy LaunchServices'
+        # running-app slot. Only the invocation without CLI arguments is the GUI.
+        try:
+            executable = str(Path(bd_app) / 'Contents/MacOS/BetterDisplay')
+            result = subprocess.run(['pgrep', '-f', '^' + re.escape(executable) + '$'],
+                                    capture_output=True, text=True, timeout=2)
+            if result.returncode == 0:
+                return
+            if result.returncode != 1:
+                raise RuntimeError('Could not inspect BetterDisplay GUI process')
+            subprocess.run(["open", "-g", "-n", "-a", bd_app], capture_output=True,
+                           text=True, timeout=10, check=True)
+            time.sleep(2.0)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+            logger.warning(f"Could not auto-launch BetterDisplay: {error}")
 
     def start(self) -> None:
         logger.info("PadPilot Daemon starting up...")
         remove_state_file(APP_SUPPORT_DIR / "menu-hidden")
         remove_state_file(Path("/tmp/PadPilot/menu-hidden"))
 
+        # A slow dependency must not make a healthy daemon fail its handshake.
+        ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
+        ipc_thread.start()
+
         # Ensure BetterDisplay is running
         self.ensure_betterdisplay_running()
 
         # Capability probe and virtual display check
+        self.bd_cli.capabilities = self.bd_cli.probe_capabilities()
         ok, msg = self.bd_cli.ensure_virtual_display(self.config.virtual_display_name)
         logger.info(f"Virtual display check: {msg}")
 
         open_menu_app()
 
         boot_pending = self.claim_boot_connection()
-
-        # Start IPC server thread
-        ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
-        ipc_thread.start()
 
         # Events and Watchdog share one consumer; notifications coalesce while busy.
         discovery_start = time.monotonic()

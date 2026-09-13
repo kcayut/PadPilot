@@ -75,6 +75,10 @@ def build(output, *, python_home=None, version=None, revision=None):
             (source / 'core/__init__.py').write_text(
                 f'"""PadPilot release metadata."""\n__version__ = {version!r}\n__revision__ = {revision or "unknown"!r}\n')
             metadata = {'bundled': True, 'python': 'Python/bin/python3', 'project_root': 'PadPilot', 'locator': 1}
+        from core.autostart import generate_plist_content
+        agents = contents / 'Library/LaunchAgents'
+        agents.mkdir(parents=True)
+        (agents / 'com.padpilot.daemon.plist').write_text(generate_plist_content())
         (resources / 'runtime.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
         # The terminal shortcut must use the same Python as the app and launchd.
         launcher = resources / 'padpilot-cli'

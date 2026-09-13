@@ -36,7 +36,7 @@ The installer selects the newest published release including prereleases, checks
 - `--python /absolute/path/python3`: use Apple Silicon CPython 3.10+ after version, architecture, and required-module validation.
 - `--tag v0.1.0-dev.1`: select an existing release explicitly.
 
-Completion means installation and CLI checks passed; opening the app starts its service. Settings, pairings, and login preferences are preserved; the previous app moves to Trash and failed installation attempts restoration. Script updates ask for Python again, while drag-and-replace retains the current choice. Before migrating a source installation or changing app locations, uninstall the old copy and keep settings so its service is not taken over by another installation.
+On a fresh installation, open the app to start its service. Updates unregister the native login service before replacing the app, then restore previously enabled login startup and running state. Items blocked by macOS or awaiting approval are not automatically requested again. Settings and pairings remain; script updates still ask for Python again. Failed installation attempts to restore the app, preferences, and service. Before changing installation locations, use the CLI below to remove the original installation while keeping settings.
 
 ### Change or recover Python afterward
 
@@ -50,7 +50,9 @@ The GUI, CLI, daemon, and launch-at-login entry share the choice stored in `~/Li
 
 Choose one of the first two commands: external Python or bundled Python. `--bundled-cli` also recovers from a deleted external Python. Do not select Python inside another PadPilot.app.
 
-Uninstall a release, keeping settings and logs by default; add `--purge` to move those to Trash too:
+**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash. No uninstall button is needed.** Exit stops display automation; the enabled native login service keeps an event-based watch on the app without polling. Moving the app to Trash automatically unregisters and stops that service. The trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
+
+Optional CLI cleanup, for example to remove data too or change installation locations: settings and logs are kept by default; add `--purge` to move them to Trash. Run this before removing the app:
 
 ```bash
 "/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
@@ -137,7 +139,7 @@ Interactive installation shows detected Python and BetterDisplay paths, then let
 
 Homebrew installation uses Python 3.14, plus the official [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay). `--yes --install-deps` may still require an administrator password or an Apple installation dialog; it does not guarantee unattended setup.
 
-The installer builds and locally signs `~/Applications/PadPilot.app`, preserving configuration, pairings, and login preferences; a first install enables launch at login. After restarting and signing in to macOS, the daemon and menu bar start automatically without rerunning the installer. It records LaunchAgent and service state before stopping the old service and menu through the shared CLI. Success requires a structured handshake from the new daemon. Failed startup attempts to restore the previous app, LaunchAgent, and running state; any rollback failure is reported explicitly.
+The installer builds and locally signs `~/Applications/PadPilot.app`, preserving settings and pairings. First startup registers the bundled login service with macOS. If approval is required, allow PadPilot in System Settings → General → Login Items. Later launches respect system-level disablement. The installer unregisters before replacing the app; failure attempts to restore the app, preferences, and previous service state. Exit stops only the current session; the system registration still governs the next login.
 
 The installer attempts to create `~/bin/padpilot-cli` with the selected Python. An entry owned by another program is preserved; use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` in that case. **Keep the selected Python environment and source folder in place.** The app references both. Reinstall after moving them; an app or LaunchAgent owned by another source path is not taken over. Bundled Python, Developer ID signing, notarization, and automatic updates are not included.
 
@@ -202,7 +204,7 @@ Run this from any directory:
 /bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-For a manually obtained source copy, run `./scripts/uninstall.sh` from its original project directory. The wizard asks separately about settings/pairings, logs, managed source, and each third-party dependency newly installed by the installer. **All are kept by default.** It presents a complete removal summary for confirmation before stopping this checkout's service and menu and removing its app, LaunchAgent, and CLI integration.
+For a manually obtained source copy, run `./scripts/uninstall.sh` from its original project directory. The wizard asks separately about settings/pairings, logs, managed source, and each third-party dependency newly installed by the installer. **All are kept by default.** It presents a complete removal summary for confirmation before stopping this checkout's service and menu and unregistering its login service and removing its app and CLI integration.
 
 | Option | Behavior |
 | --- | --- |

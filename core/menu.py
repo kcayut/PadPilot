@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from core.i18n import LANGUAGES, set_language, tr
-from core.autostart import daemon_pids
+from core.autostart import daemon_pids, is_autostart_enabled
 from core.config import Config
 from core.models import OperationMode, pairing_key
 from core.storage import latest_state_path, read_private_json, state_file_exists, UnsafePathError
@@ -18,7 +18,6 @@ from core.storage import latest_state_path, read_private_json, state_file_exists
 APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
 STATUS_FILE_FALLBACK = Path("/tmp/PadPilot/runtime/status.json")
-PLIST_PATH = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
 MODES = {"manual_only": "僅手動", "automatic": "自動", "prefer_ipad": "偏好 iPad"}
 
 
@@ -254,7 +253,7 @@ def read_menu() -> dict:
     if config_error:
         status = dict(status, actual=dict(status.get('actual') or {}, discovery_errors={
             'config': 'Configuration unreadable; repair or restore the file before starting PadPilot.'}))
-    return render(status, config, PLIST_PATH.is_file(), service_running=service_running)
+    return render(status, config, is_autostart_enabled(), service_running=service_running)
 
 
 def main():

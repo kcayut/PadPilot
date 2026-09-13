@@ -36,7 +36,7 @@ BetterDisplay App 仍須安裝、執行並具備控制功能所需授權。獨�
 - `--python /absolute/path/python3`：選擇自己的 Apple Silicon CPython 3.10+，會先驗證版本、架構及必要模組。
 - `--tag v0.1.0-dev.1`：指定已存在的發行版本，而非最新版本。
 
-安裝完成代表檔案與 CLI 檢查通過；開啟 App 後才啟動背景服務。設定、配對與登入啟動偏好會保留，舊 App 會放入垃圾桶；安裝失敗會嘗試復原。腳本更新時會再次選擇 Python；直接覆蓋 App 則沿用現有選擇。移轉原始碼安裝或變更 App 位置前，請用舊版本解除安裝並保留設定，避免接管另一份安裝的服務。
+首次安裝完成後，開啟 App 才啟動背景服務。更新器會先解除原生登入服務註冊，再替換 App，恢復原本已啟用的登入啟動及執行狀態；已被系統停用／等待允許的項目不會自動重新申請。設定、配對與 Python 選擇檔保留；腳本更新仍會再次選擇 Python。安裝失敗會嘗試還原 App、設定與服務。變更安裝位置前，可用下方 CLI 移除原安裝並保留設定。
 
 ### 安裝後切換或復原 Python
 
@@ -50,7 +50,9 @@ GUI、CLI、daemon 與登入啟動均使用同一選擇，記錄在 `~/Library/A
 
 兩個切換指令擇一；第一個選外部 Python，第二個切回內建。外部 Python 被刪除時也可使用 `--bundled-cli` 復原。不要把外部 Python 指向另一份 PadPilot.app 內的 Python。
 
-Release 解除安裝（預設保留設定與日誌；加 `--purge` 則一併移到垃圾桶）：
+**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可，不需要解除安裝按鈕。**「結束」會停止顯示自動化，已啟用的原生登入服務會保留一個不輪詢的 App 搬移監看；拖進垃圾桶時自動解除登入註冊並結束。垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
+
+可選的 CLI 清理方式（例如需要一併清除資料，或變更安裝位置）：預設保留設定與日誌；加 `--purge` 則一併移到垃圾桶。請在移除 App 前執行：
 
 ```bash
 "/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --bundled-cli uninstall --yes
@@ -137,7 +139,7 @@ cd "$HOME/Applications/PadPilot-source"
 
 Homebrew 自動安裝使用 Python 3.14，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
 
-安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定、配對與登入啟動偏好；首次安裝預設啟用登入啟動：之後重新開機並登入 macOS，背景服務與選單列會自動啟動，不需再次執行安裝腳本。替換前記錄 LaunchAgent 與服務狀態，透過既有 CLI 停止服務與選單。新的 daemon 必須回覆結構化握手才算成功；啟動失敗會嘗試還原舊 App、LaunchAgent 與服務執行狀態，回復失敗會明確報錯。
+安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定與配對。首次啟動會向 macOS 註冊 App 內的登入服務；若系統要求允許，請到「系統設定 → 一般 → 登入項目」啟用 PadPilot。之後會尊重系統的停用選擇，不因重新開 App 自動開回。替換 App 前解除註冊，失敗時嘗試還原 App、偏好及原本的服務狀態。一般「結束」僅停止本次執行，下次登入仍依系統註冊啟動。
 
 安裝器會嘗試建立 `~/bin/padpilot-cli`，並記錄選定的 Python；已被其他程式占用的同名入口會保留，此時使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留所選 Python 環境與原始碼資料夾。** App 引用兩者，搬移後需重新安裝；另一個來源路徑的同名 App／LaunchAgent 不會被接管。這版尚未內含 Python、Developer ID 簽署、公證或自動更新。
 
@@ -202,7 +204,7 @@ python3 scripts/check_release.py --gui
 /bin/bash "$HOME/Applications/PadPilot-source/scripts/uninstall.sh"
 ```
 
-手動取得原始碼者在其原始專案目錄執行 `./scripts/uninstall.sh`。互動流程會逐項詢問設定與配對、日誌、受管理的原始碼、以及安裝器新增的每項第三方依賴，**預設全部保留**。最後顯示完整移除摘要並確認，才停止此專案的服務與選單、移除 App、LaunchAgent 與 CLI 整合。
+手動取得原始碼者在其原始專案目錄執行 `./scripts/uninstall.sh`。互動流程會逐項詢問設定與配對、日誌、受管理的原始碼、以及安裝器新增的每項第三方依賴，**預設全部保留**。最後顯示完整移除摘要並確認，才停止此專案的服務與選單、解除登入服務註冊，並移除 App 與 CLI 整合。
 
 | 選項 | 行為 |
 | --- | --- |

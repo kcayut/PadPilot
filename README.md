@@ -168,6 +168,8 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 更新或解除安裝前，請先儲存並關閉設定視窗。Release 更新可用新版替換同位置的 App，設定與配對會保留；更換安裝位置或由原始碼版遷移，請先用舊版解除安裝並保留設定。
 
+**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可，不需要解除安裝按鈕。** 登入服務封裝於 App，由 macOS 管理；垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
+
 [安裝、更新與解除安裝](docs/INSTALLATION.md) · [完整文件索引](docs/README.md)
 
 無實體螢幕冷開機、睡眠喚醒與不同硬體組合仍需實機驗證。PadPilot 不會讓不相容的機器支援 Sidecar，也不控制 Universal Control。回報問題請附版本、連線方式與重現步驟；分享日誌前先遮蔽序號、UUID、帳號及個人路徑。

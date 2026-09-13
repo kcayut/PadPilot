@@ -4,6 +4,7 @@ import fcntl
 import io
 import json
 import os
+import re
 import runpy
 import subprocess
 import sys
@@ -130,10 +131,19 @@ class SetupPathsTests(unittest.TestCase):
             daemon_type = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
             daemon = daemon_type.__new__(daemon_type)
             daemon.config = Config(betterdisplaycli_path=str(cli))
-            with patch('subprocess.run', return_value=subprocess.CompletedProcess([], 1)), \
-                 patch('subprocess.Popen') as launch, patch('time.sleep'):
+            # A concurrent CLI helper must not prevent the actual app opening.
+            with patch('subprocess.run', side_effect=[subprocess.CompletedProcess([], 1),
+                                                    subprocess.CompletedProcess([], 0)]) as launch, \
+                 patch('time.sleep'):
                 daemon.ensure_betterdisplay_running()
-            launch.assert_called_once_with(['open', '-a', str(app)])
+            pattern = launch.call_args_list[0].args[0][-1]
+            self.assertIsNotNone(re.search(pattern, str(cli)))
+            self.assertIsNone(re.search(pattern, str(cli) + ' get -sidecarList'))
+            launch.assert_called_with(['open', '-g', '-n', '-a', str(app)], capture_output=True,
+                                      text=True, timeout=10, check=True)
+            with patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0)) as launch:
+                daemon.ensure_betterdisplay_running()
+            self.assertEqual(launch.call_count, 1)  # An existing GUI must not be duplicated.
 
     def test_configuration_and_logs_can_be_removed_independently(self):
         for remove_config, remove_logs in ((True, False), (False, True)):
@@ -148,7 +158,7 @@ class SetupPathsTests(unittest.TestCase):
                 with patch('pathlib.Path.home', return_value=home), \
                      patch.object(manage_app, 'APP_SUPPORT_DIR', primary), \
                      patch.object(manage_app, 'FALLBACK_CONFIG_FILE', fallback), \
-                     patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'absent.plist'), \
+                     patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
                      patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app.subprocess, 'run'):
                     manage_app.manage(uninstall=True, remove_config=remove_config, remove_logs=remove_logs)
                 self.assertEqual(primary.exists(), not remove_config)
@@ -171,11 +181,11 @@ class SetupPathsTests(unittest.TestCase):
                     raise subprocess.CalledProcessError(1, command)
                 return subprocess.CompletedProcess(command, 0)
             with patch('pathlib.Path.home', return_value=home), patch.object(manage_app, 'ROOT', source), \
-                 patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'absent.plist'), \
+                 patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
                  patch.object(manage_app, 'build'), patch.object(manage_app, 'load_config', return_value=cfg), \
                  patch.object(manage_app, 'apply_change'), patch.object(manage_app, 'job_loaded', return_value=False), \
                  patch.object(manage_app, 'daemon_pids', return_value=[]), patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), \
-                 patch.object(manage_app, 'stop_daemon'), patch.object(manage_app, 'save_config') as restore, \
+                 patch.object(manage_app, 'save_config') as restore, \
                  patch.object(manage_app.subprocess, 'run', side_effect=run):
                 with self.assertRaisesRegex(RuntimeError, 'Previous app and service state restored'):
                     manage_app.manage(betterdisplay_path='/new/cli')
@@ -189,7 +199,7 @@ class SetupPathsTests(unittest.TestCase):
             (source / 'build/PadPilot.app').mkdir(parents=True)
             (home / 'bin').write_text('unrelated file')
             with patch('pathlib.Path.home', return_value=home), patch.object(manage_app, 'ROOT', source), \
-                 patch.object(manage_app, 'get_launch_agent_plist_path', return_value=home / 'absent.plist'), \
+                 patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
                  patch.object(manage_app, 'build'), patch.object(manage_app, 'load_config', return_value=Config()), \
                  patch.object(manage_app, 'job_loaded', return_value=False), \
                  patch.object(manage_app, 'daemon_pids', return_value=[]), \

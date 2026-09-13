@@ -23,6 +23,8 @@ from core.autostart import (
     daemon_pids,
     disable_autostart,
     enable_autostart,
+    autostart_status,
+    start_registered,
     is_autostart_enabled,
     is_daemon_running,
     open_menu_app,
@@ -386,12 +388,17 @@ def cmd_start(args: argparse.Namespace) -> None:
         print("✓ PadPilot 已在執行，已恢復選單。")
         return
     cfg = load_config()
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.padpilot.daemon.plist"
-    if cfg.autostart_on_login:
+    state = autostart_status()
+    if cfg.autostart_on_login and not cfg.login_service_initialized:
         ok, message = enable_autostart()
         if not ok:
             raise RuntimeError(message)
+        print(message)
+    elif state == 'enabled':
+        start_registered()
     else:
+        # Manual launch works even when macOS has blocked/removed login startup.
+        # Never re-register merely because an old preference remains true.
         start_standalone()
 
     if not getattr(args, 'no_menu', False):
@@ -402,9 +409,8 @@ def cmd_start(args: argparse.Namespace) -> None:
 def cmd_autostart(args: argparse.Namespace) -> None:
     action = getattr(args, "action", "status") or "status"
     if action == "status":
-        enabled = is_autostart_enabled()
-        status_str = "Enabled (will automatically run at login)" if enabled else "Disabled (will not run at login)"
-        print(f"PadPilot Autostart: {status_str}")
+        state = autostart_status()
+        print(f"PadPilot Autostart: {state}")
     elif action == "enable":
         expected = getattr(args, 'expected_revision', None)
         ok, msg = enable_autostart(expected_revision=expected) if expected is not None else enable_autostart()
@@ -440,7 +446,7 @@ def main() -> None:
         print('Python selection saved. Reopen PadPilot. / Python 選擇已儲存，請重新開啟 PadPilot。')
     p_runtime.set_defaults(func=runtime_command)
 
-    p_uninstall = subparsers.add_parser('uninstall', help='Remove this release app and its LaunchAgent; preserve user data by default')
+    p_uninstall = subparsers.add_parser('uninstall', help='Unregister and remove this release app; preserve user data by default')
     p_uninstall.add_argument('--yes', action='store_true', required=True)
     p_uninstall.add_argument('--purge', action='store_true', help='Also move settings and logs to Trash')
     def uninstall_command(args):

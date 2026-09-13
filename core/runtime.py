@@ -91,8 +91,8 @@ def set_python(python=None):
     """Only change interpreter after this user's app and daemon have exited."""
     if bundled_app() is None:
         raise RuntimeError('Python selection applies to a bundled release app')
-    from core.autostart import daemon_pids, validate_plist, get_launch_agent_plist_path
-    validate_plist(get_launch_agent_plist_path())
+    from core.autostart import daemon_pids, service_command
+    service_command()
     if daemon_pids():
         raise RuntimeError('Exit PadPilot before changing Python / 請先離開 PadPilot 再切換 Python')
     lock = preference_path().parent / 'runtime/menu-app.lock'

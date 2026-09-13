@@ -1,3 +1,4 @@
+import ServiceManagement
 import AppKit
 import SwiftUI
 import Foundation
@@ -856,11 +857,18 @@ private struct SettingsPreferencesView: View {
         }
         SettingsConnectionHotKey(model: model)
         SettingsCard(title: model.tr("🚀 登入時自動啟動 PadPilot：")) {
-            Toggle(model.tr("（隨 macOS 登入背景自動執行）"), isOn: Binding(get: { model.config.flag("autostart_on_login") }, set: { enabled in
+            Toggle(model.tr("（隨 macOS 登入背景自動執行）"), isOn: Binding(get: { model.data.text("login_service_status") == "enabled" }, set: { enabled in
                 model.confirm(model.tr("確定{0}登入時自動啟動?", model.tr(enabled ? "啟用" : "停用")), model.tr(enabled ? "登入 macOS 時自動執行 PadPilot。" : "登入 macOS 時不自動執行 PadPilot。")) {
                     model.change("set_autostart", ["enabled": enabled])
                 }
-            })).disabled(model.disabled)
+            })).disabled(model.disabled || model.data.text("login_service_status") == "unknown")
+            if model.data.text("login_service_status") == "requiresApproval" {
+                Text(model.tr("請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行"))
+                    .font(settingsFont(.callout)).foregroundStyle(.secondary)
+                Button(model.tr("開啟系統登入項目")) { SMAppService.openSystemSettingsLoginItems() }
+                Button(model.tr("停用登入啟動")) { model.change("set_autostart", ["enabled": false]) }
+                    .disabled(model.disabled)
+            }
         }
         SettingsCard(title: "") {
             DisclosureGroup(model.tr("進階選項"), isExpanded: $advanced) {

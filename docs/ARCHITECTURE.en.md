@@ -22,7 +22,7 @@ Swift / AppKit + SwiftUI PadPilot.app
                                                        └─ StateEngine → BetterDisplay CLI
 ```
 
-The menu checks snapshot file changes every second and calls `menu-json` only after a change or five seconds since its previous read. Reading the menu does not scan hardware. CLI subprocesses run off the AppKit main thread. An open menu is not rebuilt; updated content appears after it closes. Actions use argument arrays and an allowlist, never device names interpolated into shell commands. The LaunchAgent starts Python after login, then opens the native app. A lock prevents duplicate menu instances. Stopping the service keeps the menu; Exit closes both.
+The menu checks snapshot file changes every second and calls `menu-json` only after a change or five seconds since its previous read. Reading the menu does not scan hardware. CLI subprocesses run off the AppKit main thread. An open menu is not rebuilt; updated content appears after it closes. Actions use argument arrays and an allowlist, never device names interpolated into shell commands. Login startup uses `SMAppService.agent` with an app-bundled LaunchAgent and a relative native executable path, which then runs the selected Python. No external startup plist is installed. Python runs as a child process: normal Exit does not restart it, while launchd restarts the service after a crash. The native service keeps watching app move events and unregisters itself when the app enters Trash.  A lock prevents duplicate menu instances. Stopping display automation keeps the menu; Exit also closes the menu. An enabled login service retains the removal watch.
 
 ## Core mechanisms
 

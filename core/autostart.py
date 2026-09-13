@@ -1,4 +1,4 @@
-"""LaunchAgent autostart manager for PadPilot daemon."""
+"""App-bundled SMAppService registration and current-session daemon control."""
 
 from __future__ import annotations
 
@@ -19,40 +19,86 @@ from typing import Optional, Tuple
 
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.logger import get_logger
-from core.storage import atomic_write, private_directory, private_file
 from core.runtime import bundled_app
+from core.storage import atomic_write, read_private_json
 
 logger = get_logger("Autostart")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PLIST_FILENAME = "com.padpilot.daemon.plist"
-USER_LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 
 
 def get_launch_agent_plist_path() -> Path:
-    return USER_LAUNCH_AGENTS_DIR / PLIST_FILENAME
+    app = find_menu_app()
+    if app is None:
+        raise RuntimeError("Build/install PadPilot.app before managing login startup")
+    return app / "Contents/Library/LaunchAgents" / PLIST_FILENAME
 
 
-def generate_plist_content(
-    python_bin: Optional[str] = None,
-    project_root: Optional[Path] = None,
-    log_dir: Optional[Path] = None,
-) -> str:
-    py = python_bin or sys.executable
-    root = project_root or PROJECT_ROOT
-    logs = log_dir or (Path.home() / "Library" / "Logs" / "PadPilot")
-    daemon_bin = root / "bin" / "padpilotd"
-    stdout_log = logs / "launchd.stdout.log"
-    stderr_log = logs / "launchd.stderr.log"
-
+def generate_plist_content() -> str:
     return plistlib.dumps({
         "Label": "com.padpilot.daemon",
-        "ProgramArguments": [py] + (['-I', '-B'] if bundled_app(root) else []) + [str(daemon_bin)],
-        "RunAtLoad": True, "KeepAlive": True, "Umask": 0o077,
+        "BundleProgram": "Contents/MacOS/PadPilot",
+        "ProgramArguments": ["PadPilot", "--daemon"],
+        "RunAtLoad": True,
+        # Normal Exit stops this session; crashes restart, next login still launches.
+        "KeepAlive": {"SuccessfulExit": False}, "Umask": 0o077,
         "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
-        "StandardOutPath": str(stdout_log), "StandardErrorPath": str(stderr_log),
     }).decode("utf-8")
+
+
+def service_owner():
+    path = APP_SUPPORT_DIR / "login-service.json"
+    try:
+        value = read_private_json(path)
+    except FileNotFoundError:
+        return None
+    if (not isinstance(value, dict) or set(value) != {"app"} or not isinstance(value['app'], str)
+            or not Path(value['app']).is_absolute()):
+        raise RuntimeError("Invalid login service ownership record")
+    return Path(value['app'])
+
+
+def service_command(action="status", app=None) -> str:
+    app = app or find_menu_app()
+    if app is None:
+        raise RuntimeError("Build/install PadPilot.app before managing login startup")
+    plist = app / "Contents/Library/LaunchAgents" / PLIST_FILENAME
+    if not plist.is_file():
+        raise RuntimeError("App has no bundled login service; rebuild/install the new version")
+    validate_plist(plist)
+
+    def invoke(command):
+        result = subprocess.run([str(app / "Contents/MacOS/PadPilot"), "--service", command],
+                                capture_output=True, text=True, timeout=30)
+        if result.returncode:
+            raise RuntimeError(result.stderr.strip() or "Cannot manage PadPilot login service")
+        state = result.stdout.strip()
+        if state not in {"enabled", "notRegistered", "requiresApproval", "notFound"}:
+            raise RuntimeError("Unknown PadPilot login service status")
+        return state
+
+    state = invoke("status")
+    # SMAppService status is shared by copies with the same bundle ID; it does not
+    # identify which copy owns the registration. Keep one private ownership receipt.
+    if state in {"enabled", "requiresApproval"} and service_owner() != app.resolve():
+        raise RuntimeError("Login service belongs to another installation; remove that installation first")
+    if action == "status":
+        return state
+    if action == "register":
+        atomic_write(APP_SUPPORT_DIR / "login-service.json", json.dumps({"app": str(app.resolve())}).encode())
+    result = invoke(action)
+    if action == "unregister" and result not in {"notRegistered", "notFound"}:
+        raise RuntimeError("Login service removal was not confirmed; app was preserved")
+    return result
+
+
+def autostart_status() -> str:
+    try:
+        return service_command()
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        return "unknown"
 
 
 def daemon_pids() -> list[int]:
@@ -107,44 +153,31 @@ def wait_for_daemon(timeout: float = 30) -> None:
 
 
 def validate_plist(path: Path) -> None:
-    if not (path.exists() or path.is_symlink()):
-        return
-    private_file(path, harden=False)
-    value = plistlib.loads(path.read_bytes())
-    args = value.get("ProgramArguments")
-    if (value.get("Label") != "com.padpilot.daemon" or not isinstance(args, list) or len(args) not in (2, 4)
-            or (len(args) == 4 and args[1:3] != ['-I', '-B'])
-            or args[-1] != str(PROJECT_ROOT / "bin/padpilotd")
-            or not isinstance(args[0], str)
-            or not re.fullmatch(r"(?:python(?:[0-9.]+)?|pypy[0-9]*)", Path(args[0]).name.lower())):
-        raise RuntimeError(f"LaunchAgent belongs to another program or checkout: {path}")
+    if path.is_symlink() or plistlib.loads(path.read_bytes()) != plistlib.loads(generate_plist_content().encode()):
+        raise RuntimeError(f"Not a PadPilot bundled LaunchAgent: {path}")
 
 
-def job_loaded(path: Path) -> bool:
+def job_loaded(path: Optional[Path] = None) -> bool:
     result = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.padpilot.daemon"],
                             capture_output=True, text=True, timeout=5)
     if result.returncode == 113:
         return False
     if result.returncode != 0:
         raise RuntimeError("Cannot inspect launchd job; refusing to stop an unverified service")
+    path = path or get_launch_agent_plist_path()
     validate_plist(path)
-    value = plistlib.loads(path.read_bytes()) if path.exists() else {}
-    source = re.search(r"(?m)^\s*path = (.+)$", result.stdout)
-    arguments = re.search(r"(?ms)^\s*arguments = \{\n(.*?)^\s*\}", result.stdout)
-    loaded_args = [line.strip().strip('"') for line in arguments[1].splitlines() if line.strip()] if arguments else []
-    if (not source or source[1].strip().strip('"') != str(path)
-            or loaded_args != value.get("ProgramArguments")):
-        raise RuntimeError("Loaded LaunchAgent is not this checkout; refusing to modify it")
+    app = path.parents[3].resolve()
+    managed = re.search(r"(?m)^\s*managed_by = com\.apple\.xpc\.ServiceManagement$", result.stdout)
+    parent = re.search(r"(?m)^\s*parent bundle identifier = com\.padpilot\.app$", result.stdout)
+    program = re.search(r"(?m)^\s*program identifier = Contents/MacOS/PadPilot \(mode: 2\)$", result.stdout)
+    if not (managed and parent and program) or service_owner() != app:
+        raise RuntimeError("Loaded LaunchAgent belongs to another installation; remove that installation first")
     return True
 
 
-def stop_daemon(plist_path: Optional[Path] = None) -> None:
-    path = plist_path or get_launch_agent_plist_path()
-    validate_plist(path)
-    if job_loaded(path):
-        subprocess.run(["launchctl", "unload", str(path)], capture_output=True, check=True, timeout=10)
-        if job_loaded(path):
-            raise RuntimeError("LaunchAgent remains loaded; runtime state was preserved")
+def stop_daemon() -> None:
+    # Check ownership, but keep the registration for the next login.
+    job_loaded()
     for pid in daemon_pids():
         try:
             os.kill(pid, signal.SIGTERM)
@@ -155,6 +188,14 @@ def stop_daemon(plist_path: Optional[Path] = None) -> None:
         if time.monotonic() >= deadline:
             raise RuntimeError("Daemon has not stopped; runtime state was preserved")
         time.sleep(0.1)
+
+
+def start_registered() -> None:
+    if not job_loaded():
+        raise RuntimeError("Login service is not loaded; check System Settings > General > Login Items")
+    if service_command("register") != "enabled":
+        raise RuntimeError("Allow PadPilot in System Settings > General > Login Items")
+    wait_for_daemon()
 
 
 def start_standalone() -> None:
@@ -173,126 +214,85 @@ def start_standalone() -> None:
     threading.Thread(target=process.wait, daemon=True).start()
 
 
-def is_autostart_enabled(plist_path: Optional[Path] = None) -> bool:
-    """Check whether LaunchAgent autostart on login is enabled."""
-    target_plist = plist_path or get_launch_agent_plist_path()
-    return target_plist.is_file()
+def is_autostart_enabled() -> bool:
+    return autostart_status() == "enabled"
 
 
-def enable_autostart(
-    plist_path: Optional[Path] = None,
-    python_bin: Optional[str] = None,
-    project_root: Optional[Path] = None,
-    log_dir: Optional[Path] = None,
-    expected_revision: Optional[int] = None,
-) -> Tuple[bool, str]:
-    """One installation path for CLI, GUI and installer; roll back on failed startup."""
-    target = plist_path or get_launch_agent_plist_path()
-    previous = None
+def set_autostart(enabled: bool, expected_revision: Optional[int] = None) -> Tuple[bool, str]:
     before = None
-    was_loaded = False
+    saved = stopped = changed = False
+    previous = "notRegistered"
     was_running = False
-    stopped = False
-    changed = False
     try:
-        if project_root is not None and project_root.resolve() != PROJECT_ROOT:
-            raise RuntimeError("Cannot install a LaunchAgent for another checkout")
-        validate_plist(target)
-        was_loaded = job_loaded(target)
+        cfg = load_config()
+        if expected_revision is not None and cfg.revision != expected_revision:
+            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
+        previous = service_command()
         was_running = is_daemon_running()
-        previous = target.read_bytes() if target.exists() else None
-        before = copy.deepcopy(load_config())
-        if expected_revision is not None and before.revision != expected_revision:
-            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
-        logs = log_dir or Path.home() / "Library/Logs/PadPilot"
-        private_directory(logs)
-        for name in ("launchd.stdout.log", "launchd.stderr.log"):
-            private_file(logs / name, create=True)
+        stop_daemon()
         stopped = True
-        stop_daemon(target)
-        # Re-read after stopping: a queued daemon edit must not be overwritten.
-        current = load_config()
-        if expected_revision is not None and current.revision != expected_revision:
+        cfg = load_config()
+        if expected_revision is not None and cfg.revision != expected_revision:
             raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
-        before = copy.deepcopy(current)
-        atomic_write(target, generate_plist_content(python_bin, project_root, log_dir).encode(),
-                     private_parent=False)
-        changed = True
-        cfg = copy.deepcopy(before)
-        if not cfg.autostart_on_login:
-            cfg.autostart_on_login = True
+        before = copy.deepcopy(cfg)
+        if cfg.autostart_on_login != enabled or not cfg.login_service_initialized:
+            cfg.autostart_on_login = enabled
+            cfg.login_service_initialized = True
             cfg.revision += 1
             cfg.updated_at = time.time()
             save_config(cfg)
-        subprocess.run(["launchctl", "load", str(target)], capture_output=True, check=True, timeout=10)
-        wait_for_daemon()
-        return True, "✓ PadPilot login startup enabled; daemon handshake verified."
+            saved = True
+        changed = True
+        state = service_command("register" if enabled else "unregister")
+        if enabled and state not in {"enabled", "requiresApproval"}:
+            raise RuntimeError("Login service registration was not confirmed")
+        if not enabled and state not in {"notRegistered", "notFound"}:
+            raise RuntimeError("Login service removal was not confirmed")
+        if enabled and state == "enabled":
+            wait_for_daemon()
+        elif was_running or enabled:
+            start_standalone()
+        if state == "requiresApproval":
+            return True, "PadPilot: 請到系統設定 → 一般 → 登入項目允許背景執行。 / Allow PadPilot in System Settings > General > Login Items. / システム設定 → 一般 → ログイン項目で PadPilot を許可してください。"
+        return True, "✓ PadPilot login startup " + ("enabled." if enabled else "disabled; current session preserved.")
     except Exception as error:
         rollback = ""
         if stopped:
             try:
                 if changed:
-                    stop_daemon(target)
-                    if previous is None:
-                        target.unlink(missing_ok=True)
-                    else:
-                        atomic_write(target, previous, private_parent=False)
-                    if before is not None:
-                        save_config(before)
-                if was_loaded:
-                    if not job_loaded(target):
-                        subprocess.run(["launchctl", "load", str(target)], capture_output=True, check=True, timeout=10)
-                    wait_for_daemon()
-                elif was_running and not is_daemon_running():
-                    start_standalone()
-                rollback = " Previous login configuration restored."
+                    # Unregister before reverting config, so no daemon writes race the restore.
+                    service_command("unregister")
+                if saved:
+                    save_config(before)
+                if changed and previous == "enabled":
+                    service_command("register")
+                if was_running:
+                    if previous == "enabled":
+                        start_registered()
+                    elif not is_daemon_running():
+                        start_standalone()
+                elif changed and previous == "enabled":
+                    stop_daemon()
+                rollback = " Previous preferences restored."
             except Exception as restore_error:
                 rollback = f" Rollback incomplete: {restore_error}"
-        message = f"Failed to enable autostart: {error}.{rollback}"
+        message = f"Failed to change login startup: {error}.{rollback}"
         logger.error(message)
         return False, message
 
 
-def disable_autostart(plist_path: Optional[Path] = None, expected_revision: Optional[int] = None) -> Tuple[bool, str]:
-    target = plist_path or get_launch_agent_plist_path()
-    try:
-        validate_plist(target)
-        cfg = load_config()
-        if expected_revision is not None and cfg.revision != expected_revision:
-            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
-        was_running = is_daemon_running()
-        was_loaded = job_loaded(target)
-        stop_daemon(target)
-        cfg = load_config()
-        if expected_revision is not None and cfg.revision != expected_revision:
-            if was_loaded:
-                subprocess.run(['launchctl', 'load', str(target)], capture_output=True, check=True, timeout=10)
-                wait_for_daemon()
-            elif was_running:
-                start_standalone()
-            raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
-        target.unlink(missing_ok=True)
-        if cfg.autostart_on_login:
-            cfg.autostart_on_login = False
-            cfg.revision += 1
-            cfg.updated_at = time.time()
-            save_config(cfg)
-        if was_running:
-            start_standalone()
-        return True, "✓ PadPilot login startup disabled; current session preserved."
-    except Exception as error:
-        message = f"Failed to disable autostart: {error}"
-        logger.error(message)
-        return False, message
+def enable_autostart(expected_revision: Optional[int] = None) -> Tuple[bool, str]:
+    return set_autostart(True, expected_revision)
 
 
-def toggle_autostart(plist_path: Optional[Path] = None) -> Tuple[bool, str]:
-    """Toggle autostart between enabled and disabled."""
-    if is_autostart_enabled(plist_path):
-        return disable_autostart(plist_path)
-    else:
-        return enable_autostart(plist_path)
+def disable_autostart(expected_revision: Optional[int] = None) -> Tuple[bool, str]:
+    return set_autostart(False, expected_revision)
 
+
+def toggle_autostart() -> Tuple[bool, str]:
+    state = service_command()
+    # A pending/blocked registration can be explicitly disabled too.
+    return set_autostart(state not in {"enabled", "requiresApproval"})
 
 
 def find_menu_app(*, settings=False) -> Optional[Path]:

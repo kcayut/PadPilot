@@ -75,6 +75,7 @@ class Config:
     ipad: IpadConfig = field(default_factory=IpadConfig)
     paired_ipads: List[IpadConfig] = field(default_factory=list)
     autostart_on_login: bool = True
+    login_service_initialized: bool = False
     usb_event_wakeup: bool = True
     auto_detect_ipad: bool = True
     connection_hotkey: str = ''
@@ -96,6 +97,7 @@ class Config:
             "ipad": self.ipad.to_dict(),
             "paired_ipads": [ipad.to_dict() for ipad in self.paired_ipads],
             "autostart_on_login": self.autostart_on_login,
+            "login_service_initialized": self.login_service_initialized,
             "usb_event_wakeup": self.usb_event_wakeup,
             "auto_detect_ipad": self.auto_detect_ipad,
             "connection_hotkey": self.connection_hotkey,
@@ -136,7 +138,7 @@ class Config:
                 for key in ('name', 'sidecar_uuid', 'usb_serial')
             ):
                 raise ValueError('Invalid iPad configuration')
-        for key in ('autostart_on_login', 'usb_event_wakeup', 'auto_detect_ipad', 'connect_on_boot'):
+        for key in ('autostart_on_login', 'login_service_initialized', 'usb_event_wakeup', 'auto_detect_ipad', 'connect_on_boot'):
             if key in data and type(data[key]) is not bool:
                 raise ValueError(f'{key} must be a boolean')
         for key in ('debounce_seconds', 'retry_interval', 'cooldown_seconds', 'updated_at', 'max_retries', 'revision'):
@@ -174,6 +176,7 @@ class Config:
             ipad=ipad,
             paired_ipads=paired,
             autostart_on_login=bool(data.get("autostart_on_login", True)),
+            login_service_initialized=data.get("login_service_initialized", False),
             usb_event_wakeup=data.get("usb_event_wakeup", True) is True,
             auto_detect_ipad=data.get("auto_detect_ipad", True) is True,
             connection_hotkey=validate_connection_hotkey(data.get('connection_hotkey', '')),

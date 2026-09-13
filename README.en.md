@@ -168,6 +168,8 @@ Keep a backup of the prior source, save and close settings, then update the sour
 
 Save and close settings before updating or uninstalling. For release updates, replace the app at the same location; settings and pairings remain. Before moving the app or migrating from a source installation, uninstall the old copy while keeping settings.
 
+**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash. No uninstall button is needed.** The login service lives inside the app and is managed by macOS; the trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
+
 [Install, update, and uninstall](docs/INSTALLATION.en.md) · [Full documentation index](docs/README.en.md)
 
 Headless cold boot, sleep/wake, and different hardware combinations still need real-device validation. PadPilot does not add Sidecar compatibility or control Universal Control. Report your version, connection type, and reproduction steps; redact serials, UUIDs, accounts, and personal paths before sharing logs.

@@ -136,8 +136,7 @@ PadPilot 內建**保護性退避機制**：
    ```bash
    ./bin/padpilot-cli autostart enable
    ```
-3. 確認 plist 檔案已正確產生於：
-   `~/Library/LaunchAgents/com.padpilot.daemon.plist`
+3. 本版的 plist 位於 `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist`，不會建立 `~/Library/LaunchAgents` 下的檔案。若狀態為 `requiresApproval`，請到「系統設定 → 一般 → 登入項目」允許 PadPilot 背景執行。測試用舊版外部 LaunchAgent 必須自行停止並清除；本版不做遷移。
 
 ---
 
@@ -162,7 +161,7 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 - `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，再執行 `./scripts/install.sh --check`。不要把 help 成功當成授權或實機驗收通過。
 - 設定視窗無法開啟：更新原始碼後請重新執行 `./scripts/install.sh`，建置與目前版本相符的 App。
 - `Refusing unsafe state directory/file`：先停止操作，檢查訊息指定路徑的所有者、符號連結與硬連結。不要對 `/tmp` 或他人目錄遞迴改權限、刪除或強制接管。確認是自己的舊資料後先備份，再由擁有者整理；應用程式會拒絕不可信路徑。
-- `LaunchAgent belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
+- `Login service belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
 - `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/PadPilot/launchd.stderr.log` 與 `padpilot.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。
 
 新的 IPC 日誌只保留命令名稱；舊日誌、診斷狀態與實際錯誤仍可能包含裝置資訊。分享前遮蔽序號、UUID、帳號及個人路徑。

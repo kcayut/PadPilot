@@ -83,12 +83,9 @@ def check_versions():
     assert f'## [{__version__}]' in (ROOT / 'CHANGELOG.md').read_text(), 'CHANGELOG version mismatch'
     from core.autostart import generate_plist_content
     expected = plistlib.loads(generate_plist_content().encode())
-    source = (ROOT / 'launchd/com.padpilot.daemon.plist.in').read_text()
-    from xml.sax.saxutils import escape
-    for key, value in {'__PYTHON_BIN__': sys.executable, '__PROJECT_ROOT__': str(ROOT),
-                       '__LOG_DIR__': str(Path.home() / 'Library/Logs/PadPilot')}.items():
-        source = source.replace(key, escape(value))
-    assert plistlib.loads(source.encode()) == expected, 'LaunchAgent template and shared generator differ'
+    assert expected['BundleProgram'] == 'Contents/MacOS/PadPilot'
+    assert expected['KeepAlive'] == {'SuccessfulExit': False}
+    assert 'Program' not in expected and 'StandardErrorPath' not in expected
     installed_build = ROOT / 'build/PadPilot.app/Contents/Info.plist'
     if installed_build.exists():
         info = plistlib.loads(installed_build.read_bytes())
@@ -120,13 +117,15 @@ def main():
               'minimum_python_runtime': 'not_run' if sys.version_info[:2] != (3, 10) else 'current_runtime',
               'github': 'not_checked', 'stable_ready': False,
               'gate': 'software_only' if args.software_only else 'release'}
+    from core.autostart import generate_plist_content
+    (output / 'login-agent.plist').write_text(generate_plist_content())
     commands = [('unit_tests', [sys.executable, '-W', 'always::ResourceWarning', '-m', 'unittest', 'discover', '-s', 'tests']),
                 ('bootstrap_shell_syntax', ['bash', '-n', 'scripts/bootstrap.sh']),
                 ('install_shell_syntax', ['bash', '-n', 'scripts/install.sh']),
                 ('release_install_shell_syntax', ['bash', '-n', 'scripts/install_release.sh']),
                 ('uninstall_shell_syntax', ['bash', '-n', 'scripts/uninstall.sh']),
                 ('diff', ['git', 'diff', '--check']),
-                ('plist_lint', ['plutil', '-lint', 'launchd/com.padpilot.daemon.plist.in'])]
+                ('plist_lint', ['plutil', '-lint', str(output / 'login-agent.plist')])]
     if args.gui:
         commands += [('gui_layout', [sys.executable, 'scripts/check_gui_layout.py']),
                      ('gui_languages', [sys.executable, 'scripts/check_gui_languages.py'])]

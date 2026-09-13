@@ -5,7 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from core.autostart import get_launch_agent_plist_path, is_daemon_running
+from core.autostart import autostart_status, is_daemon_running
 from core.betterdisplay import BetterDisplayCLI
 
 
@@ -61,18 +61,13 @@ def automatic_login_status(output):
 
 
 def collect_system_checks(cfg, actual):
-    plist = get_launch_agent_plist_path()
-    agent = read_plist(plist)
-    if not plist.exists():
-        startup = '未設定'
-    elif agent is None:
-        startup = '未知（無法讀取啟動設定）'
-    else:
-        enabled = bool(agent.get('RunAtLoad') or agent.get('KeepAlive')) and not agent.get('Disabled', False)
-        startup = '已設定（登入後啟用）' if enabled else '未啟用'
-        args = agent.get('ProgramArguments') or []
-        if not args or not all(Path(p).exists() for p in args[:2]):
-            startup = '設定異常（執行檔或程式路徑不存在）'
+    startup = {
+        'enabled': '已設定（登入後啟用）',
+        'notRegistered': '未啟用',
+        'requiresApproval': '請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行',
+        'notFound': '設定異常（找不到 App 內的登入服務）',
+        'unknown': '未知（無法查詢登入服務）',
+    }[autostart_status()]
     applications = [Path('/Applications/BetterDisplay.app'), Path.home() / 'Applications/BetterDisplay.app']
     installed = any(p.is_dir() for p in applications)
     # autoLoginUser can remain in the plist after automatic login is disabled.

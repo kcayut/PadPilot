@@ -96,40 +96,7 @@ class ReleaseSafetyTests(unittest.TestCase):
         child.wait.assert_called_once_with(timeout=5)
         reaper.assert_not_called()
 
-    def test_preflight_failure_preserves_service_and_write_failure_restores_it(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'job.plist'
-            path.write_text(autostart.generate_plist_content())
-            for fail_before_stop in (True, False):
-                with patch.object(autostart, 'job_loaded', side_effect=[True, False]), \
-                     patch.object(autostart, 'is_daemon_running', return_value=True), \
-                     patch.object(autostart, 'stop_daemon') as stop, \
-                     patch.object(autostart, 'load_config', side_effect=config.Config), \
-                     patch.object(autostart, 'private_directory', side_effect=UnsafePathError('unsafe logs') if fail_before_stop else None), \
-                     patch.object(autostart, 'private_file'), \
-                     patch.object(autostart, 'atomic_write', side_effect=OSError('disk full')), \
-                     patch.object(autostart, 'wait_for_daemon') as wait, \
-                     patch.object(autostart.subprocess, 'run') as run:
-                    ok, _ = autostart.enable_autostart(plist_path=path)
-                self.assertFalse(ok)
-                self.assertEqual(stop.call_count, 0 if fail_before_stop else 1)
-                self.assertEqual(wait.call_count, 0 if fail_before_stop else 1)
-                self.assertEqual(run.call_count, 0 if fail_before_stop else 1)
 
-    def test_rollback_never_adds_standalone_to_an_existing_launchd_job(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'job.plist'
-            path.write_text(autostart.generate_plist_content())
-            with patch.object(autostart, 'job_loaded', return_value=True), \
-                 patch.object(autostart, 'is_daemon_running', side_effect=[True, False]), \
-                 patch.object(autostart, 'load_config', side_effect=config.Config), \
-                 patch.object(autostart, 'stop_daemon', side_effect=RuntimeError('still loaded')), \
-                 patch.object(autostart, 'start_standalone') as start, \
-                 patch.object(autostart, 'wait_for_daemon') as wait:
-                ok, _ = autostart.enable_autostart(plist_path=path, log_dir=Path(directory) / 'logs')
-            self.assertFalse(ok)
-            start.assert_not_called()
-            wait.assert_called_once_with()
 
     def test_config_fallback_is_private_and_foreign_fallback_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -199,47 +166,28 @@ class ReleaseSafetyTests(unittest.TestCase):
                 subprocess.CompletedProcess([], 0, value, '') for value in output]):
             self.assertEqual(autostart.daemon_pids(), [12])
 
-    def test_foreign_plist_is_not_modified_or_unloaded(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'job.plist'
-            content = plistlib.dumps({'Label': 'another.app', 'ProgramArguments': ['/usr/bin/python3', str(ROOT / 'bin/padpilotd')]})
-            path.write_bytes(content)
-            path.chmod(0o644)
-            with patch('core.autostart.subprocess.run') as run, self.assertRaises(RuntimeError):
-                autostart.stop_daemon(path)
-            run.assert_not_called()
-            self.assertEqual(path.read_bytes(), content)
-            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o644)
+    def test_foreign_job_is_not_stopped(self):
+        with patch.object(autostart, 'job_loaded', side_effect=RuntimeError('foreign service')), \
+             patch.object(autostart, 'daemon_pids') as pids, patch.object(autostart.os, 'kill') as kill:
+            with self.assertRaises(RuntimeError):
+                autostart.stop_daemon()
+            pids.assert_not_called()
+            kill.assert_not_called()
 
-    def test_loaded_job_must_match_disk_plist_arguments_and_source(self):
+    def test_loaded_job_must_match_bundled_plist_and_executable(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'job.plist'
+            path = Path(directory) / 'PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+            path.parent.mkdir(parents=True)
             path.write_text(autostart.generate_plist_content())
-            output = f'path = {path}\narguments = {{\n{sys.executable}\n{ROOT}/bin/padpilotd\n}}\n'
-            with patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0, output, '')):
+            executable = path.parents[2] / 'MacOS/PadPilot'
+            output = 'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.padpilot.app\nprogram identifier = Contents/MacOS/PadPilot (mode: 2)\n'
+            with patch.object(autostart, 'service_owner', return_value=path.parents[3].resolve()), patch.object(autostart.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')):
                 self.assertTrue(autostart.job_loaded(path))
-            with patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0, output.replace(str(ROOT), '/other'), '')), self.assertRaises(RuntimeError):
-                autostart.job_loaded(path)
+            for foreign in (output.replace('com.padpilot.app', 'another.app'), output.replace('Contents/MacOS/PadPilot', '/other/PadPilot')):
+                with patch.object(autostart.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, foreign, '')):
+                    with self.assertRaises(RuntimeError):
+                        autostart.job_loaded(path)
 
-    def test_failed_handshake_restores_previous_login_configuration(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'job.plist'
-            previous = autostart.generate_plist_content().encode()
-            path.write_bytes(previous)
-            cfg = config.Config(autostart_on_login=False, revision=7)
-            with patch.object(autostart, 'job_loaded', return_value=False), \
-                 patch.object(autostart, 'is_daemon_running', return_value=False), \
-                 patch.object(autostart, 'stop_daemon') as stop, \
-                 patch.object(autostart, 'load_config', return_value=cfg), \
-                 patch.object(autostart, 'save_config') as save, \
-                 patch.object(autostart, 'wait_for_daemon', side_effect=RuntimeError('not ready')), \
-                 patch('core.autostart.subprocess.run', return_value=subprocess.CompletedProcess([], 0)):
-                ok, message = autostart.enable_autostart(plist_path=path, log_dir=Path(directory) / 'logs')
-            self.assertFalse(ok)
-            self.assertIn('restored', message)
-            self.assertEqual(path.read_bytes(), previous)
-            self.assertEqual(save.call_args.args[0].to_dict(), cfg.to_dict())
-            self.assertEqual(stop.call_count, 2)
 
     def test_handshake_rejects_legacy_or_foreign_response(self):
         payload = {'ok': True, 'project_root': str(ROOT), 'pid': 123}

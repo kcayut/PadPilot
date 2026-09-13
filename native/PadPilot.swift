@@ -1,6 +1,113 @@
 import AppKit
 import Foundation
 import Darwin
+import ServiceManagement
+
+enum LoginService {
+    static let plistName = "com.padpilot.daemon.plist"
+    static var service: SMAppService { .agent(plistName: plistName) }
+
+    static var isInTrash: Bool {
+        let parts = Bundle.main.bundleURL.resolvingSymlinksInPath().pathComponents
+        return parts.contains(".Trash") || parts.contains(".Trashes")
+    }
+
+    static func checkLocation() throws {
+        let url = Bundle.main.bundleURL.resolvingSymlinksInPath()
+        guard FileManager.default.fileExists(atPath: url.path),
+              !url.path.hasPrefix("/Volumes/"), !url.path.contains("/AppTranslocation/"),
+              !isInTrash else {
+            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Open PadPilot from Applications, outside the disk image or Trash. / 請從應用程式開啟 PadPilot，不要從磁碟映像或垃圾桶執行。"])
+        }
+    }
+
+    static func command(_ action: String) throws {
+        let item = service
+        switch action {
+        case "status": break
+        case "register":
+            try checkLocation()
+            // Refresh the executable's registration after an app replacement too.
+            if item.status == .enabled { try item.unregister() }
+            if item.status == .notRegistered || item.status == .notFound { try item.register() }
+        case "unregister":
+            if item.status != .notRegistered && item.status != .notFound { try item.unregister() }
+        case "settings": SMAppService.openSystemSettingsLoginItems()
+        default: throw NSError(domain: "PadPilot", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unknown login service command"])
+        }
+        let status: String
+        switch item.status {
+        case .enabled: status = "enabled"
+        case .notRegistered: status = "notRegistered"
+        case .requiresApproval: status = "requiresApproval"
+        case .notFound: status = "notFound"
+        @unknown default: status = "unknown"
+        }
+        print(status)
+    }
+
+    static func runDaemon() throws {
+        if isInTrash {
+            // macOS may retain a removed app's job until its next launch. Remove
+            // that registration before loading Python or touching user settings.
+            if service.status == .enabled || service.status == .requiresApproval {
+                try service.unregister()
+            }
+            return
+        }
+        try checkLocation()
+        let runtime = try Runtime.load()
+        let item = service
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: runtime.python)
+        child.arguments = (runtime.bundled == true ? ["-I", "-B"] : ["-B"])
+            + [runtime.project_root + "/bin/padpilotd"]
+        child.terminationHandler = { process in
+            // Normal Exit stops display automation but keeps the removal watch.
+            // A crash restarts the service through launchd's existing KeepAlive.
+            if process.terminationReason != .exit || process.terminationStatus != 0 { exit(1) }
+        }
+
+        let fd = Darwin.open(Bundle.main.bundleURL.path, O_EVTONLY | O_CLOEXEC)
+        guard fd >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        let watcher = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd,
+            eventMask: [.rename, .delete, .revoke], queue: .main)
+        watcher.setCancelHandler { Darwin.close(fd) }
+        watcher.setEventHandler {
+            var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            let missing = fcntl(fd, F_GETPATH, &path) == -1
+            let parts = URL(fileURLWithPath: String(cString: path)).pathComponents
+            guard missing || watcher.data.contains(.delete) || watcher.data.contains(.revoke)
+                || parts.contains(".Trash") || parts.contains(".Trashes") else { return }
+            if child.isRunning { child.terminate() }
+            // unregister terminates this service; keep the main queue available
+            // for SIGTERM so synchronous Service Management cannot deadlock it.
+            DispatchQueue.global().async {
+                do {
+                    if item.status == .enabled || item.status == .requiresApproval { try item.unregister() }
+                    kill(getpid(), SIGTERM)
+                } catch {
+                    FileHandle.standardError.write(Data(("PadPilot unregister: \(error)\n").utf8))
+                }
+            }
+        }
+        var signals: [DispatchSourceSignal] = []
+        for number in [SIGTERM, SIGINT] {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+            source.setEventHandler {
+                if child.isRunning { child.terminate(); child.waitUntilExit() }
+                exit(0)
+            }
+            source.resume()
+            signals.append(source)
+        }
+        watcher.resume()
+        try child.run()
+        withExtendedLifetime((watcher, signals, child)) { dispatchMain() }
+    }
+}
 
 struct Runtime: Decodable {
     let python: String
@@ -185,11 +292,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.setAccessibilityLabel("PadPilot")
         setIcon("working")
         do {
+            try LoginService.checkLocation()
             runtime = try Runtime.load()
-            if runtime.bundled == true && (Bundle.main.bundleURL.path.hasPrefix("/Volumes/") || Bundle.main.bundleURL.path.contains("/AppTranslocation/")) {
-                throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                    "Drag PadPilot to Applications, then open that copy. / 請先將 PadPilot 拖入「應用程式」，再開啟安裝的版本。 / PadPilot をアプリケーションに移動してから開いてください。"])
-            }
             guard FileManager.default.isExecutableFile(atPath: runtime.python),
                   FileManager.default.fileExists(atPath: runtime.project_root + "/bin/padpilot-cli") else {
                 throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
@@ -498,6 +602,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 struct PadPilot {
     static func main() {
         let arguments = Array(CommandLine.arguments.dropFirst())
+        if arguments.first == "--service" || arguments.first == "--daemon" {
+            do {
+                if arguments == ["--daemon"] { try LoginService.runDaemon() }
+                else if arguments.count == 2 { try LoginService.command(arguments[1]) }
+                else { exit(2) }
+                return
+            } catch {
+                FileHandle.standardError.write(Data(("PadPilot: \(error.localizedDescription)\n").utf8))
+                // Missing runtime / removed app is a permanent failure, not a crash loop.
+                exit(arguments.first == "--daemon" ? 0 : 1)
+            }
+        }
         if arguments.first == "--locate-betterdisplay" {
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "pro.betterdisplay.BetterDisplay") {
                 print(url.path); exit(0)

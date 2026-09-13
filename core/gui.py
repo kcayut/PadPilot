@@ -266,6 +266,8 @@ def build_gui_payload(scan=False, diagnostics=False, admin_checks=False, logs=Fa
                   'reason': tr_message(reason), 'transition': runtime.get('transition_state') or 'IDLE',
                   'last_error': tr_message(runtime.get('last_error') or '無'),
                   'cooldown': isinstance(cooldown, (int, float)) and cooldown > time.time(), 'fresh': view['fresh']})
+    from core.autostart import autostart_status
+    payload['login_service_status'] = autostart_status()
     errors = [tr_message(value) for value in (actual.get('discovery_errors') or {}).values() if isinstance(value, str)]
     if errors:
         payload['notice'] = tr('部分狀態未知：') + '；'.join(errors)

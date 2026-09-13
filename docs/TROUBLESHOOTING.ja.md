@@ -118,7 +118,7 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
    ./bin/padpilot-cli autostart enable
    ```
 
-3. `~/Library/LaunchAgents/com.padpilot.daemon.plist` が生成されているか確認します。
+3. plist は `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist` に同梱され、`~/Library/LaunchAgents` には作成されません。`requiresApproval` の場合は「システム設定 → 一般 → ログイン項目」で PadPilot を許可してください。開発版の古い LaunchAgent は手動で停止・削除してください。この版では移行しません。
 
 <a id="logs"></a>
 ## 7. ログの収集
@@ -142,7 +142,7 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 - `FAIL: BetterDisplay CLI`：アプリのインストールだけでは CLI の動作は保証されません。CLI 機能と保存された実行パスを確認し、`./scripts/install.sh --check` を再実行します。help 成功はライセンスや実機検証の証拠ではありません。
 - 設定画面が開かない：ソース更新後に `./scripts/install.sh` を再実行して、現在のバージョンに対応するアプリをビルドしてください。
 - `Refusing unsafe state directory/file`：操作を止め、指定パスの所有者、シンボリックリンク、ハードリンクを確認します。`/tmp` や他人のディレクトリを再帰的に権限変更・削除・取得しないでください。自分のデータだと確認したうえでバックアップし、所有者が整理します。
-- `LaunchAgent belongs to another ...`：同名アプリ・サービスが別のチェックアウトに属しています。元のソースの場所でアンインストーラーを使い、名前に padpilot を含む全プロセスを一括終了しないでください。
+- `Login service belongs to another ...`：同名アプリ・サービスが別のチェックアウトに属しています。元のソースの場所でアンインストーラーを使い、名前に padpilot を含む全プロセスを一括終了しないでください。
 - `Daemon handshake failed`：このプロジェクトのサービス応答を確認できておらず、インストール成功ではありません。`~/Library/Logs/PadPilot/launchd.stderr.log` と `padpilot.log` を確認し、パス・権限・BetterDisplay の問題を解消して再試行します。`Rollback incomplete` もある場合は以前の状態の復元も未確認です。記録を保存し、連続した再インストールは避けてください。
 
 新しい IPC ログにはコマンド名だけを残しますが、過去のログ、診断、実際のエラーにはデバイス情報が含まれることがあります。共有前にシリアル番号、UUID、アカウント、個人のパスを伏せてください。

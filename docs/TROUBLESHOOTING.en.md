@@ -118,7 +118,7 @@ The daemon reevaluates state. Choose Reconnect for a manual connection attempt. 
    ./bin/padpilot-cli autostart enable
    ```
 
-3. Confirm the generated file is `~/Library/LaunchAgents/com.padpilot.daemon.plist`.
+3. The plist is bundled at `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist`; no file is created in `~/Library/LaunchAgents`. For `requiresApproval`, allow PadPilot in System Settings → General → Login Items. Stop and remove old development LaunchAgents manually; this version does not migrate them.
 
 <a id="logs"></a>
 ## 7. Collecting logs
@@ -142,7 +142,7 @@ Review and redact personal paths and sensitive information before sharing.
 - `FAIL: BetterDisplay CLI`: An installed app does not guarantee a working CLI. Verify CLI support and the saved executable path, then rerun `./scripts/install.sh --check`. Successful help is not license or hardware acceptance evidence.
 - Settings will not open: after updating the source, rerun `./scripts/install.sh` to build the matching app.
 - `Refusing unsafe state directory/file`: Stop and inspect ownership, symlinks, and hard links at the reported path. Do not recursively change permissions, delete, or take over `/tmp` or someone else's directory. Back up confirmed personal data before its owner repairs it.
-- `LaunchAgent belongs to another ...`: The same-name app/service belongs to a different checkout. Use its uninstaller from the original source location, not broad process-name termination.
+- `Login service belongs to another ...`: The same-name app/service belongs to a different checkout. Use its uninstaller from the original source location, not broad process-name termination.
 - `Daemon handshake failed`: This checkout's service has not been confirmed responsive, so installation is not successful. Inspect `~/Library/Logs/PadPilot/launchd.stderr.log` and `padpilot.log`, resolve the path, permissions, or BetterDisplay issue, and retry. `Rollback incomplete` also means restoration of the old state is unconfirmed; preserve evidence instead of repeatedly reinstalling.
 
 New IPC logs keep command names only. Historical logs, diagnostics, and actual error messages may still contain device information. Redact serials, UUIDs, accounts, and personal paths before sharing.

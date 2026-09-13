@@ -1939,5 +1939,25 @@
     "zh-Hant": "請搭配 Control 或 Command",
     "en": "Include Control or Command",
     "ja": "Control または Command を含めてください"
+  },
+  "請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行": {
+    "en": "Allow PadPilot to run in the background in System Settings → General → Login Items.",
+    "ja": "システム設定 → 一般 → ログイン項目で PadPilot のバックグラウンド実行を許可してください。"
+  },
+  "開啟系統登入項目": {
+    "en": "Open Login Items",
+    "ja": "ログイン項目を開く"
+  },
+  "停用登入啟動": {
+    "en": "Disable launch at login",
+    "ja": "ログイン時の起動を無効にする"
+  },
+  "設定異常（找不到 App 內的登入服務）": {
+    "en": "Configuration error (bundled login service not found)",
+    "ja": "設定エラー（アプリ内のログインサービスが見つかりません）"
+  },
+  "未知（無法查詢登入服務）": {
+    "en": "Unknown (cannot query login service)",
+    "ja": "不明（ログインサービスを確認できません）"
   }
 }

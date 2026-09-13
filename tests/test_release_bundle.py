@@ -39,10 +39,11 @@ class ReleaseBundleTests(unittest.TestCase):
             self.assertEqual(runtime.bundled_app(project), moved)
             self.assertEqual(python, moved / 'Contents/Resources/Python/bin/python3')
             plist = root / 'agent.plist'
-            plist.write_text(autostart.generate_plist_content(str(python), project, root / 'logs'))
+            plist.write_text(autostart.generate_plist_content())
             plist.chmod(0o600)
             value = plistlib.loads(plist.read_bytes())
-            self.assertEqual(value['ProgramArguments'], [str(python), '-I', '-B', str(project / 'bin/padpilotd')])
+            self.assertEqual(value['BundleProgram'], 'Contents/MacOS/PadPilot')
+            self.assertEqual(value['ProgramArguments'], ['PadPilot', '--daemon'])
             with patch.object(gui, 'ROOT', project), patch.object(gui.subprocess, 'run',
                     return_value=subprocess.CompletedProcess([], 0, stdout='OK')) as child:
                 self.assertEqual(gui.send_change('set_language', {'language': 'en', '__expected_revision__': 7}), 'OK')
@@ -86,6 +87,8 @@ class ReleaseBundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.object(Path, 'home', return_value=Path(directory)), \
                 patch.object(install_release, 'load_config'), patch.object(install_release, 'ensure_settings_closed'), \
                 patch.object(install_release, 'stop_menu_apps'), \
+                patch.object(install_release, 'installation_service', return_value='enabled'), \
+                patch.object(install_release, 'service_command', return_value='notRegistered'), \
                 patch.object(install_release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 113)):
             home = Path(directory).resolve()
             source = bundle(home / 'download/PadPilot.app')
@@ -95,10 +98,10 @@ class ReleaseBundleTests(unittest.TestCase):
             pref = runtime.preference_path()
             original_pref = b'{"python":"/opt/previous/python3"}\n'
             atomic_write(pref, original_pref)
-            plist = home / 'Library/LaunchAgents/com.padpilot.daemon.plist'
+            plist = target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
             plist.parent.mkdir(parents=True)
             previous_root = runtime.app_runtime(target)[0]
-            original_plist = autostart.generate_plist_content('/opt/previous/python3', previous_root).encode()
+            original_plist = autostart.generate_plist_content().encode()
             atomic_write(plist, original_plist, private_parent=False)
             def fake_cli(app, *args, **kwargs):
                 if args == ('gui-data',):
@@ -110,6 +113,38 @@ class ReleaseBundleTests(unittest.TestCase):
             self.assertEqual(sentinel.read_text(), 'keep')
             self.assertEqual(pref.read_bytes(), original_pref)
             self.assertEqual(plist.read_bytes(), original_plist)
+
+    def test_uninstall_unregisters_before_trashing_and_preserves_app_on_failure(self):
+        import manage_app
+        for failure in (False, True):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory).resolve()
+                app = bundle(home / 'Applications/PadPilot.app')
+                events = []
+                def native(action, target):
+                    self.assertEqual(action, 'unregister')
+                    self.assertTrue(app.exists(), 'Unregister needs the original app')
+                    events.append('unregister')
+                    if failure: raise RuntimeError('registration busy')
+                    return 'notRegistered'
+                def cli(*args, **kwargs):
+                    events.append('exit')
+                    return subprocess.CompletedProcess([], 0)
+                with patch.object(Path, 'home', return_value=home), \
+                     patch.object(manage_app, 'bundled_app', return_value=app), \
+                     patch.object(manage_app, 'owned_app', return_value=True), \
+                     patch.object(manage_app, 'installation_service', return_value='enabled'), \
+                     patch.object(manage_app, 'ensure_settings_closed'), patch.object(manage_app, 'stop_menu_apps'), \
+                     patch.object(manage_app, 'service_command', side_effect=native), \
+                     patch.object(manage_app.subprocess, 'run', side_effect=cli):
+                    if failure:
+                        with self.assertRaisesRegex(RuntimeError, 'registration busy'):
+                            manage_app.manage(uninstall=True)
+                    else:
+                        manage_app.manage(uninstall=True)
+                self.assertEqual(events, ['exit', 'unregister'])
+                self.assertEqual(app.exists(), failure)
+                self.assertEqual((home / '.Trash').exists(), not failure)
 
     def test_tag_validation_and_conflicting_runtime_options_fail_early(self):
         self.assertEqual(build_release.release_version('v1.2.3-dev.4'), '1.2.3-dev.4')
