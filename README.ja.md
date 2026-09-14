@@ -15,6 +15,9 @@
 
 PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
 
+**グローバルショートカットで、複数の Mac も手軽に操作。**
+複数の Mac mini をサーバーとして使う場合は、キーボードの接続先を操作したい Mac に切り替えます。その Mac にログインしてロックを解除し、iPad が接続可能な状態でショートカットを押すと、その Mac の画面を iPad に表示できます。
+
 **実機デモ：物理モニターなしで起動**
 
 [![実機デモ：物理モニターなしで Mac mini を起動し、ログイン後に iPad をメイン画面として自動接続](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
@@ -39,6 +42,8 @@ PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**�
 - **Apple Silicon Mac（macOS 14 以降）と Sidecar 対応 iPad。** Intel Mac には対応していません。
 - **macOS から手動で Sidecar に接続できる状態。** 同じ Apple Account と2ファクタ認証を使います。初回はデータ通信対応の USB ケーブルでつなぎ、iPad で Mac を信頼してください。無線では Wi-Fi、Bluetooth、Handoff も必要です。[Apple の条件を確認](https://support.apple.com/en-us/102597)。
 - **[BetterDisplay](https://github.com/waydabber/BetterDisplay) を別途インストールして起動。** 現在の PadPilot の機能は無料版で利用でき、機能上 Pro や有効な試用期間は必要ありません。単体 CLI だけでは動きません。App があれば、内蔵 CLI を使えます。
+
+複数の Mac で使う場合は、各 Mac で PadPilot のペアリングとグローバルショートカットの設定を済ませてください。
 
 ## 画面を見ながら始めよう
 
@@ -197,7 +202,7 @@ README と `docs/` 内のユーザー向けガイドは繁体字中国語、英�
 
 ## PadPilot を支援
 
-支援は完全に任意で、すべての機能を支援の有無にかかわらず利用できます：[PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)。
+PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！ [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
 
 ## ライセンスと謝辞
 
@@ -209,7 +214,7 @@ README と `docs/` 内のユーザー向けガイドは繁体字中国語、英�
 - ソースコード、実行ファイル、変更版を配布する際は、ライセンス本文または公式 URL を添え、[NOTICE](NOTICE) の `Required Notice:` で始まる作者・プロジェクト出典の表示をすべて保持してください。ビルドした App には `LICENSE` と `NOTICE` が同梱されます。
 - 慈善団体、教育機関、公的研究機関、公共安全・保健機関、環境保護団体、政府機関による使用も、資金源にかかわらず明示的に許可されています。詳細はライセンス原文に従います。
 
-ソースを入手できる非商用ライセンスであり、OSI の定義によるオープンソースライセンスではありません。この変更は本ライセンスを添えて提供する版に適用され、以前に MIT で取得した版の権利を取り消しません。
+ソースを入手できる非商用ライセンスであり、OSI の定義によるオープンソースライセンスではありません。本ライセンスは、このライセンス文書が同梱された版に適用されます。以前に MIT ライセンスで取得した版の権利には影響しません。
 
 画面制御機能を提供する [BetterDisplay](https://github.com/waydabber/BetterDisplay) に感謝します。PadPilot は独立したプロジェクトであり、Apple や BetterDisplay との提携・公式サポートを示すものではありません。
 

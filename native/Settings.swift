@@ -1175,7 +1175,7 @@ private struct SettingsAboutView: View {
             Button(model.tr("在 GitHub 查看專案")) { model.openLink("github") }
         }
         SettingsCard(title: model.tr("支持 PadPilot")) {
-            Text(model.tr("贊助完全自願，不影響任何功能的使用。")).foregroundStyle(.secondary)
+            Text(model.tr("PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！")).foregroundStyle(.secondary)
             HStack {
                 ForEach(["PayPal", "Ko-fi"], id: \.self) { name in
                     Button(name) { model.open(model.data.object("donations").text(name)) }
@@ -1183,7 +1183,7 @@ private struct SettingsAboutView: View {
                 }
             }
             if model.data.object("donations").values.allSatisfy({ ($0 as? String ?? "").isEmpty }) {
-                Text(model.tr("贊助連結準備中，感謝你的支持。")).font(settingsFont(.caption1)).foregroundStyle(.secondary)
+                Text(model.tr("支持連結準備中，還是謝謝你的心意！")).font(settingsFont(.caption1)).foregroundStyle(.secondary)
             }
         }
     }

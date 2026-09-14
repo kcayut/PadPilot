@@ -1685,13 +1685,13 @@
     "en": "Support PadPilot",
     "ja": "PadPilot を支援"
   },
-  "贊助完全自願，不影響任何功能的使用。": {
-    "en": "Donations are optional. All features remain available without donating.",
-    "ja": "寄付は任意です。寄付の有無にかかわらず、すべての機能を利用できます。"
+  "PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！": {
+    "en": "All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you!",
+    "ja": "PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！"
   },
-  "贊助連結準備中，感謝你的支持。": {
-    "en": "Donation links are coming soon. Thank you for your support.",
-    "ja": "寄付リンクは準備中です。応援ありがとうございます。"
+  "支持連結準備中，還是謝謝你的心意！": {
+    "en": "Support links are coming soon. Thank you for thinking of us!",
+    "ja": "支援リンクは準備中です。それでも、応援したいと思ってくださってありがとうございます！"
   },
   "設定檔無法讀取；請修復或還原原檔。此視窗已停用設定儲存與控制。": {
     "en": "Configuration unreadable. Repair or restore the original file. Saving and controls in this window are disabled.",

@@ -15,6 +15,9 @@
 
 PadPilot lets you use an **iPad as your Mac's main or secondary display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections, switching between main and secondary displays, and automatic takeover when no physical monitor is available, depending on your settings.
 
+**Global keyboard shortcuts make working with multiple Macs easier.**
+If you use multiple Mac minis as servers, switch your keyboard to the Mac you want to use. With that Mac logged in and unlocked and the iPad available to connect, press your shortcut to display that Mac's screen on the iPad.
+
 **Real-device demo: booting without a physical monitor**
 
 [![Real-device demo: a Mac mini boots without a physical monitor and automatically connects an iPad as its main display after login](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
@@ -39,6 +42,8 @@ Filmed on real hardware after initial setup. The boot wait is sped up 8×, and t
 - **An Apple Silicon Mac running macOS 14+, and a Sidecar-compatible iPad.** Intel Macs are not supported.
 - **A working manual Sidecar connection.** Use the same Apple Account with two-factor authentication. For first setup, use a data-capable USB cable and trust the Mac on your iPad. Wireless also needs Wi-Fi, Bluetooth, and Handoff. [Check Apple's requirements](https://support.apple.com/en-us/102597).
 - **Install and open [BetterDisplay](https://github.com/waydabber/BetterDisplay) separately.** PadPilot's current features work with the free version; they do not require Pro or an active trial. The standalone CLI alone is not enough; the app's built-in CLI is sufficient.
+
+For use with multiple Macs, complete PadPilot pairing and global keyboard shortcut setup on each Mac first.
 
 ## Follow the screenshots
 
@@ -199,7 +204,7 @@ The README and user guides under `docs/` are available in Traditional Chinese, E
 
 ## Support PadPilot
 
-Support is entirely optional and does not affect access to any feature: [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut).
+All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you! [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
 
 ## License and acknowledgments
 
@@ -209,7 +214,7 @@ Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Author: **kc
 - When distributing source code, binaries, or modified versions, include the license terms or their official URL and preserve every `Required Notice:` author and project attribution in [NOTICE](NOTICE). Built apps include `LICENSE` and `NOTICE`.
 - The license also expressly permits use by charitable organizations, educational institutions, public research organizations, public safety or health organizations, environmental protection organizations, and government institutions, regardless of funding. The full license governs these permissions.
 
-This is a source-available noncommercial license, not an OSI open-source license. The change applies to versions provided with this license; it does not revoke rights to versions previously obtained under MIT.
+This is a source-available noncommercial license, not an OSI open-source license. It applies to versions distributed with this license file; rights to versions previously obtained under MIT remain unaffected.
 
 Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) for display control. PadPilot is an independent project, not affiliated with or endorsed by Apple or BetterDisplay.
 

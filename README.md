@@ -15,6 +15,9 @@
 
 PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
 
+**支援全域快速鍵，多台 Mac 也能方便操作。**
+使用多台 Mac mini 當伺服器時，將鍵盤切換到指定的 Mac，在該機已登入並解鎖、iPad 可連線的狀態下，按下快捷鍵，就能讓 iPad 顯示這台 Mac 的畫面。
+
 **實機示範：無實體螢幕開機**
 
 [![實機示範：Mac mini 無實體螢幕開機，登入後自動連線 iPad 作為主螢幕](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
@@ -39,6 +42,8 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 - **Apple Silicon Mac、macOS 14+，以及支援 Sidecar 的 iPad**。目前不支援 Intel Mac。
 - **先讓 Sidecar 能手動連上**：兩台裝置使用相同 Apple Account 並開啟雙重認證。初次設定建議用資料傳輸線連接，在 iPad 上信任 Mac；無線另需 Wi-Fi、藍牙與 Handoff。[查看 Apple 的條件](https://support.apple.com/en-us/102597)。
 - **自行安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**。目前 PadPilot 的功能可搭配免費版使用，功能上不要求 Pro 或試用資格。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
+
+多台 Mac 搭配使用時，各台 Mac 需先完成 PadPilot 配對與全域快速鍵設定。
 
 ## 跟著畫面開始用
 
@@ -172,7 +177,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal 與 Ko-fi 贊助入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal 與 Ko-fi 支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 </details>
 
@@ -199,7 +204,7 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 ## 支持 PadPilot
 
-贊助完全自願，不影響任何功能的使用：[使用 PayPal 支持 PadPilot](https://www.paypal.com/paypalme/oilstuck) · [使用 Ko-fi 支持 PadPilot](https://ko-fi.com/kcayut)。
+PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！ [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
 
 ## 授權與致謝
 
@@ -209,7 +214,7 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 - 散佈原始碼、執行檔或修改版本時，必須附上授權條款或其官方網址，並保留 [NOTICE](NOTICE) 中所有 `Required Notice:` 作者與專案來源聲明。建置出的 App 已內附 `LICENSE` 與 `NOTICE`。
 - 授權另明文允許慈善、教育、公共研究、公共安全或衛生、環保及政府機構使用，不因資金來源而受限；完整範圍以授權原文為準。
 
-這是可取得原始碼的非商業授權，並非 OSI 定義的開源授權。本次變更適用於附帶此授權提供的版本；不撤回先前已依 MIT 授權取得之版本的權利。
+這是可取得原始碼的非商業授權，並非 OSI 定義的開源授權。此授權適用於隨附此授權文件的版本；先前已依 MIT 授權取得之版本的權利不受影響。
 
 感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。
 
