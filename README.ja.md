@@ -172,7 +172,7 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 
 リリースの更新：PadPilot を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub と寄付欄もあり、受取先 URL が設定されるまで寄付ボタンは無効です。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 </details>
 
@@ -194,6 +194,10 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 - [貢献ガイド](CONTRIBUTING.md)と[セキュリティ方針](SECURITY.md)
 
 README と `docs/` 内のユーザー向けガイドは繁体字中国語、英語、日本語で読めます。開発記録は繁体字中国語のみで管理します。問題報告、翻訳改善、互換性情報、Pull Request を歓迎します。コード変更後は `python3 -m unittest discover -s tests -v` を実行し、GUI 変更時は貢献ガイドのレイアウト確認も行ってください。自動テストは実際のコールドブートや抜き差し検証の代わりにはなりません。
+
+## PadPilot を支援
+
+支援は完全に任意で、すべての機能を支援の有無にかかわらず利用できます：[PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)。
 
 ## ライセンスと謝辞
 

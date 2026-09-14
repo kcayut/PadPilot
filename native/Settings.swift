@@ -533,7 +533,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
          "window_number": window?.windowNumber ?? -1, "minimum_size": [window?.minSize.width ?? 0, window?.minSize.height ?? 0],
          "config_revision": model.revision, "language": model.language, "drafts": model.drafts, "draft_revisions": model.draftRevisions,
          "notice": model.notice, "actual": model.actual, "logText": model.logText,
-         "donations": ["Buy Me a Coffee": model.donationEnabled("Buy Me a Coffee"), "PayPal": model.donationEnabled("PayPal")],
+         "donations": ["PayPal": model.donationEnabled("PayPal"), "Ko-fi": model.donationEnabled("Ko-fi")],
          "version": model.data.text("version"), "license": "PolyForm Noncommercial 1.0.0 · © 2026 kcayut",
          "commands": model.recordedCommands, "pages": settingsPages.map { $0.0 },
          "strings": model.data["strings"] ?? [:], "profiles": model.profiles]
@@ -1177,8 +1177,9 @@ private struct SettingsAboutView: View {
         SettingsCard(title: model.tr("支持 PadPilot")) {
             Text(model.tr("贊助完全自願，不影響任何功能的使用。")).foregroundStyle(.secondary)
             HStack {
-                ForEach(["Buy Me a Coffee", "PayPal"], id: \.self) { name in
-                    Button(name) { model.open(model.data.object("donations").text(name)) }.disabled(!model.donationEnabled(name))
+                ForEach(["PayPal", "Ko-fi"], id: \.self) { name in
+                    Button(name) { model.open(model.data.object("donations").text(name)) }
+                        .disabled(!model.donationEnabled(name))
                 }
             }
             if model.data.object("donations").values.allSatisfy({ ($0 as? String ?? "").isEmpty }) {

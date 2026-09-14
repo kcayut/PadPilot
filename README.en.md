@@ -172,7 +172,7 @@ Run these from any directory. If `~/bin` is on your PATH, you can also use `padp
 
 Release updates: quit PadPilot, then replace the app at the same location or rerun the release installer. Settings are preserved; choose Python when using the installer. Before changing locations, uninstall the old copy while keeping settings. The following rebuild instructions apply only to source installations.
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub and donation links; donation buttons remain disabled until recipient URLs are configured. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub, PayPal, and Ko-fi support links. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 </details>
 
@@ -196,6 +196,10 @@ Headless cold boot, sleep/wake, and different hardware combinations still need r
 - [Contributing guide](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
 The README and user guides under `docs/` are available in Traditional Chinese, English, and Japanese. Development notes are maintained in Traditional Chinese only. Issues, translation improvements, hardware compatibility reports, and pull requests are welcome. After code changes, run `python3 -m unittest discover -s tests -v`; for GUI changes, also follow the layout checks in the contributing guide. Automated tests do not substitute for physical cold-boot or hotplug validation.
+
+## Support PadPilot
+
+Support is entirely optional and does not affect access to any feature: [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut).
 
 ## License and acknowledgments
 

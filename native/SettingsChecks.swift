@@ -172,9 +172,9 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                             "Native control overflows window: \(language)/\(page)/\(node.label)")
             }
             if page == "about" {
-                for provider in ["Buy Me a Coffee", "PayPal"] {
-                    let buttons = nodes.filter { $0.role == "AXButton" && $0.label == provider }
-                    try require(!buttons.isEmpty && buttons.allSatisfy { !$0.enabled }, "Empty donation link must be disabled: \(provider)")
+                for name in ["PayPal", "Ko-fi"] {
+                    let buttons = nodes.filter { $0.role == "AXButton" && $0.label == name }
+                    try require(!buttons.isEmpty && buttons.allSatisfy { $0.enabled }, "Configured \(name) donation link must be enabled")
                 }
                 try require(text.contains { $0.contains("PolyForm Noncommercial 1.0.0") }, "About license is missing")
                 try require(text.contains { $0.contains("v" + (fixture["version"] as? String ?? "")) }, "About version is missing")

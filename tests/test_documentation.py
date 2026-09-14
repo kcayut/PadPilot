@@ -90,7 +90,10 @@ class DocumentationTests(unittest.TestCase):
                     self.assertEqual(changed[key], original[key])
                 self.assertEqual(original['version'], __version__)
                 self.assertEqual(original['links']['github'], GITHUB_URL)
-                self.assertEqual(original['donations'], {'Buy Me a Coffee': '', 'PayPal': ''})
+                self.assertEqual(original['donations'], {
+                    'PayPal': 'https://www.paypal.com/paypalme/oilstuck',
+                    'Ko-fi': 'https://ko-fi.com/kcayut',
+                })
                 for language, suffix in [('zh-Hant', ''), ('en', '.en'), ('ja', '.ja')]:
                     view['config'].language = language
                     payload = build_gui_payload()

@@ -21,8 +21,10 @@ from core.storage import read_private_json, UnsafePathError
 
 ROOT = Path(__file__).resolve().parents[1]
 GITHUB_URL = 'https://github.com/kcayut/PadPilot'
-# Set verified recipient URLs here when donation pages are ready. Empty = disabled.
-DONATION_URLS = {'Buy Me a Coffee': '', 'PayPal': ''}
+DONATION_URLS = {
+    'PayPal': 'https://www.paypal.com/paypalme/oilstuck',
+    'Ko-fi': 'https://ko-fi.com/kcayut',
+}
 
 GREEN = '#34c759'
 ORANGE = '#ff9500'
