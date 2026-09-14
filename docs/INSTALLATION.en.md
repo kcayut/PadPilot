@@ -50,7 +50,7 @@ The GUI, CLI, daemon, and launch-at-login entry share the choice stored in `~/Li
 
 Choose one of the first two commands: external Python or bundled Python. `--bundled-cli` also recovers from a deleted external Python. Do not select Python inside another PadPilot.app.
 
-**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash. No uninstall button is needed.** Exit stops display automation; the enabled native login service keeps an event-based watch on the app without polling. Moving the app to Trash automatically unregisters and stops that service. The trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
+**Remove a release by choosing Exit from the menu, then dragging PadPilot.app from Applications to Trash.** Exit stops display automation; the enabled native login service keeps an event-based watch on the app without polling. Moving the app to Trash automatically unregisters and stops that service. The trashed app will not start background Python. Settings, pairings, and logs remain. Its name may take time to disappear from Login Items.
 
 Optional CLI cleanup, for example to remove data too or change installation locations: settings and logs are kept by default; add `--purge` to move them to Trash. Run this before removing the app:
 
@@ -105,7 +105,7 @@ Paste the entire block into Terminal:
 )
 ```
 
-**Publication prerequisite:** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) must be public and these scripts must be published on `main`. A private repository or missing script returns 404; until publication, use an authorized source copy and the local installation steps below. The command downloads the complete script to a temporary file before running it; the source archive is also checked for unsafe paths and file types before extraction.
+**Download requirements:** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) must be public and `scripts/bootstrap.sh` must be published on `main`. A private repository or missing script returns 404; until publication, use an authorized source copy and the local installation steps below. The command downloads the complete script to a temporary file before running it; the source archive is also checked for unsafe paths and file types before extraction.
 
 Downloading requires neither Git nor Python. Source is kept in `~/Applications/PadPilot-source`; an unrelated existing folder is never overwritten. Rerunning reuses that source and resumes installation without downloading updates. Keep `.padpilot-install.json`: it records the managed source and newly installed dependencies for the uninstaller.
 
@@ -141,7 +141,7 @@ Homebrew installation uses Python 3.14, plus the official [betterdisplay cask](h
 
 The installer builds and locally signs `~/Applications/PadPilot.app`, preserving settings and pairings. First startup registers the bundled login service with macOS. If approval is required, allow PadPilot in System Settings → General → Login Items. Later launches respect system-level disablement. The installer unregisters before replacing the app; failure attempts to restore the app, preferences, and previous service state. Exit stops only the current session; the system registration still governs the next login.
 
-The installer attempts to create `~/bin/padpilot-cli` with the selected Python. An entry owned by another program is preserved; use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` in that case. **Keep the selected Python environment and source folder in place.** The app references both. Reinstall after moving them; an app or LaunchAgent owned by another source path is not taken over. Bundled Python, Developer ID signing, notarization, and automatic updates are not included.
+The installer attempts to create `~/bin/padpilot-cli` with the selected Python. An entry owned by another program is preserved; use `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` in that case. **Keep the selected Python environment and source folder in place.** The app references both. Reinstall after moving them; an app or LaunchAgent owned by another source path is not taken over. Source installations do not include bundled Python, Developer ID signing, notarization, or automatic updates.
 
 ## Open and pair
 

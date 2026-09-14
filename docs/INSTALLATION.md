@@ -50,7 +50,7 @@ GUI、CLI、daemon 與登入啟動均使用同一選擇，記錄在 `~/Library/A
 
 兩個切換指令擇一；第一個選外部 Python，第二個切回內建。外部 Python 被刪除時也可使用 `--bundled-cli` 復原。不要把外部 Python 指向另一份 PadPilot.app 內的 Python。
 
-**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可，不需要解除安裝按鈕。**「結束」會停止顯示自動化，已啟用的原生登入服務會保留一個不輪詢的 App 搬移監看；拖進垃圾桶時自動解除登入註冊並結束。垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
+**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可。**「結束」會停止顯示自動化，已啟用的原生登入服務會保留一個不輪詢的 App 搬移監看；拖進垃圾桶時自動解除登入註冊並結束。垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
 
 可選的 CLI 清理方式（例如需要一併清除資料，或變更安裝位置）：預設保留設定與日誌；加 `--purge` 則一併移到垃圾桶。請在移除 App 前執行：
 
@@ -105,9 +105,9 @@ PadPilot 提供 **Swift／AppKit 選單列＋SwiftUI 原生設定視窗＋Python
 )
 ```
 
-**公開發布條件：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 必須設為公開，且本次腳本已推送至 `main`。尚未公開或腳本不存在會回傳 404；可先使用有權限取得的原始碼與下方本機安裝方式。這段指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
+**下載條件：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 必須設為公開，且 `scripts/bootstrap.sh` 已發布於 `main`。尚未公開或腳本不存在會回傳 404；可先使用有權限取得的原始碼與下方本機安裝方式。這段指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
 
-下載不需先有 Git 或 Python。原始碼固定存於 `~/Applications/PadPilot-source`，不會覆蓋同名的非管理資料夾；重跑會沿用這份原始碼繼續安裝，不下載更新。`.padpilot-install.json` 記錄受管理的來源與本次新增依賴，供解除安裝辨識；請保留它。
+下載不需先有 Git 或 Python。原始碼固定存於 `~/Applications/PadPilot-source`，不會覆蓋同名的非管理資料夾；重跑會沿用這份原始碼繼續安裝，不下載更新。`.padpilot-install.json` 記錄受管理的來源與安裝器新增的依賴，供解除安裝辨識；請保留它。
 
 ## 依賴選擇與本機安裝
 
@@ -139,9 +139,9 @@ cd "$HOME/Applications/PadPilot-source"
 
 Homebrew 自動安裝使用 Python 3.14，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
 
-安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定與配對。首次啟動會向 macOS 註冊 App 內的登入服務；若系統要求允許，請到「系統設定 → 一般 → 登入項目」啟用 PadPilot。之後會尊重系統的停用選擇，不因重新開 App 自動開回。替換 App 前解除註冊，失敗時嘗試還原 App、偏好及原本的服務狀態。一般「結束」僅停止本次執行，下次登入仍依系統註冊啟動。
+安裝器會編譯並本機簽署 `~/Applications/PadPilot.app`，保留設定與配對。首次啟動會向 macOS 註冊 App 內的登入服務；若系統要求允許，請到「系統設定 → 一般 → 登入項目」啟用 PadPilot。之後會尊重系統的停用選擇，不因重新開 App 自動開回。替換 App 前解除註冊，失敗時嘗試還原 App、偏好及原本的服務狀態。一般「結束」僅停止目前的執行階段，下次登入仍依系統註冊啟動。
 
-安裝器會嘗試建立 `~/bin/padpilot-cli`，並記錄選定的 Python；已被其他程式占用的同名入口會保留，此時使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留所選 Python 環境與原始碼資料夾。** App 引用兩者，搬移後需重新安裝；另一個來源路徑的同名 App／LaunchAgent 不會被接管。這版尚未內含 Python、Developer ID 簽署、公證或自動更新。
+安裝器會嘗試建立 `~/bin/padpilot-cli`，並記錄選定的 Python；已被其他程式占用的同名入口會保留，此時使用 `"$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`。**請保留所選 Python 環境與原始碼資料夾。** App 引用兩者，搬移後需重新安裝；另一個來源路徑的同名 App／LaunchAgent 不會被接管。原始碼安裝的 App 不內含 Python，亦不提供 Developer ID 簽署、公證或自動更新。
 
 ## 開啟與配對
 

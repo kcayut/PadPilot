@@ -164,4 +164,4 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 - `Login service belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
 - `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/PadPilot/launchd.stderr.log` 與 `padpilot.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。
 
-新的 IPC 日誌只保留命令名稱；舊日誌、診斷狀態與實際錯誤仍可能包含裝置資訊。分享前遮蔽序號、UUID、帳號及個人路徑。
+IPC 日誌僅記錄命令名稱；歷史日誌、診斷狀態與實際錯誤仍可能包含裝置資訊。分享前遮蔽序號、UUID、帳號及個人路徑。

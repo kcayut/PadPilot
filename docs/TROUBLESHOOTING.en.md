@@ -145,4 +145,4 @@ Review and redact personal paths and sensitive information before sharing.
 - `Login service belongs to another ...`: The same-name app/service belongs to a different checkout. Use its uninstaller from the original source location, not broad process-name termination.
 - `Daemon handshake failed`: This checkout's service has not been confirmed responsive, so installation is not successful. Inspect `~/Library/Logs/PadPilot/launchd.stderr.log` and `padpilot.log`, resolve the path, permissions, or BetterDisplay issue, and retry. `Rollback incomplete` also means restoration of the old state is unconfirmed; preserve evidence instead of repeatedly reinstalling.
 
-New IPC logs keep command names only. Historical logs, diagnostics, and actual error messages may still contain device information. Redact serials, UUIDs, accounts, and personal paths before sharing.
+IPC logs record command names only. Historical logs, diagnostics, and actual error messages may still contain device information. Redact serials, UUIDs, accounts, and personal paths before sharing.
