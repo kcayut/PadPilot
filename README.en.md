@@ -204,7 +204,25 @@ The README and user guides under `docs/` are available in Traditional Chinese, E
 
 ## Support PadPilot
 
-All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you! [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
+All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you!
+
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png -->
+<table>
+  <tr>
+    <td align="center" width="160">
+      <a href="https://www.paypal.com/paypalme/oilstuck">
+        <img src="docs/images/support/paypal.svg" height="48" alt="Support development via PayPal"><br>
+        <strong>PayPal</strong>
+      </a>
+    </td>
+    <td align="center" width="160">
+      <a href="https://ko-fi.com/kcayut">
+        <img src="docs/images/support/ko-fi.png" height="48" alt="Support development via Ko-fi"><br>
+        <strong>Ko-fi</strong>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## License and acknowledgments
 

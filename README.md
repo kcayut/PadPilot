@@ -204,7 +204,25 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 ## 支持 PadPilot
 
-PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！ [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
+PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！
+
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png -->
+<table>
+  <tr>
+    <td align="center" width="160">
+      <a href="https://www.paypal.com/paypalme/oilstuck">
+        <img src="docs/images/support/paypal.svg" height="48" alt="透過 PayPal 支持開發"><br>
+        <strong>PayPal</strong>
+      </a>
+    </td>
+    <td align="center" width="160">
+      <a href="https://ko-fi.com/kcayut">
+        <img src="docs/images/support/ko-fi.png" height="48" alt="透過 Ko-fi 支持開發"><br>
+        <strong>Ko-fi</strong>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## 授權與致謝
 

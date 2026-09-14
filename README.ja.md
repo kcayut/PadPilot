@@ -204,7 +204,25 @@ README と `docs/` 内のユーザー向けガイドは繁体字中国語、英�
 
 ## PadPilot を支援
 
-PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！ [PayPal](https://www.paypal.com/paypalme/oilstuck) · [Ko-fi](https://ko-fi.com/kcayut)
+PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！
+
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png -->
+<table>
+  <tr>
+    <td align="center" width="160">
+      <a href="https://www.paypal.com/paypalme/oilstuck">
+        <img src="docs/images/support/paypal.svg" height="48" alt="PayPal で開発を支援"><br>
+        <strong>PayPal</strong>
+      </a>
+    </td>
+    <td align="center" width="160">
+      <a href="https://ko-fi.com/kcayut">
+        <img src="docs/images/support/ko-fi.png" height="48" alt="Ko-fi で開発を支援"><br>
+        <strong>Ko-fi</strong>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## ライセンスと謝辞
 
