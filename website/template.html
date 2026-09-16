@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="$lang">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>$page_title</title>
+  <meta name="description" content="$description">
+  <meta name="theme-color" content="#075bce">
+  <link rel="icon" type="image/png" href="media/icon.png">
+  <link rel="alternate" hreflang="zh-Hant" href="index.html">
+  <link rel="alternate" hreflang="en" href="en.html">
+  <link rel="alternate" hreflang="ja" href="ja.html">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">$skip</a>
+<header class="wrap topbar">
+  <a class="brand" href="$page"><img src="media/icon.png" width="42" height="42" alt="">PadPilot</a>
+  <div class="nav-wrap">
+    <nav aria-label="$nav_label"><a href="#demo">$nav_demo</a><a href="#setup">$nav_setup</a><a href="#support">$nav_support</a></nav>
+    <div class="languages" role="navigation" aria-label="$language_label">$language_links</div>
+  </div>
+</header>
+<main id="main">
+  <section class="wrap hero" aria-labelledby="hero-title">
+    <div>
+      <p class="eyebrow">SIDECAR AUTOMATION FOR MAC</p>
+      <h1 id="hero-title">$hero_first<span>$hero_second</span></h1>
+      <p class="hero-copy">$hero_copy</p>
+      <div class="actions"><a class="button" href="https://github.com/kcayut/PadPilot/releases">$download <span aria-hidden="true">↓</span></a><a class="text-link" href="#demo">$watch_demo</a></div>
+      <p class="requirements-line">Apple Silicon · macOS 14+ · $early_preview</p>
+    </div>
+    <figure class="stage">
+      <div class="stage-label"><span>PadPilot / macOS</span><span>$stage_label</span></div>
+      <a href="media/$lang-paired.png" aria-label="$screenshot_full"><img src="media/$lang-paired.png" alt="$screenshot_alt" width="1000" height="672" fetchpriority="high"></a>
+      <figcaption>$screenshot_caption</figcaption>
+    </figure>
+  </section>
+  <div class="wrap facts"><span>$fact_free</span><span>$fact_shortcut</span><span>$fact_languages</span></div>
+  <section id="demo" class="demo" aria-labelledby="demo-title">
+    <div class="wrap demo-grid">
+      <div><p class="eyebrow">01 / $demo_eyebrow</p><h2 id="demo-title">$demo_title</h2><p>$demo_copy</p></div>
+      <figure>
+        <video controls playsinline preload="metadata" width="1280" height="720" aria-label="$video_label"><source src="media/headless-boot-demo.mp4" type="video/mp4"><a href="media/headless-boot-demo.mp4">$video_fallback</a></video>
+        <figcaption>$video_caption <a href="media/headless-boot-demo.mp4">$video_fallback</a></figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="wrap section" aria-labelledby="features-title">
+    <div class="section-head"><div><p class="eyebrow">02 / $features_eyebrow</p><h2 id="features-title">$features_title</h2></div><p>$features_copy</p></div>
+    <div class="feature-list">
+      <article class="feature"><span class="number">01</span><h3>$feature_one_title</h3><p>$feature_one_copy</p></article>
+      <article class="feature"><span class="number">02</span><h3>$feature_two_title</h3><p>$feature_two_copy</p></article>
+      <article class="feature"><span class="number">03</span><h3>$feature_three_title</h3><p>$feature_three_copy</p></article>
+    </div>
+  </section>
+  <section id="setup" class="setup section" aria-labelledby="setup-title">
+    <div class="wrap">
+      <p class="eyebrow">03 / $setup_eyebrow</p>
+      <div class="setup-grid">
+        <div><h2 id="setup-title">$requirements_title</h2><ul class="check-list">
+          <li><strong>$requirement_one_title</strong><p>$requirement_one_copy</p></li>
+          <li><strong>$requirement_two_title</strong><p>$requirement_two_copy <a href="https://support.apple.com/102597">$apple_requirements</a></p></li>
+          <li><strong>BetterDisplay</strong><p>$requirement_three_copy <a href="https://github.com/waydabber/BetterDisplay">$betterdisplay_link</a></p></li>
+        </ul></div>
+        <div><h2>$steps_title</h2><ol class="steps">
+          <li><div><strong>$step_one_title</strong><p>$step_one_copy</p></div></li>
+          <li><div><strong>$step_two_title</strong><p>$step_two_copy</p></div></li>
+          <li><div><strong>$step_three_title</strong><p>$step_three_copy</p></div></li>
+        </ol><a class="text-link" href="https://github.com/kcayut/PadPilot/blob/main/$readme">$guide_link →</a></div>
+      </div>
+      <aside class="notice"><strong>$notice_title</strong><p>$notice_copy <a href="https://github.com/kcayut/PadPilot/blob/main/docs/$installation">$installation_link</a></p></aside>
+    </div>
+  </section>
+  <section class="wrap section faq-grid" aria-labelledby="faq-title">
+    <div><p class="eyebrow">04 / $faq_eyebrow</p><h2 id="faq-title">$faq_title</h2><p>$faq_copy</p></div>
+    <div>
+      <details><summary>$faq_one_question</summary><p>$faq_one_answer</p></details>
+      <details><summary>$faq_two_question</summary><p>$faq_two_answer</p></details>
+      <details><summary>$faq_three_question</summary><p>$faq_three_answer</p></details>
+      <details><summary>$faq_four_question</summary><p>$faq_four_answer <a href="https://github.com/kcayut/PadPilot/issues">$issues_link</a></p></details>
+    </div>
+  </section>
+  <section id="support" class="wrap support" aria-labelledby="support-title">
+    <div><p class="eyebrow">$support_eyebrow</p><h2 id="support-title">$support_title</h2><p>$support_copy</p></div>
+    <div>
+      <div class="support-links">
+        <a class="support-link opay" href="https://payment.opay.tw/Broadcaster/Donate/6CF8CF9E519E0ED13E244399607ADDD7"><span class="provider"><img src="media/opay.png" alt="" width="125" height="30"><span>$opay_name</span></span><small>$opay_member</small></a>
+        <a class="support-link ecpay" href="https://p.ecpay.com.tw/A2FA21C"><img src="media/ecpay.png" alt="" width="55" height="30">$ecpay_name</a>
+        <a class="support-link" href="https://www.paypal.com/paypalme/oilstuck"><img src="media/paypal.svg" alt="" width="30" height="30">PayPal</a>
+        <a class="support-link" href="https://ko-fi.com/kcayut"><img src="media/ko-fi.png" alt="" width="40" height="30">Ko-fi</a>
+      </div>
+      <p class="payment-note">$payment_note</p>
+    </div>
+  </section>
+</main>
+<footer class="wrap footer">
+  <div class="footer-top"><p class="copyright">© 2026 kcayut · PadPilot</p><div class="footer-links"><a href="https://github.com/kcayut/PadPilot">GitHub</a><a href="https://github.com/kcayut/PadPilot/releases">$footer_download</a><a href="https://github.com/kcayut/PadPilot/blob/main/LICENSE">$footer_license</a></div></div>
+  <p>$license_note</p><p>$independent_note</p>
+</footer>
+</body>
+</html>

@@ -24,6 +24,7 @@ GITHUB_URL = 'https://github.com/kcayut/PadPilot'
 DONATION_URLS = {
     'PayPal': 'https://www.paypal.com/paypalme/oilstuck',
     'Ko-fi': 'https://ko-fi.com/kcayut',
+    '綠界科技': 'https://p.ecpay.com.tw/A2FA21C',
     '歐付寶2218408': 'https://payment.opay.tw/Broadcaster/Donate/6CF8CF9E519E0ED13E244399607ADDD7',
 }
 

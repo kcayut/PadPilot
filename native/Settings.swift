@@ -551,7 +551,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
          "window_number": window?.windowNumber ?? -1, "minimum_size": [window?.minSize.width ?? 0, window?.minSize.height ?? 0],
          "config_revision": model.revision, "language": model.language, "drafts": model.drafts, "draft_revisions": model.draftRevisions,
          "notice": model.notice, "actual": model.actual, "logText": model.logText,
-         "donations": ["PayPal": model.donationEnabled("PayPal"), "Ko-fi": model.donationEnabled("Ko-fi"), "歐付寶2218408": model.donationEnabled("歐付寶2218408")],
+         "donations": ["PayPal": model.donationEnabled("PayPal"), "Ko-fi": model.donationEnabled("Ko-fi"), "歐付寶2218408": model.donationEnabled("歐付寶2218408"), "綠界科技": model.donationEnabled("綠界科技")],
          "version": model.data.text("version"), "license": "PolyForm Noncommercial 1.0.0 · © 2026 kcayut",
          "commands": model.recordedCommands, "pages": settingsPages.map { $0.0 },
          "strings": model.data["strings"] ?? [:], "profiles": model.profiles]
@@ -1193,7 +1193,7 @@ private struct SettingsAboutView: View {
         SettingsCard(title: model.tr("支持 PadPilot")) {
             Text(model.tr("PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！")).foregroundStyle(.secondary)
             HStack {
-                ForEach(["PayPal", "Ko-fi", "歐付寶2218408"], id: \.self) { name in
+                ForEach(["PayPal", "Ko-fi", "歐付寶2218408", "綠界科技"], id: \.self) { name in
                     Button(name) { model.open(model.data.object("donations").text(name)) }
                         .disabled(!model.donationEnabled(name))
                 }

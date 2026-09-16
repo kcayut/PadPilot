@@ -177,7 +177,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（使用安裝時選定的 Python），同時重建原生 App。更新會沿用現有 App 的位置；首次原始碼安裝預設放在 `~/Applications/PadPilot.app`。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal、Ko-fi 與歐付寶支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（使用安裝時選定的 Python），同時重建原生 App。更新會沿用現有 App 的位置；首次原始碼安裝預設放在 `~/Applications/PadPilot.app`。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal、Ko-fi、歐付寶與綠界科技支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 </details>
 
@@ -206,7 +206,7 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！
 
-<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay logo supplied by the project owner -->
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay and ECPay logos supplied by the project owner -->
 <table>
   <tr>
     <td align="center" width="160">
@@ -227,6 +227,12 @@ PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，�
         <strong>歐付寶</strong>
       </a><br>
       歐付寶會員編號：2218408
+    </td>
+    <td align="center" width="160">
+      <a href="https://p.ecpay.com.tw/A2FA21C">
+        <img src="docs/images/support/ecpay.png" height="48" alt="透過綠界科技支持開發"><br>
+        <strong>綠界科技</strong>
+      </a>
     </td>
   </tr>
 </table>
