@@ -78,10 +78,12 @@ class BetterDisplayCLI:
         if found:
             return found
         # LaunchServices also knows renamed apps and nonstandard installation folders.
-        from core.runtime import bundled_app, ROOT
-        app = bundled_app() or ROOT / 'build/PadPilot.app'
-        helper = app / 'Contents/MacOS/PadPilot'
+        from core.runtime import find_app
         try:
+            app = find_app()
+            if app is None:
+                return None
+            helper = app / 'Contents/MacOS/PadPilot'
             metadata = json.loads((app / 'Contents/Resources/runtime.json').read_text())
             if helper.is_file() and metadata.get('locator') == 1:
                 result = subprocess.run([str(helper), '--locate-betterdisplay'], capture_output=True,
@@ -89,7 +91,7 @@ class BetterDisplayCLI:
                 found = Path(result.stdout.strip())
                 if result.returncode == 0 and found.is_absolute() and found.is_dir():
                     return str(found)
-        except (OSError, ValueError, subprocess.TimeoutExpired):
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
             pass
         return None
 

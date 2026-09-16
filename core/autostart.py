@@ -19,8 +19,8 @@ from typing import Optional, Tuple
 
 from core.config import APP_SUPPORT_DIR, load_config, save_config
 from core.logger import get_logger
-from core.runtime import bundled_app
-from core.storage import atomic_write, read_private_json
+from core.runtime import bundled_app, find_app, login_service_owner
+from core.storage import atomic_write
 
 logger = get_logger("Autostart")
 
@@ -49,15 +49,13 @@ def generate_plist_content() -> str:
 
 
 def service_owner():
-    path = APP_SUPPORT_DIR / "login-service.json"
-    try:
-        value = read_private_json(path)
-    except FileNotFoundError:
-        return None
-    if (not isinstance(value, dict) or set(value) != {"app"} or not isinstance(value['app'], str)
-            or not Path(value['app']).is_absolute()):
-        raise RuntimeError("Invalid login service ownership record")
-    return Path(value['app'])
+    return login_service_owner(APP_SUPPORT_DIR)
+
+
+def service_owner_matches(app: Path) -> bool:
+    owner = service_owner()
+    # A moved app leaves a stale receipt. Never take over an existing copy.
+    return owner == app.resolve() or (owner is not None and not owner.exists() and not owner.is_symlink())
 
 
 def service_command(action="status", app=None) -> str:
@@ -82,7 +80,7 @@ def service_command(action="status", app=None) -> str:
     state = invoke("status")
     # SMAppService status is shared by copies with the same bundle ID; it does not
     # identify which copy owns the registration. Keep one private ownership receipt.
-    if state in {"enabled", "requiresApproval"} and service_owner() != app.resolve():
+    if state in {"enabled", "requiresApproval"} and not service_owner_matches(app):
         raise RuntimeError("Login service belongs to another installation; remove that installation first")
     if action == "status":
         return state
@@ -170,7 +168,7 @@ def job_loaded(path: Optional[Path] = None) -> bool:
     managed = re.search(r"(?m)^\s*managed_by = com\.apple\.xpc\.ServiceManagement$", result.stdout)
     parent = re.search(r"(?m)^\s*parent bundle identifier = com\.padpilot\.app$", result.stdout)
     program = re.search(r"(?m)^\s*program identifier = Contents/MacOS/PadPilot \(mode: 2\)$", result.stdout)
-    if not (managed and parent and program) or service_owner() != app:
+    if not (managed and parent and program) or not service_owner_matches(app):
         raise RuntimeError("Loaded LaunchAgent belongs to another installation; remove that installation first")
     return True
 
@@ -218,12 +216,16 @@ def is_autostart_enabled() -> bool:
     return autostart_status() == "enabled"
 
 
-def set_autostart(enabled: bool, expected_revision: Optional[int] = None) -> Tuple[bool, str]:
+def set_autostart(enabled: bool, expected_revision: Optional[int] = None, *, connect_on_boot: Optional[bool] = None) -> Tuple[bool, str]:
     before = None
     saved = stopped = changed = False
     previous = "notRegistered"
     was_running = False
     try:
+        if type(enabled) is not bool or (connect_on_boot is not None and type(connect_on_boot) is not bool):
+            raise ValueError('請提供布林值 enabled')
+        if connect_on_boot and not enabled:
+            raise ValueError('開機連線需要啟用登入時自動啟動')
         cfg = load_config()
         if expected_revision is not None and cfg.revision != expected_revision:
             raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
@@ -235,8 +237,10 @@ def set_autostart(enabled: bool, expected_revision: Optional[int] = None) -> Tup
         if expected_revision is not None and cfg.revision != expected_revision:
             raise RuntimeError('CONFIG_CONFLICT: settings changed; refresh before retrying')
         before = copy.deepcopy(cfg)
-        if cfg.autostart_on_login != enabled or not cfg.login_service_initialized:
+        boot = (cfg.connect_on_boot if connect_on_boot is None else connect_on_boot) if enabled else False
+        if cfg.autostart_on_login != enabled or cfg.connect_on_boot != boot or not cfg.login_service_initialized:
             cfg.autostart_on_login = enabled
+            cfg.connect_on_boot = boot
             cfg.login_service_initialized = True
             cfg.revision += 1
             cfg.updated_at = time.time()
@@ -244,6 +248,8 @@ def set_autostart(enabled: bool, expected_revision: Optional[int] = None) -> Tup
             saved = True
         changed = True
         state = service_command("register" if enabled else "unregister")
+        if connect_on_boot and state != "enabled":
+            raise RuntimeError('請先到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行，再啟用開機連線。')
         if enabled and state not in {"enabled", "requiresApproval"}:
             raise RuntimeError("Login service registration was not confirmed")
         if not enabled and state not in {"notRegistered", "notFound"}:
@@ -264,7 +270,7 @@ def set_autostart(enabled: bool, expected_revision: Optional[int] = None) -> Tup
                     service_command("unregister")
                 if saved:
                     save_config(before)
-                if changed and previous == "enabled":
+                if changed and previous in {"enabled", "requiresApproval"}:
                     service_command("register")
                 if was_running:
                     if previous == "enabled":
@@ -289,33 +295,14 @@ def disable_autostart(expected_revision: Optional[int] = None) -> Tuple[bool, st
     return set_autostart(False, expected_revision)
 
 
-def toggle_autostart() -> Tuple[bool, str]:
+def toggle_autostart(expected_revision: Optional[int] = None) -> Tuple[bool, str]:
     state = service_command()
     # A pending/blocked registration can be explicitly disabled too.
-    return set_autostart(state not in {"enabled", "requiresApproval"})
+    return set_autostart(state not in {"enabled", "requiresApproval"}, expected_revision)
 
 
 def find_menu_app(*, settings=False) -> Optional[Path]:
-    """Resolve only an app built for this checkout."""
-    app = bundled_app(PROJECT_ROOT)
-    if app:
-        return app
-    for app in (Path.home() / "Applications" / "PadPilot.app", PROJECT_ROOT / "build" / "PadPilot.app"):
-        try:
-            with (app / "Contents" / "Resources" / "runtime.json").open() as stream:
-                import json
-                runtime = json.load(stream)
-            if Path(runtime.get("project_root", "")).resolve() != PROJECT_ROOT:
-                continue
-            if settings:
-                with (app / 'Contents/Info.plist').open('rb') as stream:
-                    info = plistlib.load(stream)
-                if not any('padpilot' in item.get('CFBundleURLSchemes', []) for item in info.get('CFBundleURLTypes', [])):
-                    continue
-            return app
-        except (OSError, ValueError, subprocess.SubprocessError):
-            continue
-    return None
+    return find_app(PROJECT_ROOT, settings=settings, support_dir=APP_SUPPORT_DIR)
 
 
 def open_menu_app() -> bool:

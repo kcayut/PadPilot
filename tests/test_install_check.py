@@ -85,7 +85,7 @@ class InstallCheckTests(unittest.TestCase):
                 'sw_vers': 'echo 14.7',
                 'xcrun': 'exit "${PADPILOT_TEST_CLT:-0}"',
                 'xcode-select': 'echo "xcode-select $*" >> "$PADPILOT_TEST_RECORD"; exit "${PADPILOT_TEST_CLT_SELECT:-0}"',
-                'plutil': 'case "$*" in *project_root*) echo "$PADPILOT_TEST_ROOT" ;; *python*) echo "$PADPILOT_TEST_RUNTIME_PYTHON" ;; esac',
+                'plutil': 'case "$*" in *CFBundleIdentifier*) echo com.padpilot.app ;; *project_root*) echo "$PADPILOT_TEST_ROOT" ;; *python*) echo "$PADPILOT_TEST_RUNTIME_PYTHON" ;; esac',
                 'python3': r'''for last do :; done
 printf 'python %s\n' "$*" >> "$PADPILOT_TEST_RECORD"
 case "$*" in

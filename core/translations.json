@@ -1959,5 +1959,25 @@
   "未知（無法查詢登入服務）": {
     "en": "Unknown (cannot query login service)",
     "ja": "不明（ログインサービスを確認できません）"
+  },
+  "停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？": {
+    "en": "Disabling launch at login will also turn off “Connect iPad at startup when no monitor is connected”. Continue?",
+    "ja": "ログイン時の自動起動を無効にすると、「モニターがないとき、起動時に iPad に自動接続」も無効になります。続行しますか？"
+  },
+  "啟用開機自動連線？": {
+    "en": "Enable connection at startup?",
+    "ja": "起動時の自動接続を有効にしますか？"
+  },
+  "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？": {
+    "en": "Enabling “Connect iPad at startup when no monitor is connected” will also enable “Launch PadPilot at login”. Continue?",
+    "ja": "「モニターがないとき、起動時に iPad に自動接続」を有効にすると、「ログイン時に PadPilot を自動起動」も有効になります。続行しますか？"
+  },
+  "變更登入啟動？": {
+    "en": "Change launch at login?",
+    "ja": "ログイン時の起動設定を変更しますか？"
+  },
+  "若停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？": {
+    "en": "If launch at login is disabled, “Connect iPad at startup when no monitor is connected” will also be turned off. Continue?",
+    "ja": "ログイン時の自動起動を無効にする場合、「モニターがないとき、起動時に iPad に自動接続」も無効になります。続行しますか？"
   }
 }

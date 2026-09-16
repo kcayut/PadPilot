@@ -23,6 +23,7 @@ from core.autostart import (
     daemon_pids,
     disable_autostart,
     enable_autostart,
+    set_autostart,
     autostart_status,
     start_registered,
     is_autostart_enabled,
@@ -188,6 +189,15 @@ def save_pairing(device: dict, activate: bool) -> None:
 
 
 def submit_settings(action: str, payload: dict, expected_revision: Optional[int] = None) -> None:
+    if action == 'set_connect_on_boot':
+        if not isinstance(payload, dict) or set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
+            raise ValueError('請提供布林值 enabled')
+        if payload['enabled']:
+            ok, message = set_autostart(True, expected_revision, connect_on_boot=True)
+            if not ok:
+                raise RuntimeError(message)
+            print(message)
+            return
     req = {
         "command": action,
         "params": payload,
@@ -420,7 +430,8 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         ok, msg = disable_autostart(expected_revision=expected) if expected is not None else disable_autostart()
         print(msg)
     elif action == "toggle":
-        ok, msg = toggle_autostart()
+        expected = getattr(args, 'expected_revision', None)
+        ok, msg = toggle_autostart(expected_revision=expected) if expected is not None else toggle_autostart()
         print(msg)
 
     if action != "status" and not ok:

@@ -39,6 +39,7 @@ def fixtures():
                        'desired': {'target_display_role': 'IPAD_SECONDARY', 'reason': 'User Override active: Use iPad as Secondary (Topology Gen 0).'}}}
     result = {}
     with patch('core.gui.read_view', return_value=view), \
+         patch('core.autostart.autostart_status', return_value='enabled'), \
          patch('core.gui.BetterDisplayCLI.resolve_cli_path', return_value='/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay'), \
          patch('core.diagnostics.collect_system_checks', return_value=[('macOS 自動登入', '已停用'), ('FileVault', '已開啟'),
                                                                       ('BetterDisplay 控制介面', '未啟用')]), \

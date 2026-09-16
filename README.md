@@ -177,7 +177,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`，同時重建原生 App。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal 與 Ko-fi 支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（使用安裝時選定的 Python），同時重建原生 App。更新會沿用現有 App 的位置；首次原始碼安裝預設放在 `~/Applications/PadPilot.app`。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal 與 Ko-fi 支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 </details>
 

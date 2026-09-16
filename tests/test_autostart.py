@@ -56,6 +56,7 @@ class TestPadPilotAutostart(unittest.TestCase):
         self.running = True
         self.assertTrue(autostart.disable_autostart()[0])
         self.assertFalse(self.cfg.autostart_on_login)
+        self.assertFalse(self.cfg.connect_on_boot)
         self.assertEqual(self.state, 'notRegistered')
         self.start_standalone.assert_called_once()
         self.state = 'requiresApproval'
@@ -71,6 +72,67 @@ class TestPadPilotAutostart(unittest.TestCase):
         self.assertFalse(autostart.is_autostart_enabled())
         self.start_registered.assert_not_called()
         self.start_standalone.assert_called_once()
+
+    def test_boot_enable_is_one_transaction_and_failure_restores_both_options(self):
+        for failure in (None, 'handshake', 'approval'):
+            with self.subTest(failure=failure):
+                self.cfg = Config(autostart_on_login=False, connect_on_boot=False, revision=7,
+                                  login_service_initialized=True)
+                before = self.cfg.to_dict()
+                self.state = 'notRegistered'
+                self.wait_for_daemon.side_effect = RuntimeError('handshake failed') if failure == 'handshake' else None
+                original = self.service_command.side_effect
+                if failure == 'approval':
+                    def pending(action='status', app=None):
+                        if action == 'register':
+                            self.state = 'requiresApproval'
+                            return self.state
+                        return original(action, app)
+                    self.service_command.side_effect = pending
+                ok, _ = autostart.set_autostart(True, expected_revision=7, connect_on_boot=True)
+                self.service_command.side_effect = original
+                self.assertEqual(ok, failure is None)
+                if ok:
+                    self.assertTrue(self.cfg.autostart_on_login and self.cfg.connect_on_boot)
+                    self.assertEqual(self.cfg.revision, 8)
+                else:
+                    self.assertEqual(self.cfg.to_dict(), before)
+                    self.assertEqual(self.state, 'notRegistered')
+
+    def test_cli_boot_enable_uses_service_transaction_and_validates_input(self):
+        submit = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['submit_settings']
+        service = MagicMock(return_value=(True, 'OK'))
+        ipc = MagicMock()
+        with patch.dict(submit.__globals__, set_autostart=service, send_daemon_cmd=ipc), contextlib.redirect_stdout(io.StringIO()):
+            submit('set_connect_on_boot', {'enabled': True}, 7)
+            service.assert_called_once_with(True, 7, connect_on_boot=True)
+            ipc.assert_not_called()
+            for payload in ({'enabled': 1}, {'enabled': 'true'}, {'enabled': True, 'extra': 1}, None):
+                with self.assertRaises(ValueError):
+                    submit('set_connect_on_boot', payload, 7)
+
+    def test_direct_settings_cannot_bypass_login_service_and_menu_warns(self):
+        from core.settings import apply_change
+        from core.menu import render
+        cfg = Config(autostart_on_login=False, connect_on_boot=False)
+        with self.assertRaises(ValueError):
+            apply_change(cfg, 'set_connect_on_boot', {'enabled': True})
+        with self.assertRaises(ValueError):
+            apply_change(cfg, 'set_autostart', {'enabled': True})
+        self.assertFalse(cfg.autostart_on_login or cfg.connect_on_boot)
+        cfg.autostart_on_login = cfg.connect_on_boot = True
+        row = next(row for row in render({}, cfg.to_dict(), True)['items'] if row['args'][:1] == ['autostart'])
+        self.assertEqual(len(row['confirmation']), 4)
+        self.assertEqual(row['args'][-2:], ['--expected-revision', str(cfg.revision)])
+        for state in ('enabled', 'requiresApproval', 'notRegistered', 'notFound', 'unknown'):
+            for boot in (False, True):
+                cfg.connect_on_boot = boot
+                row = next(row for row in render({}, cfg.to_dict(), state == 'enabled', login_service_status=state)['items']
+                           if row['args'][:1] == ['autostart'])
+                self.assertEqual('confirmation' in row, boot and state in ('enabled', 'requiresApproval'))
+        apply_change(cfg, 'set_connect_on_boot', {'enabled': False})
+        self.assertTrue(cfg.autostart_on_login)
+        self.assertFalse(cfg.connect_on_boot)
 
     def test_revision_conflicts_never_overwrite_concurrent_settings(self):
         for late in (False, True):
@@ -142,6 +204,10 @@ class TestPadPilotAutostart(unittest.TestCase):
             state = {'value': 'notFound'}
             calls = []
             def run(command, **kwargs):
+                if command[0] == 'launchctl':
+                    return __import__('subprocess').CompletedProcess(command, 0,
+                        'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.padpilot.app\n'
+                        'program identifier = Contents/MacOS/PadPilot (mode: 2)\n', '')
                 calls.append(command[-1])
                 if command[-1] == 'register': state['value'] = 'enabled'
                 return __import__('subprocess').CompletedProcess(command, 0, state['value'], '')
@@ -150,6 +216,9 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertEqual(ORIGINAL_COMMAND('register', first), 'enabled')
                 self.assertEqual(autostart.service_owner(), first)
                 self.assertEqual(ORIGINAL_COMMAND('status', first), 'enabled')
+                self.assertTrue(autostart.job_loaded(first / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'))
+                with self.assertRaisesRegex(RuntimeError, 'another installation'):
+                    autostart.job_loaded(second / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
                 for action in ('status', 'register', 'unregister'):
                     with self.assertRaisesRegex(RuntimeError, 'another installation'):
                         ORIGINAL_COMMAND(action, second)
@@ -158,13 +227,40 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertFalse((root / 'Library/LaunchAgents').exists())
                 with self.assertRaisesRegex(RuntimeError, 'removal was not confirmed'):
                     ORIGINAL_COMMAND('unregister', first)
+                moved = root / 'Applications/PadPilot.app'
+                moved.parent.mkdir()
+                first.rename(moved)
+                self.assertEqual(ORIGINAL_COMMAND('status', moved), 'enabled')
+                self.assertTrue(autostart.job_loaded(moved / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'))
+                self.assertEqual(autostart.service_owner(), first)  # Status queries remain read-only.
+                self.assertEqual(ORIGINAL_COMMAND('register', moved), 'enabled')
+                self.assertEqual(autostart.service_owner(), moved)
+                with self.assertRaisesRegex(RuntimeError, 'another installation'):
+                    ORIGINAL_COMMAND('status', second)
+
+    def test_system_app_is_discovered_only_for_the_matching_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            app = root / 'Applications/PadPilot.app'
+            resources = app / 'Contents/Resources'
+            resources.mkdir(parents=True)
+            metadata = resources / 'runtime.json'
+            metadata.write_text(json.dumps({'project_root': str(root), 'python': '/usr/bin/python3'}))
+            (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+            with patch.object(autostart, 'PROJECT_ROOT', root), \
+                 patch.object(autostart, 'APP_SUPPORT_DIR', root / 'support'), \
+                 patch('core.runtime.SYSTEM_APP', app), patch.object(Path, 'home', return_value=root / 'home'):
+                self.assertEqual(autostart.find_menu_app(), app)
+                metadata.write_text(json.dumps({'project_root': '/another/project', 'python': '/usr/bin/python3'}))
+                self.assertIsNone(autostart.find_menu_app())
 
     def test_menu_launcher_only_opens_matching_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             app = root / 'build/PadPilot.app/Contents/Resources'
             app.mkdir(parents=True)
-            (app / 'runtime.json').write_text(json.dumps({'project_root': str(root)}))
+            (app / 'runtime.json').write_text(json.dumps({'project_root': str(root), 'python': '/usr/bin/python3'}))
+            (app.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
             with patch.object(autostart, 'PROJECT_ROOT', root), patch.object(Path, 'home', return_value=root), \
                  patch.object(autostart.subprocess, 'run', return_value=MagicMock(returncode=0)) as run:
                 self.assertTrue(autostart.open_menu_app())

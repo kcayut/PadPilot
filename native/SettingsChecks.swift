@@ -97,6 +97,66 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
             }
             if page == "settings" {
                 try require(nodes.contains { $0.label == strings["全域快速鍵"] }, "Missing global shortcut settings")
+                let headings = ["⚙️ 運作模式 (Operation Mode)", "🚀 登入時自動啟動 PadPilot：", "全域快速鍵"]
+                    .compactMap { key in nodes.first { $0.label == (strings[key] ?? key) } }
+                try require(headings.count == 3 && headings[0].frame.minY < headings[1].frame.minY
+                            && headings[1].frame.minY < headings[2].frame.minY, "Login startup must immediately follow operation mode")
+                for boot in [false, true] {
+                    var startup = fixture
+                    var startupConfig = startup["config"] as? CheckObject ?? [:]
+                    startupConfig["autostart_on_login"] = !boot; startupConfig["connect_on_boot"] = !boot
+                    startup["config"] = startupConfig; startup["login_service_status"] = boot ? "notRegistered" : "enabled"
+                    controller.loadFixture(startup, page: "settings")
+                    controller.checkRealConfirm(); await settle()
+                    let label = strings[boot ? "開機無螢幕時自動連線 iPad" : "（隨 macOS 登入背景自動執行）"]
+                    for accept in [false, true] {
+                        guard let toggle = elements(content).first(where: { $0.label == label && $0.role == "AXCheckBox" }) else {
+                            throw NSError(domain: "Missing startup toggle", code: 23)
+                        }
+                        let before = mutations(controller).count
+                        try require(toggle.enabled && toggle.press(), "Startup toggle is not usable")
+                        await settle()
+                        guard let sheet = window.attachedSheet, let body = sheet.contentView else {
+                            throw NSError(domain: "Missing linked startup confirmation", code: 24)
+                        }
+                        let detail = boot ? "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？"
+                            : "停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？"
+                        try require(views(body).compactMap { $0 as? NSTextField }.contains { $0.stringValue == (strings[detail] ?? detail) },
+                                    "Confirmation does not explain both linked options")
+                        guard let answer = views(body).compactMap({ $0 as? NSButton }).first(where: { $0.title == strings[accept ? "是" : "否"] }) else {
+                            throw NSError(domain: "Missing confirmation answer", code: 25)
+                        }
+                        answer.performClick(nil); await settle()
+                        try require(mutations(controller).count == before + (accept ? 1 : 0), "Startup confirmation submitted the wrong number of writes")
+                        if accept {
+                            let command = mutations(controller).last ?? [:]
+                            let expected = boot ? ["change-settings", "set_connect_on_boot"] : ["autostart", "disable", "--expected-revision", "7"]
+                            try require(command["args"] as? [String] == expected, "Linked startup bypassed the shared transaction")
+                            if boot { try require((command["payload"] as? CheckObject)?["__expected_revision__"] as? Int == 7, "Boot confirmation lost its revision") }
+                        }
+                    }
+                }
+                // Independent changes must submit immediately, without a confirmation sheet.
+                for (boot, loginEnabled, bootEnabled) in [(false, false, false), (false, false, true),
+                                                           (false, true, false), (true, true, false), (true, true, true)] {
+                    var startup = fixture
+                    var startupConfig = startup["config"] as? CheckObject ?? [:]
+                    startupConfig["autostart_on_login"] = loginEnabled; startupConfig["connect_on_boot"] = bootEnabled
+                    startup["config"] = startupConfig; startup["login_service_status"] = loginEnabled ? "enabled" : "notRegistered"
+                    controller.loadFixture(startup, page: "settings")
+                    controller.checkRealConfirm(); await settle()
+                    let label = strings[boot ? "開機無螢幕時自動連線 iPad" : "（隨 macOS 登入背景自動執行）"]
+                    guard let toggle = elements(content).first(where: { $0.label == label && $0.role == "AXCheckBox" }) else {
+                        throw NSError(domain: "Missing independent startup toggle", code: 26)
+                    }
+                    let before = mutations(controller).count
+                    try require(toggle.enabled && toggle.press(), "Independent startup toggle is not usable")
+                    await settle()
+                    try require(window.attachedSheet == nil && mutations(controller).count == before + 1,
+                                "An independent startup change requested confirmation instead of applying directly")
+                }
+                controller.loadFixture(fixture, page: "settings"); await settle()
+                nodes = elements(content)
                 guard let recorder = views(content).compactMap({ $0 as? HotKeyRecorderButton }).first else {
                     throw NSError(domain: "Missing shortcut recorder", code: 22)
                 }

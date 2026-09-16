@@ -177,7 +177,7 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 
 リリースの更新：PadPilot を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status` を再実行し、アプリも再ビルドします。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（インストール時に選んだ Python を使用）を再実行し、アプリも再ビルドします。更新時は既存アプリの場所を維持し、ソースからの新規インストールは `~/Applications/PadPilot.app` が既定です。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 </details>
 

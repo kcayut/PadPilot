@@ -224,6 +224,24 @@ private final class SettingsModel: ObservableObject {
         }
         if !hadStrings || language != previousLanguage { languageDidChange?() }
     }
+    func setLoginStartup(_ enabled: Bool) {
+        if !enabled && config.flag("connect_on_boot") {
+            confirm(tr("確定{0}登入時自動啟動?", tr("停用")), tr("停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？")) {
+                self.change("set_autostart", ["enabled": false])
+            }
+        } else {
+            change("set_autostart", ["enabled": enabled])
+        }
+    }
+    func setBootConnection(_ enabled: Bool) {
+        if enabled && (!config.flag("autostart_on_login") || data.text("login_service_status") != "enabled") {
+            confirm(tr("啟用開機自動連線？"), tr("啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？")) {
+                self.change("set_connect_on_boot", ["enabled": true])
+            }
+        } else {
+            change("set_connect_on_boot", ["enabled": enabled])
+        }
+    }
     func change(_ operation: String, _ values: SettingsObject, draftKey: String? = nil) {
         guard !disabled else { return }
         var payload = values
@@ -843,7 +861,7 @@ private struct SettingsPreferencesView: View {
                     if mode.0 == "manual_only" {
                         Toggle(model.tr("開機無螢幕時自動連線 iPad"), isOn: Binding(
                             get: { model.config.flag("connect_on_boot") },
-                            set: { model.change("set_connect_on_boot", ["enabled": $0]) }
+                            set: { model.setBootConnection($0) }
                         )).disabled(model.disabled)
                         Text(model.tr("登入後最多偵測 3 輪，每輪 30 秒；找到目標就嘗試連線，三輪都找不到便停止。同次開機不重複，須啟用登入自動啟動。"))
                             .font(settingsFont(.callout)).foregroundStyle(.secondary)
@@ -855,21 +873,19 @@ private struct SettingsPreferencesView: View {
                     .background(model.config.text("mode") == mode.0 ? Color.accentColor.opacity(0.07) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             }
         }
-        SettingsConnectionHotKey(model: model)
         SettingsCard(title: model.tr("🚀 登入時自動啟動 PadPilot：")) {
             Toggle(model.tr("（隨 macOS 登入背景自動執行）"), isOn: Binding(get: { model.data.text("login_service_status") == "enabled" }, set: { enabled in
-                model.confirm(model.tr("確定{0}登入時自動啟動?", model.tr(enabled ? "啟用" : "停用")), model.tr(enabled ? "登入 macOS 時自動執行 PadPilot。" : "登入 macOS 時不自動執行 PadPilot。")) {
-                    model.change("set_autostart", ["enabled": enabled])
-                }
+                model.setLoginStartup(enabled)
             })).disabled(model.disabled || model.data.text("login_service_status") == "unknown")
             if model.data.text("login_service_status") == "requiresApproval" {
                 Text(model.tr("請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行"))
                     .font(settingsFont(.callout)).foregroundStyle(.secondary)
                 Button(model.tr("開啟系統登入項目")) { SMAppService.openSystemSettingsLoginItems() }
-                Button(model.tr("停用登入啟動")) { model.change("set_autostart", ["enabled": false]) }
+                Button(model.tr("停用登入啟動")) { model.setLoginStartup(false) }
                     .disabled(model.disabled)
             }
         }
+        SettingsConnectionHotKey(model: model)
         SettingsCard(title: "") {
             DisclosureGroup(model.tr("進階選項"), isExpanded: $advanced) {
                 VStack(alignment: .leading, spacing: 16) {

@@ -23,6 +23,12 @@ from core.i18n import set_language
 
 
 class NativeAppTests(unittest.TestCase):
+    def setUp(self):
+        # Never discover or remove the developer's installed system App.
+        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-padpilot-test/PadPilot.app'))
+        system.start()
+        self.addCleanup(system.stop)
+
     def test_new_user_install_bundles_service_without_external_agent(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()

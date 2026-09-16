@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from core.i18n import LANGUAGES, set_language, tr
-from core.autostart import daemon_pids, is_autostart_enabled
+from core.autostart import daemon_pids, autostart_status
 from core.config import Config
 from core.models import OperationMode, pairing_key
 from core.storage import latest_state_path, read_private_json, state_file_exists, UnsafePathError
@@ -54,7 +54,8 @@ def same_device(a: dict, b: dict) -> bool:
 
 
 def render(status: dict, config: dict, autostart: bool, now: float | None = None,
-           *, service_running: bool | None = True, gui_available: bool = True) -> dict:
+           *, service_running: bool | None = True, gui_available: bool = True,
+           login_service_status: str | None = None) -> dict:
     items = []
 
     def item(title, depth=0, args=(), *, enabled=True, checked=False):
@@ -202,7 +203,10 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
         title = tr(title)
         item(title, 1, ('set-mode', value), checked=mode == value)
     item(tr('背景服務'))
-    item(tr('登入時自動啟動'), 1, ('autostart', 'toggle'), checked=autostart)
+    item(tr('登入時自動啟動'), 1, ('autostart', 'toggle', '--expected-revision', str(cfg_rev)), checked=autostart)
+    if config.get('connect_on_boot') and (autostart or login_service_status == 'requiresApproval'):
+        items[-1]['confirmation'] = [tr('變更登入啟動？'),
+            tr('若停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？'), tr('否'), tr('是')]
     if service_running is True:
         item(tr('服務狀態：執行中'), 1)
         item(tr('停止背景服務（保留選單）'), 1, ('stop',))
@@ -253,7 +257,9 @@ def read_menu() -> dict:
     if config_error:
         status = dict(status, actual=dict(status.get('actual') or {}, discovery_errors={
             'config': 'Configuration unreadable; repair or restore the file before starting PadPilot.'}))
-    return render(status, config, is_autostart_enabled(), service_running=service_running)
+    login_status = autostart_status()
+    return render(status, config, login_status == 'enabled', service_running=service_running,
+                  login_service_status=login_status)
 
 
 def main():

@@ -22,6 +22,12 @@ from core.config import Config
 
 
 class SetupPathsTests(unittest.TestCase):
+    def setUp(self):
+        # Never discover or remove the developer's installed system App.
+        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-padpilot-test/PadPilot.app'))
+        system.start()
+        self.addCleanup(system.stop)
+
     def test_open_settings_or_failed_process_query_blocks_changes(self):
         with tempfile.TemporaryDirectory() as directory, \
              patch('pathlib.Path.home', return_value=Path(directory)), \

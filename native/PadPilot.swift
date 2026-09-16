@@ -192,6 +192,7 @@ struct MenuRow: Codable {
     let checked: Bool
     let separator: Bool
     var icon: String? = nil
+    var confirmation: [String]? = nil
 }
 
 func menuIcon(_ name: String) -> NSImage? {
@@ -216,6 +217,9 @@ struct MenuSnapshot: Codable {
 
 // These are CLI argument arrays, never shell commands or device-provided code.
 func validAction(_ args: [String]) -> Bool {
+    if args.count == 4 && args[0] == "autostart" {
+        return args[1] == "toggle" && args[2] == "--expected-revision" && Int(args[3]).map { $0 >= 0 } == true
+    }
     if args.count == 1 { return ["start", "stop", "exit", "gui"].contains(args[0]) }
     if args.count == 2 {
         switch args[0] {
@@ -527,6 +531,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                          delete: args.count == 4 && args[2] == "--delete" ? args[3] : nil,
                          select: args.count == 4 && args[2] == "--select" ? args[3] : nil)
             return
+        }
+        if let confirmation = snapshot?.items.first(where: { $0.args == args })?.confirmation, confirmation.count == 4 {
+            let alert = NSAlert()
+            alert.messageText = confirmation[0]; alert.informativeText = confirmation[1]
+            alert.addButton(withTitle: confirmation[2]); alert.addButton(withTitle: confirmation[3])
+            NSApp.activate(ignoringOtherApps: true)
+            guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
         if !isGUI { busy = true; setIcon("working") }
         runCLI(args, timeout: isGUI ? nil : 75) { result in

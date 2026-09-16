@@ -30,6 +30,8 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
     if action in ('set_usb_event_wakeup', 'set_auto_detect_ipad', 'set_connect_on_boot'):
         if set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
             raise ValueError('請提供布林值 enabled')
+        if action == 'set_connect_on_boot' and payload['enabled'] and not cfg.autostart_on_login:
+            raise ValueError('開機連線需要啟用登入時自動啟動；請透過 padpilot-cli change-settings set_connect_on_boot 設定。')
         field = action.removeprefix('set_')
         changed = getattr(cfg, field) != payload['enabled']
         setattr(cfg, field, payload['enabled'])
@@ -46,12 +48,7 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
         cfg.mode = mode
         return changed
     if action == 'set_autostart':
-        enabled = payload.get('enabled')
-        if not isinstance(enabled, bool):
-            raise ValueError('無效的自動啟動設定')
-        changed = cfg.autostart_on_login != enabled
-        cfg.autostart_on_login = enabled
-        return changed
+        raise ValueError('請透過 padpilot-cli autostart 變更登入服務與連動設定。')
     if action == 'save_pairing':
         if set(payload) != {'ipad', 'activate'} or type(payload['activate']) is not bool:
             raise ValueError('無效的配對命令')

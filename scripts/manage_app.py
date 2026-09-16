@@ -21,7 +21,7 @@ from core.autostart import daemon_pids, job_loaded, service_command
 from core.config import APP_SUPPORT_DIR, FALLBACK_CONFIG_FILE, load_config, save_config
 from core.settings import apply_change
 from core.storage import private_directory, state_file_exists
-from core.runtime import app_runtime, bundled_app
+from core.runtime import app_runtime, bundled_app, find_app
 
 
 def owned_app(app, root=None):
@@ -44,7 +44,10 @@ def trash(path):
 
 def stop_menu_apps(apps=None):
     explicit = apps is not None
-    for app in apps if explicit else (bundled_app() or Path.home() / 'Applications/PadPilot.app', ROOT / 'build/PadPilot.app'):
+    targets = apps if explicit else [find_app(ROOT)]
+    for app in targets:
+        if app is None or not app.exists():
+            continue
         if not owned_app(app, app_runtime(app)[0] if explicit else ROOT):
             continue
         # CLI wrappers may be running this very installer/uninstaller.
@@ -123,7 +126,7 @@ def installation_service(app):
 def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=False, betterdisplay_path=None):
     remove_config = remove_config or purge
     remove_logs = remove_logs or purge
-    app = bundled_app() or Path.home() / 'Applications/PadPilot.app'
+    app = bundled_app() or find_app(ROOT, include_build=False) or Path.home() / 'Applications/PadPilot.app'
     if bundled_app() and not uninstall:
         raise RuntimeError('Use install_release.sh to update a bundled app')
     if (app.exists() or app.is_symlink()) and (app.is_symlink() or not owned_app(app)):
@@ -161,7 +164,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
             shutil.copytree(ROOT / 'build/PadPilot.app', staging)
             try:
                 subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
-                stop_menu_apps()
+                stop_menu_apps([app])
                 if app.exists():
                     service_command('unregister', app)
                 if betterdisplay_path is not None:
@@ -182,7 +185,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
                     if replaced:
                         service_command('unregister', app)
                         subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
-                        stop_menu_apps()
+                        stop_menu_apps([app])
                         trash(app)
                     if previous_app is not None:
                         previous_app.rename(app)
@@ -214,7 +217,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
     subprocess.run([sys.executable] + (['-I', '-B'] if bundled_app() else [])
                    + [str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
-    stop_menu_apps()
+    stop_menu_apps([app])
     if uninstall:
         if app.exists():
             service_command('unregister', app)

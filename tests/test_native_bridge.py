@@ -78,15 +78,15 @@ class NativeBridgeTests(unittest.TestCase):
             source = home / 'source'
             installed = home / 'Applications/PadPilot.app'
             built = source / 'build/PadPilot.app'
-            modern = {'CFBundleURLTypes': [{'CFBundleURLSchemes': ['padpilot']}]}
+            modern = {'CFBundleIdentifier': 'com.padpilot.app', 'CFBundleURLTypes': [{'CFBundleURLSchemes': ['padpilot']}]}
             for app in (installed, built):
                 (app / 'Contents/Resources').mkdir(parents=True)
-                (app / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(source)}))
+                (app / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(source), 'python': '/usr/bin/python3'}))
                 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(modern))
             with patch('pathlib.Path.home', return_value=home), patch.object(autostart, 'PROJECT_ROOT', source):
-                for runtime_root, info in ((home / 'other-source', modern), (source, {})):
+                for runtime_root, info in ((home / 'other-source', modern), (source, {'CFBundleIdentifier': 'com.padpilot.app'})):
                     with self.subTest(runtime=str(runtime_root), native=bool(info)):
-                        (installed / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(runtime_root)}))
+                        (installed / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(runtime_root), 'python': '/usr/bin/python3'}))
                         (installed / 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
                         self.assertEqual(autostart.find_menu_app(settings=True), built)
                 self.assertEqual(autostart.find_menu_app(), installed)

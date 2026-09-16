@@ -8,9 +8,10 @@ import stat
 import subprocess
 from pathlib import Path
 
-from core.storage import atomic_write, private_file
+from core.storage import atomic_write, latest_state_path, private_file
 
 ROOT = Path(__file__).resolve().parents[1]
+SYSTEM_APP = Path('/Applications/PadPilot.app')
 
 
 def bundled_app(root=ROOT):
@@ -38,6 +39,52 @@ def app_runtime(app):
     if not root.is_absolute() or not python.is_absolute():
         raise ValueError('Invalid source runtime paths')
     return root.resolve(), python
+
+
+def login_service_owner(support_dir=None):
+    support = support_dir or Path.home() / 'Library/Application Support/PadPilot'
+    path = latest_state_path(support / 'login-service.json')
+    try:
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), encoding='utf-8') as stream:
+            value = json.load(stream)
+    except FileNotFoundError:
+        return None
+    if (not isinstance(value, dict) or set(value) != {'app'} or not isinstance(value['app'], str)
+            or not Path(value['app']).is_absolute()):
+        raise RuntimeError('Invalid login service ownership record')
+    return Path(value['app'])
+
+
+def find_app(root=None, *, include_build=True, settings=False, support_dir=None):
+    """Resolve this source's app; a build is a fallback, never an install target."""
+    root = (root or ROOT).resolve()
+    current = bundled_app(root)
+    if current:
+        return current
+    owner = login_service_owner(support_dir)
+    build = root / 'build/PadPilot.app'
+
+    def matches(app):
+        try:
+            if app.is_symlink() or app_runtime(app)[0] != root:
+                return False
+            if settings:
+                info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+                return any('padpilot' in item.get('CFBundleURLSchemes', [])
+                           for item in info.get('CFBundleURLTypes', []))
+            return True
+        except (OSError, ValueError, KeyError, TypeError):
+            return False
+
+    if owner and not owner.resolve().is_relative_to(root / 'build') and matches(owner):
+        return owner
+    installed = [app for app in dict.fromkeys((SYSTEM_APP, Path.home() / 'Applications/PadPilot.app'))
+                 if matches(app)]
+    if len(installed) > 1:
+        raise RuntimeError('Multiple PadPilot installations match this source; keep one installed copy before continuing')
+    if installed:
+        return installed[0]
+    return build if include_build and matches(build) else None
 
 
 def preference_path():

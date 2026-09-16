@@ -177,7 +177,7 @@ Run these from any directory. If `~/bin` is on your PATH, you can also use `padp
 
 Release updates: quit PadPilot, then replace the app at the same location or rerun the release installer. Settings are preserved; choose Python when using the installer. Before changing locations, uninstall the old copy while keeping settings. The following rebuild instructions apply only to source installations.
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status`. This also rebuilds the native app. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub, PayPal, and Ko-fi support links. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `python3 bin/padpilot-cli status` (using the Python selected during installation). This also rebuilds the native app. Updates keep the existing app location; a new source installation defaults to `~/Applications/PadPilot.app`. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub, PayPal, and Ko-fi support links. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 </details>
 

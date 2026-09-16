@@ -157,6 +157,7 @@ class UninstallInteractiveTests(unittest.TestCase):
                 source = home / 'source'
                 scripts = source / 'scripts'
                 scripts.mkdir(parents=True)
+                (scripts / 'source_runtime.sh').write_text((ROOT / 'scripts/source_runtime.sh').read_text())
                 # Relocate fixed discovery paths so this test never depends on the host's Python installations.
                 shell = (ROOT / 'scripts/uninstall.sh').read_text().replace('/opt/homebrew/', f'{home}/homebrew/')
                 (scripts / 'uninstall.sh').write_text(shell)
@@ -173,6 +174,7 @@ class UninstallInteractiveTests(unittest.TestCase):
                 interpreter.chmod(0o755)
                 runtime = source / 'build/PadPilot.app/Contents/Resources/runtime.json'
                 runtime.parent.mkdir(parents=True)
+                (runtime.parent.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
                 runtime.write_text(json.dumps({'python': str(interpreter if preferred == 'build' else old_python),
                                                'project_root': str(source)}))
                 calls = home / 'calls'

@@ -65,14 +65,11 @@ valid_python() {
     [[ "$1" != /usr/bin/python3 ]] || have_clt || return 1
     "$1" -B -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1
 }
+source "$SCRIPT_DIR/source_runtime.sh"
 find_python() {
-    local candidate runtime
+    local candidate
     if [[ -z "$PYTHON_BIN" ]]; then
-        runtime="$HOME/Applications/PadPilot.app/Contents/Resources/runtime.json"
-        if [[ -f "$runtime" && ! -L "$runtime" && "$(plutil -extract project_root raw -o - "$runtime" 2>/dev/null || true)" == "$PROJECT_ROOT" ]]; then
-            candidate="$(plutil -extract python raw -o - "$runtime" 2>/dev/null || true)"
-            if valid_python "$candidate"; then PYTHON_BIN="$candidate"; fi
-        fi
+        PYTHON_BIN="$(source_python || true)"
     fi
     if [[ -n "$PYTHON_BIN" ]]; then
         REPLY="$PYTHON_BIN"; expand_path; PYTHON_BIN="$REPLY"
@@ -235,7 +232,8 @@ done
 BETTERDISPLAY_PATH="$BETTERDISPLAY_FOUND"
 check_args
 "$PYTHON_BIN" -B "${CHECK_ARGS[@]}"
-printf '\n將安裝 / Install: ~/Applications/PadPilot.app\nPython: %s\nBetterDisplay: %s\n' "$PYTHON_BIN" "$BETTERDISPLAY_PATH"
+APP_TARGET="$("$PYTHON_BIN" -B -c 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from core.runtime import find_app; print(find_app(include_build=False) or Path.home() / "Applications/PadPilot.app")' "$PROJECT_ROOT")" || fail '無法確認 App 安裝位置；未更新 App。 / Cannot determine the app location; app unchanged.'
+printf '\n將安裝 / Install: %s\nPython: %s\nBetterDisplay: %s\n' "$APP_TARGET" "$PYTHON_BIN" "$BETTERDISPLAY_PATH"
 if [[ "$ASSUME_YES" == 0 ]]; then
     ask '繼續安裝 PadPilot？ / Install PadPilot? [Y/n]:'
     case "$REPLY" in ''|y|Y|yes|YES) ;; *) fail '已取消 PadPilot 安裝；已安裝的依賴保留並已記錄。' ;; esac

@@ -28,30 +28,13 @@ done
 valid_python() {
     [[ "$1" == /* && -x "$1" ]] && "$1" -B -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1
 }
-APP="$HOME/Applications/PadPilot.app"
-RUNTIME="$APP/Contents/Resources/runtime.json"
+source "$SCRIPT_DIR/source_runtime.sh"
 PYTHON_BIN="${PADPILOT_PYTHON:-}"
-if [[ -e "$APP" || -L "$APP" ]]; then
-    [[ ! -L "$APP" && -f "$RUNTIME" ]] || { echo 'App 安裝紀錄無效；未做變更。 / Invalid app receipt; nothing changed.' >&2; exit 1; }
-    BUNDLE_ID="$(/usr/bin/plutil -extract CFBundleIdentifier raw -expect string -o - "$APP/Contents/Info.plist")"
-    RUNTIME_ROOT="$(/usr/bin/plutil -extract project_root raw -expect string -o - "$RUNTIME")"
-    [[ "$BUNDLE_ID" == com.padpilot.app && -d "$RUNTIME_ROOT" && "$(cd "$RUNTIME_ROOT" && pwd -P)" == "$PROJECT_ROOT" ]] || {
-        echo 'App 屬於其他來源，請使用原安裝目錄。 / The app belongs to another source; uninstall from that directory.' >&2; exit 1;
-    }
-    if [[ -z "$PYTHON_BIN" ]]; then
-        PYTHON_BIN="$(/usr/bin/plutil -extract python raw -expect string -o - "$RUNTIME")"
-    fi
+if [[ -z "$PYTHON_BIN" ]]; then
+    PYTHON_BIN="$(source_python || true)"
 fi
 if [[ -z "$PYTHON_BIN" ]]; then
-    PYTHON_CANDIDATES=()
-    BUILD_RUNTIME="$PROJECT_ROOT/build/PadPilot.app/Contents/Resources/runtime.json"
-    if [[ -f "$BUILD_RUNTIME" ]]; then
-        BUILD_ROOT="$(/usr/bin/plutil -extract project_root raw -expect string -o - "$BUILD_RUNTIME" 2>/dev/null || true)"
-        if [[ -d "$BUILD_ROOT" && "$(cd "$BUILD_ROOT" && pwd -P)" == "$PROJECT_ROOT" ]]; then
-            PYTHON_CANDIDATES+=("$(/usr/bin/plutil -extract python raw -expect string -o - "$BUILD_RUNTIME" 2>/dev/null || true)")
-        fi
-    fi
-    PYTHON_CANDIDATES+=(
+    PYTHON_CANDIDATES=(
         /opt/homebrew/opt/python@3.14/bin/python3.14 /opt/homebrew/bin/python3.14
         /usr/local/opt/python@3.14/bin/python3.14 /usr/local/bin/python3.14
         /opt/homebrew/bin/python3 /usr/local/bin/python3
