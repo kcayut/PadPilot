@@ -177,7 +177,7 @@ Run these from any directory. If `~/bin` is on your PATH, you can also use `padp
 
 Release updates: quit PadPilot, then replace the app at the same location or rerun the release installer. Settings are preserved; choose Python when using the installer. Before changing locations, uninstall the old copy while keeping settings. The following rebuild instructions apply only to source installations.
 
-Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `python3 bin/padpilot-cli status` (using the Python selected during installation). This also rebuilds the native app. Updates keep the existing app location; a new source installation defaults to `~/Applications/PadPilot.app`. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub, PayPal, and Ko-fi support links. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
+Keep a backup of the prior source, save and close settings, then update the source and rerun `./scripts/install.sh --check`, `./scripts/install.sh`, and `python3 bin/padpilot-cli status` (using the Python selected during installation). This also rebuilds the native app. Updates keep the existing app location; a new source installation defaults to `~/Applications/PadPilot.app`. The GUI About page, CLI `--version`, and app share one version source. About also includes GitHub, PayPal, Ko-fi, and O’Pay support links. The old app is recoverable from Trash, but restoring the app alone does not restore its referenced source.
 
 </details>
 
@@ -206,7 +206,7 @@ The README and user guides under `docs/` are available in Traditional Chinese, E
 
 All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you!
 
-<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png -->
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay logo supplied by the project owner -->
 <table>
   <tr>
     <td align="center" width="160">
@@ -220,6 +220,13 @@ All PadPilot features are currently free. If you enjoy the app, you're welcome t
         <img src="docs/images/support/ko-fi.png" height="48" alt="Support development via Ko-fi"><br>
         <strong>Ko-fi</strong>
       </a>
+    </td>
+    <td align="center" width="220">
+      <a href="https://payment.opay.tw/Broadcaster/Donate/6CF8CF9E519E0ED13E244399607ADDD7">
+        <img src="docs/images/support/opay.png" height="48" alt="Support development via O’Pay"><br>
+        <strong>O’Pay (歐付寶)</strong>
+      </a><br>
+      O’Pay member ID: 2218408
     </td>
   </tr>
 </table>

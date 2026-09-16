@@ -177,7 +177,7 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 
 リリースの更新：PadPilot を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（インストール時に選んだ Python を使用）を再実行し、アプリも再ビルドします。更新時は既存アプリの場所を維持し、ソースからの新規インストールは `~/Applications/PadPilot.app` が既定です。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（インストール時に選んだ Python を使用）を再実行し、アプリも再ビルドします。更新時は既存アプリの場所を維持し、ソースからの新規インストールは `~/Applications/PadPilot.app` が既定です。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi、歐付寶の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 </details>
 
@@ -206,7 +206,7 @@ README と `docs/` 内のユーザー向けガイドは繁体字中国語、英�
 
 PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！
 
-<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png -->
+<!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay logo supplied by the project owner -->
 <table>
   <tr>
     <td align="center" width="160">
@@ -220,6 +220,13 @@ PadPilot の全機能は現在無料で利用できます。気に入ってい�
         <img src="docs/images/support/ko-fi.png" height="48" alt="Ko-fi で開発を支援"><br>
         <strong>Ko-fi</strong>
       </a>
+    </td>
+    <td align="center" width="220">
+      <a href="https://payment.opay.tw/Broadcaster/Donate/6CF8CF9E519E0ED13E244399607ADDD7">
+        <img src="docs/images/support/opay.png" height="48" alt="歐付寶（O’Pay）で開発を支援"><br>
+        <strong>歐付寶（O’Pay）</strong>
+      </a><br>
+      歐付寶会員番号：2218408
     </td>
   </tr>
 </table>

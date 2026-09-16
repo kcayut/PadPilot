@@ -220,7 +220,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                 }
             }
             if language == "en" {
-                for node in nodes where !["繁體中文", "日本語"].contains(node.label) {
+                for node in nodes where !["繁體中文", "日本語", "歐付寶2218408"].contains(node.label) {
                     try require(!node.label.unicodeScalars.contains { (0x4e00...0x9fff).contains($0.value) }, "Untranslated native text: \(page)/\(node.label)")
                 }
             }
@@ -232,7 +232,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                             "Native control overflows window: \(language)/\(page)/\(node.label)")
             }
             if page == "about" {
-                for name in ["PayPal", "Ko-fi"] {
+                for name in ["PayPal", "Ko-fi", "歐付寶2218408"] {
                     let buttons = nodes.filter { $0.role == "AXButton" && $0.label == name }
                     try require(!buttons.isEmpty && buttons.allSatisfy { $0.enabled }, "Configured \(name) donation link must be enabled")
                 }
