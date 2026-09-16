@@ -26,6 +26,10 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory build/website
 
 這次僅製作本機初稿，未啟用 GitHub Pages、建立部署工作流程、推送或公開上線。外部下載、文件、回報與付款連結沿用 README；發布前仍須確認目標頁面可供一般訪客存取，以及金流帳戶允許此收款用途。
 
+### 2026-09-17：加入自動部署
+
+新增 `.github/workflows/pages.yml`，在 `main` 的網站內容或素材變更時重新建置，也可手動執行。儲存庫的 Pages 來源須設為 GitHub Actions；工作流程只上傳 `build/website/`，部署至 `https://kcayut.github.io/PadPilot/`。上方「本機初稿」段落保留作為當時紀錄，實際部署結果以 GitHub Actions 為準。
+
 ## 內容維護
 
 變更版型會同步套用三語；修改文案時須一併更新三種語言。網站未變更軟體授權，仍如實標示 PolyForm Noncommercial 1.0.0，不能將「原始碼公開」改寫成 OSI 開源授權。
