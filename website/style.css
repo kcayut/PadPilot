@@ -82,10 +82,9 @@ details p{color:var(--muted);padding:0 4px 24px}
 .support .eyebrow{margin-bottom:18px}
 .support-links{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .support-link{display:flex;align-items:center;justify-content:center;gap:12px;min-height:78px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;font-weight:650}
-.support-link.ecpay{grid-column:1/-1}
 .support-link:hover{border-color:var(--blue)}
 .support-link img{height:30px;width:auto;max-width:125px;object-fit:contain}
-.support-link.opay{grid-column:1/-1;flex-wrap:wrap;justify-content:space-between;padding-inline:24px}
+.support-link.opay,.support-link.ecpay{grid-column:1/-1;flex-wrap:wrap;justify-content:space-between;padding-inline:24px}
 .support-link small{font-size:.75rem;color:var(--muted);font-weight:400}
 .support-link .provider{display:flex;align-items:center;gap:12px}
 .support .payment-note{font-size:.8rem;margin-top:14px}
@@ -138,7 +137,7 @@ details p{color:var(--muted);padding:0 4px 24px}
 .notice{margin-top:22px;padding:20px}
 .faq-grid{grid-template-columns:1fr;gap:28px}
 .support{grid-template-columns:1fr;padding:28px 22px;gap:24px;margin-bottom:42px}
-.support-link.opay{padding-inline:18px}
+.support-link.opay,.support-link.ecpay{padding-inline:18px}
 .footer-top{flex-direction:column;gap:12px}
 .footer-links{gap:18px}
 h2{font-size:2rem}

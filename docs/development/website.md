@@ -35,3 +35,8 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory build/website
 變更版型會同步套用三語；修改文案時須一併更新三種語言。網站未變更軟體授權，仍如實標示 PolyForm Noncommercial 1.0.0，不能將「原始碼公開」改寫成 OSI 開源授權。
 
 實機影片是完成首次設定後的示範，等待段加速 8 倍；介面截圖使用示範裝置資料。保留登入後才運作、FileVault／登入前畫面不支援、早期預覽與未簽署／公證等限制。未加入分析追蹤、表單、第三方程式或付款資料收集。
+
+### 2026-09-18：綠界科技贊助項目加入收款信箱
+
+在 `website/content.json`、`website/template.html` 與 `website/style.css` 統一在綠界科技區塊標註收款信箱 `kcayut@gmail.com`，樣式與排版規則與歐付寶會員編號保持一致。
+
