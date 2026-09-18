@@ -64,3 +64,8 @@ menu-hidden
 
 # Generated LaunchAgent plist (only .plist.in is tracked in repository)
 launchd/com.padpilot.daemon.plist
+
+# Local Agent instructions
+AGENTS.md
+AGENT.md
+
