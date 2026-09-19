@@ -12,7 +12,7 @@ New installations default to Manual only with “Connect iPad at boot when no mo
 
 **Development releases use ad-hoc signing without Developer ID signing or Apple notarization.** For developer-verification or malware-check warnings, verify the source and follow [Apple’s instructions](https://support.apple.com/en-us/102445) for Privacy & Security → Open Anyway. For a damaged-app warning, download again and check SHA-256. Do not disable Gatekeeper globally or assume every warning is harmless.
 
-The BetterDisplay app must still be installed and running with the required control license. The separate `betterdisplaycli` is optional; the app’s built-in CLI is sufficient. Discovery covers `/Applications`, `~/Applications`, and locations registered with LaunchServices. Advanced settings also accept a custom app or CLI path.
+Install and run the BetterDisplay app separately. Current PadPilot features work with its free mode; Pro or a trial is not required. The separate `betterdisplaycli` is optional; the app’s built-in CLI is sufficient. Discovery covers `/Applications`, `~/Applications`, and locations registered with LaunchServices. Advanced settings also accept a custom app or CLI path.
 
 ### Script installation and Python selection
 
@@ -69,7 +69,7 @@ git push github v0.1.0-dev.1
 
 Commit the intended changes first. Tags support `vX.Y.Z` and `vX.Y.Z-dev.N` / `alpha.N` / `beta.N` / `rc.N`. **Push the tag to GitHub; a local tag alone does not trigger a build.** The ARM workflow runs software checks, compilation, packaging, and relocation tests, then automatically publishes a prerelease after all assets are uploaded. No Apple certificate or manual approval is needed. Published releases are not overwritten; use a new tag for fixes. Failed drafts can be rerun. Physical-device acceptance remains unknown.
 
-For the same local artifacts, run `python3 scripts/build_release.py --tag v0.1.0-dev.1` using Python 3.12+ and Apple build tools. Output is `dist/<tag>/`. CPython’s upstream URL and SHA-256 are pinned in `scripts/python-runtime.json`; its licenses remain included. The full tag and build commit are recorded in the artifacts.
+For the same local artifacts, use Python 3.12+ and Apple build tools. In a build virtual environment, run `python3 -m pip install -r scripts/dmg-requirements.txt`, then `python3 scripts/build_release.py --tag v0.1.0-dev.1`. Output is `dist/<tag>/`. The DMG layout packages are build tools only and are not bundled in the app runtime; `--no-dmg` skips the DMG and this dependency. CPython’s upstream URL and SHA-256 are pinned in `scripts/python-runtime.json`; its licenses remain included. The full tag and build commit are recorded in the artifacts.
 
 ## Source installation (development)
 
@@ -105,7 +105,7 @@ Paste the entire block into Terminal:
 )
 ```
 
-**Download requirements:** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) must be public and `scripts/bootstrap.sh` must be published on `main`. A private repository or missing script returns 404; until publication, use an authorized source copy and the local installation steps below. The command downloads the complete script to a temporary file before running it; the source archive is also checked for unsafe paths and file types before extraction.
+**Download behavior:** The script is downloaded from `main` in [kcayut/PadPilot](https://github.com/kcayut/PadPilot). For a 404 response, check the URL or use the DMG from [Releases](https://github.com/kcayut/PadPilot/releases). The complete script is downloaded to a temporary file before running it; source archives are checked for unsafe paths and file types before extraction.
 
 Downloading requires neither Git nor Python. Source is kept in `~/Applications/PadPilot-source`; an unrelated existing folder is never overwritten. Rerunning reuses that source and resumes installation without downloading updates. Keep `.padpilot-install.json`: it records the managed source and newly installed dependencies for the uninstaller.
 
@@ -135,7 +135,7 @@ Interactive installation shows detected Python and BetterDisplay paths, then let
 ./scripts/install.sh --yes --install-deps
 ```
 
-`--python` accepts a Python executable; `--betterdisplay-path` accepts an `.app` folder or CLI executable. `--yes` does not authorize third-party installation and stops if required dependencies are missing: install them manually or add `--install-deps`. Successful BetterDisplay CLI help does not verify its license, Sidecar, or a working display.
+`--python` accepts a Python executable; `--betterdisplay-path` accepts an `.app` folder or CLI executable. `--yes` does not authorize third-party installation and stops if required dependencies are missing: install them manually or add `--install-deps`. Successful BetterDisplay CLI help does not verify Sidecar or a working display.
 
 Homebrew installation uses Python 3.14, plus the official [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay). `--yes --install-deps` may still require an administrator password or an Apple installation dialog; it does not guarantee unattended setup.
 

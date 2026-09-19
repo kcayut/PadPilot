@@ -15,6 +15,10 @@
     "en": "Manual only",
     "ja": "手動モード"
   },
+  "停止目前連線嘗試": {
+    "en": "Stop current connection attempt",
+    "ja": "現在の接続試行を停止"
+  },
   "偏好 iPad 模式": {
     "en": "Prefer iPad",
     "ja": "iPad 優先モード"
@@ -690,6 +694,42 @@
   "實體螢幕": {
     "en": "Physical display",
     "ja": "物理ディスプレイ"
+  },
+  "排除實體螢幕判斷": {
+    "en": "Exclude from physical display detection",
+    "ja": "物理ディスプレイ判定から除外"
+  },
+  "恢復自動判斷": {
+    "en": "Restore automatic detection",
+    "ja": "自動判定に戻す"
+  },
+  "只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。": {
+    "en": "Only changes how PadPilot detects physical displays. This display stays on.",
+    "ja": "PadPilot の物理ディスプレイ判定だけを変更します。この画面の表示は続きます。"
+  },
+  "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。": {
+    "en": "Sidecar and virtual displays keep their roles and do not count as physical displays.",
+    "ja": "Sidecar と仮想ディスプレイは元の用途を保ち、物理ディスプレイには数えません。"
+  },
+  "無法取得螢幕識別碼，暫時不能調整。": {
+    "en": "This display cannot be identified, so this setting is unavailable.",
+    "ja": "ディスプレイを識別できないため、この設定は変更できません。"
+  },
+  "無效的螢幕排除設定": {
+    "en": "Invalid display exclusion setting",
+    "ja": "ディスプレイの除外設定が無効です"
+  },
+  "無法確認螢幕清單，設定未變更。": {
+    "en": "The display list could not be verified. No settings were changed.",
+    "ja": "ディスプレイ一覧を確認できませんでした。設定は変更していません。"
+  },
+  "螢幕已離線或識別不唯一，請重新整理。": {
+    "en": "The display is offline or cannot be uniquely identified. Refresh and try again.",
+    "ja": "ディスプレイがオフラインか、一意に識別できません。更新して再試行してください。"
+  },
+  "Sidecar 與虛擬螢幕不計入實體螢幕判斷。": {
+    "en": "Sidecar and virtual displays do not count as physical displays.",
+    "ja": "Sidecar と仮想ディスプレイは物理ディスプレイには数えません。"
   },
   "◻️ BetterDisplay 虛擬備援螢幕設定": {
     "en": "◻️ BetterDisplay virtual fallback",

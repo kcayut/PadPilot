@@ -80,6 +80,8 @@ Open **Paired iPads**. To change the primary managed iPad, expand that device's 
 
 Wait for the desktop to appear, then check the roles in **Connected displays**. **“Sidecar detected” means the device was found, not that it is already showing your desktop.**
 
+If a display is misclassified, check or uncheck **“Exclude from physical display detection”** on its card. This only changes whether it counts as a physical monitor; it does not stop controlling or turn off the display. `Generic` / `Generic Display` are excluded by default; uncheck this for a real monitor, or choose “Restore automatic detection” to return to the default. **Excluding every physical monitor makes Automatic mode treat the Mac as having none, so it may try to connect the iPad.** [More details](docs/TROUBLESHOOTING.en.md#generic-display)
+
 ### 4. Pick manual or automatic control
 
 Open **Preferences**. Start with the default **Manual only** mode; switch modes when you want more automation.
@@ -117,7 +119,7 @@ This keeps a desktop available while the iPad is not ready, and remains availabl
 - **Clicked Connect but no desktop?** Check Connected displays and Status & diagnostics. A successful command submission is not a completed connection.
 - **Displays keep switching?** Choose Manual only and check whether another tool is also changing the main display.
 
-See [Troubleshooting](docs/TROUBLESHOOTING.en.md) for more help. In-app help opens version-specific GitHub documentation in the selected language; private repositories require an account with access.
+See [Troubleshooting](docs/TROUBLESHOOTING.en.md) for more help. In-app help opens version-specific GitHub documentation in the selected language.
 
 <details>
 <summary>What do the menu bar icons mean?</summary>
@@ -249,4 +251,4 @@ This is a source-available noncommercial license, not an OSI open-source license
 
 Thanks to [BetterDisplay](https://github.com/waydabber/BetterDisplay) for display control. PadPilot is an independent project, not affiliated with or endorsed by Apple or BetterDisplay.
 
-BetterDisplay is installed separately by the user and is not bundled with PadPilot. Its [license terms](https://github.com/waydabber/BetterDisplay/discussions/739) still apply: non-business users may use free features; business use generally requires Pro, subject to the official exceptions for individual work use.
+BetterDisplay is installed separately and is not bundled with PadPilot. Current PadPilot features do not require BetterDisplay Pro or a trial; BetterDisplay’s own [license terms](https://github.com/waydabber/BetterDisplay/discussions/739) still apply.

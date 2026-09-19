@@ -94,7 +94,7 @@ class DisplayDetector:
 
             # Device identity comes from hardware metadata, never a user-editable name.
             is_sidecar = vendor == 0x6161706C or model == 0x69506164
-            is_virtual = False
+            is_virtual = vendor == 2198
 
             # Check from BetterDisplay
             bd_item = bd_map.get(str(did))
@@ -102,9 +102,7 @@ class DisplayDetector:
                 name = bd_item.get("name") or f"Display-{did}"
                 if (
                     bd_item.get("deviceType") == "VirtualScreen"
-                    or bd_item.get("vendor") == "2198"
-                    or "virtual" in name.lower()
-                    or (self.config.virtual_display_name and self.config.virtual_display_name.lower() in name.lower())
+                    or str(bd_item.get("vendor")) == "2198"
                 ):
                     is_virtual = True
                 # Sidecar in BetterDisplay has vendor 1633775724 / model 1766875492 or empty registryLocation
@@ -185,10 +183,14 @@ class DisplayDetector:
         return devices
 
     def is_display_ignored(self, d: DisplayInfo) -> bool:
-        """Check if display matches the ignore list or is virtual/sidecar/dummy."""
+        """Exclude system roles; per-display choices override name heuristics."""
+        if d.is_virtual or d.is_sidecar:
+            return True
+        override = self.config.display_exclusions.get((d.uuid or '').upper())
+        if override is not None:
+            return override
         name_lower = d.name.strip().lower()
-        # ponytail: exact names observed on this headless Mac; use EDID evidence
-        # if a real monitor also reports one of these names.
+        # ponytail: known headless names are defaults; per-UUID choices correct collisions.
         if name_lower in {"generic", "generic display"}:
             return True
         if "dummy" in name_lower or "headless" in name_lower:
@@ -292,6 +294,7 @@ class DisplayDetector:
         main_display: Optional[DisplayInfo] = None
 
         for d in all_displays:
+            d.excluded_from_physical_detection = self.is_display_ignored(d)
             if d.is_main:
                 main_display = d
 
@@ -311,8 +314,7 @@ class DisplayDetector:
                     matched_displays.append(d)
                 continue
 
-            if d.is_virtual or self.is_display_ignored(d):
-                d.is_virtual = True
+            if d.excluded_from_physical_detection:
                 continue
 
             physical_displays.append(d)
@@ -341,8 +343,7 @@ class DisplayDetector:
         actual = ActualState(
             resolved_ipad=target,
             physical_displays=physical_displays,
-            online_displays=[d for d in all_displays if not self.is_display_ignored(d) or
-                             d.name == self.config.virtual_display_name],
+            online_displays=all_displays,
             sidecar_devices=sidecar_list,
             usb_devices=[u for u in usb_devices if u.get("vendor_id") == 1452],
             discovery_errors={key: error for key, error in (

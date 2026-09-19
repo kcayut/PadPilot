@@ -99,9 +99,9 @@ def autostart_status() -> str:
         return "unknown"
 
 
-def daemon_pids() -> list[int]:
+def daemon_pids(project_root: Optional[Path] = None) -> list[int]:
     # pgrep only selects candidates; verify the executable and script position.
-    script = str(PROJECT_ROOT / "bin" / "padpilotd")
+    script = str((project_root or PROJECT_ROOT) / "bin" / "padpilotd")
     pattern = r"(^| )" + re.escape(script) + r"( |$)"
     result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=2)
     if result.returncode not in (0, 1):

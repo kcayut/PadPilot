@@ -76,6 +76,7 @@ class LanguageTests(unittest.TestCase):
         daemon = daemon_type.__new__(daemon_type)
         daemon.config = Config()
         daemon.engine = MagicMock()
+        daemon.engine.run_control.side_effect = lambda action: action()
         daemon.detector = MagicMock()
         namespace = daemon.apply_config_change.__globals__
         with patch.dict(namespace, save_config=MagicMock()):

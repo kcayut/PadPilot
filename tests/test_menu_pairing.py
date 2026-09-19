@@ -243,6 +243,7 @@ class MenuPairingTests(unittest.TestCase):
         cls = DAEMON['PadPilotDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
+        obj.engine.run_control.side_effect = lambda action: action()
         import json
         with patch.dict(cls.handle_client_cmd.__globals__, {'load_config': Config, 'save_config': MagicMock()}):
             response = obj.handle_client_cmd('save_pairing:' + json.dumps({'ipad': DEVICE, 'activate': False}))

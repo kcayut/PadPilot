@@ -98,6 +98,7 @@ class NativeBridgeTests(unittest.TestCase):
         obj = cls.__new__(cls)
         obj.config = Config(revision=3, ipad=IpadConfig('Test', 'uuid', 'serial'))
         obj.engine = MagicMock()
+        obj.engine.run_control.side_effect = lambda action: action()
         key = pairing_key(obj.config.ipad.to_dict())
         for revision, target, error in ((2, key, 'CONFIG_CONFLICT'), (3, 'a' * 64, 'TARGET_CHANGED'),
                                         (True, key, 'CONFIG_CONFLICT'), (None, key, 'CONFIG_CONFLICT')):

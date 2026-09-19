@@ -22,7 +22,11 @@ def fixtures():
 
     one = {'name': 'My iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111', 'usb_serial': 'USB123'}
     two = dict(one, name='Other iPad', sidecar_uuid='22222222-2222-4222-8222-222222222222', usb_serial='USB456')
-    cfg = Config.from_dict({'revision': 7, 'auto_detect_ipad': False, 'ipad': one, 'paired_ipads': [one, two]})
+    display_uuid = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA'
+    generic_uuid = 'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB'
+    excluded_uuid = 'CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC'
+    cfg = Config.from_dict({'revision': 7, 'auto_detect_ipad': False, 'ipad': one, 'paired_ipads': [one, two],
+                            'display_exclusions': {excluded_uuid: True}})
     view = {'config': cfg, 'config_error': '', 'fresh': True, 'scanned': True,
             'status_revision': 8, 'config_revision': 7, 'status_config_revision': 7,
             'consistency_state': 'CONSISTENT', 'hardware_snapshot_age': 1,
@@ -31,8 +35,20 @@ def fixtures():
                                            {'uuid': '33333333-3333-4333-8333-333333333333', 'name': 'New iPad'}],
                        'usb_devices': [{'serial': 'USB123', 'product_name': 'My iPad'},
                                        {'serial': 'USB456', 'product_name': 'Other iPad'}],
-                       'online_displays': [{'name': 'Display', 'width': 1920, 'height': 1080, 'is_main': True},
-                                           {'name': 'iPad', 'width': 1920, 'height': 1080, 'is_sidecar': True}],
+                       'online_displays': [{'name': 'Display', 'uuid': display_uuid, 'width': 1920, 'height': 1080,
+                                            'is_main': True, 'excluded_from_physical_detection': False},
+                                           {'name': 'Generic Display', 'uuid': generic_uuid, 'width': 1920, 'height': 1080,
+                                            'excluded_from_physical_detection': True},
+                                           {'name': 'Display', 'uuid': excluded_uuid, 'width': 1920, 'height': 1080,
+                                            'excluded_from_physical_detection': True},
+                                           {'name': 'iPad', 'uuid': 'DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD',
+                                            'width': 1920, 'height': 1080, 'is_sidecar': True,
+                                            'excluded_from_physical_detection': True},
+                                           {'name': 'PadPilotVirtual', 'uuid': 'EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE',
+                                            'width': 1920, 'height': 1080, 'is_virtual': True,
+                                            'excluded_from_physical_detection': True},
+                                           {'name': 'Unidentified display', 'width': 1920, 'height': 1080,
+                                            'excluded_from_physical_detection': False}],
                        'discovery_errors': {}},
             'identifiers': [{'name': 'PadPilotVirtual', 'deviceType': 'VirtualScreen', 'displayID': '7'}],
             'status': {'runtime': {'transition_state': 'IDLE'},

@@ -38,7 +38,7 @@ logger = get_logger("Daemon")
 
 SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
 IPC_COMMANDS = frozenset(('set_mode', 'set_autostart', 'save_pairing', 'delete_pairing',
-    'set_virtual_display', 'set_betterdisplaycli_path', 'set_usb_event_wakeup', 'set_auto_detect_ipad',
+    'set_virtual_display', 'set_display_exclusion', 'set_betterdisplaycli_path', 'set_usb_event_wakeup', 'set_auto_detect_ipad',
     'set_connection_hotkey', 'set_connect_on_boot', 'set_language', 'status', 'use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad',
     'connect_ipad', 'reconnect_sidecar', 'refresh', 'reset', 'stop'))
 
@@ -97,7 +97,11 @@ class PadPilotDaemon:
     def apply_config_change(self, action: str, payload: dict, expected_revision: Optional[int] = None) -> tuple[bool, Any]:
         """Short-lived config mutation transaction."""
         engine = getattr(self, "engine", None)
-        with self.config_lock, getattr(engine, "_eval_lock", nullcontext()):
+        manual = action == 'set_mode' and isinstance(payload, dict) and payload.get('mode') == OperationMode.MANUAL_ONLY.value
+        operation = nullcontext() if manual else getattr(engine, "_eval_lock", nullcontext())
+        with operation, self.config_lock:
+            if not manual and engine is not None:
+                engine._check_cancelled()
             if not hasattr(self, "config") or self.config is None:
                 self.config = load_config()
             if expected_revision is not None and self.config.revision != expected_revision:
@@ -110,12 +114,17 @@ class PadPilotDaemon:
                 new_config.updated_at = time.time()
                 save_config(new_config)
                 self.config = new_config
-                if hasattr(self, "detector") and self.detector is not None:
+                if not manual and hasattr(self, "detector") and self.detector is not None:
                     self.detector.config = new_config
-                if hasattr(self, "engine") and self.engine is not None:
+                if not manual and engine is not None:
                     self.engine.config = new_config
                     if action in ('set_language', 'set_connection_hotkey', 'set_connect_on_boot'):
                         self.engine.republish_language_status(previous_revision)
+            if manual and engine is not None:
+                # Only a validated, successfully saved request may cancel work.
+                # Repeat Manual Only also stops an explicit one-shot connection.
+                engine.request_manual_mode(self.config)
+                return False, self.config
             return needs_transition, self.config
 
     def _run_config_side_effects(self, action: str) -> None:
@@ -128,14 +137,13 @@ class PadPilotDaemon:
             if hasattr(self, 'engine') and self.engine is not None:
                 self.engine.bd_cli = self.bd_cli
                 self.engine.evaluate(trigger='betterdisplaycli_path_change')
-        elif action == 'set_virtual_display':
+        elif action in ('set_virtual_display', 'set_display_exclusion'):
             if hasattr(self, 'engine') and self.engine is not None:
-                self.engine.evaluate(trigger='virtual_display_change')
+                self.engine.evaluate(trigger=action.removeprefix('set_') + '_change')
         elif action == 'set_mode':
             if hasattr(self, 'engine') and self.engine is not None:
-                if hasattr(self.engine, 'runtime') and self.engine.runtime is not None:
-                    self.engine.runtime.mode = self.config.mode
-                    self.engine.runtime.user_override = None
+                self.engine.runtime.mode = self.engine.config.mode
+                self.engine.runtime.user_override = None
                 self.engine.evaluate(trigger='mode_change')
         elif action == 'set_autostart':
             if hasattr(self, 'engine') and self.engine is not None:
@@ -146,7 +154,7 @@ class PadPilotDaemon:
                     self.engine.runtime.mode = self.config.mode
                 self.engine.reset_automation()
 
-    def handle_client_cmd(self, cmd: str) -> str:
+    def handle_client_cmd(self, cmd: str, *, _serialized: bool = False, _connection_revision=None) -> str:
         cmd = cmd.strip()
         is_json = cmd.startswith("{") and cmd.endswith("}")
         req_id = None
@@ -171,7 +179,7 @@ class PadPilotDaemon:
             arg = parts[1] if len(parts) > 1 else ""
             if command == "set_mode":
                 params = {"mode": arg}
-            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_autostart", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
+            elif command in ("save_pairing", "delete_pairing", "set_virtual_display", "set_display_exclusion", "set_betterdisplaycli_path", "set_autostart", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
                 try:
                     params = json.loads(arg) if arg else {}
                 except Exception:
@@ -183,6 +191,19 @@ class PadPilotDaemon:
         logger.info('Received IPC command: %s', command if known else 'unknown')
         if not known:
             return json.dumps({'id': req_id, 'ok': False, 'error': 'UNKNOWN_COMMAND'}) if is_json else 'ERROR: Unknown command'
+
+        manual = command == 'set_mode' and isinstance(params, dict) and params.get('mode') == OperationMode.MANUAL_ONLY.value
+        if not _serialized and command not in ('status', 'stop') and not manual:
+            if command == 'connect_ipad':
+                _connection_revision = (None if self.engine._transition_lock.locked() and self.engine._pending_manual is None
+                                        else self.engine._transition_revision)
+            response = self.engine.run_control(lambda: self.handle_client_cmd(
+                cmd, _serialized=True, _connection_revision=_connection_revision))
+            if response is None:
+                response = {'id': req_id, 'ok': False, 'error': 'CANCELLED',
+                            'message': 'Cancelled by Manual Only mode.'}
+                return json.dumps(response) if is_json else 'ERROR: Cancelled by Manual Only mode'
+            return response
 
         # Keep the target check and the action in the same config transaction.
         if command in ('use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad', 'reconnect_sidecar', 'connect_ipad') and is_json:
@@ -196,11 +217,13 @@ class PadPilotDaemon:
                     if not self.config.ipad.sidecar_uuid or params.get('target_key') != pairing_key(self.config.ipad.to_dict()):
                         return json.dumps({'id': req_id, 'ok': False, 'error': 'TARGET_CHANGED',
                                            'message': 'The selected iPad is no longer the control target.'})
-                    message = self.handle_client_cmd(command)
-                    return json.dumps({'id': req_id, 'ok': message.startswith('OK'), 'message': message})
+                # The display operation lock still protects the validated target;
+                # release config_lock so Manual Only can cancel a slow action.
+                message = self.handle_client_cmd(command, _serialized=True, _connection_revision=_connection_revision)
+                return json.dumps({'id': req_id, 'ok': message.startswith('OK'), 'message': message})
 
         # Handle config mutation actions
-        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
+        if command in ("set_mode", "set_autostart", "save_pairing", "delete_pairing", "set_virtual_display", "set_display_exclusion", "set_betterdisplaycli_path", "set_usb_event_wakeup", "set_auto_detect_ipad", "set_language", "set_connection_hotkey", "set_connect_on_boot"):
             try:
                 changed, cfg = self.apply_config_change(command, params, expected_rev)
             except ConflictError as e:
@@ -242,7 +265,10 @@ class PadPilotDaemon:
             resp = {"id": req_id, "ok": True, "message": msg}
             return json.dumps(resp, ensure_ascii=False) if is_json else msg
         elif command == "connect_ipad":
-            ok = self.engine.request_sidecar_connection()
+            # Preserve the revision from the button press, before the operation
+            # lock wait, so repeated presses cannot buy another retry budget.
+            coalesced = _connection_revision is None or _connection_revision != self.engine._transition_revision
+            ok = coalesced or self.engine.request_sidecar_connection()
             msg = "OK: Connection requested" if ok else f"ERROR: {self.engine.runtime.last_error}"
             return json.dumps({'id': req_id, 'ok': ok, 'message': msg}) if is_json else msg
         elif command == "reconnect_sidecar":
@@ -286,17 +312,8 @@ class PadPilotDaemon:
         while self.running:
             try:
                 conn, _ = server.accept()
-                with conn:
-                    conn.settimeout(3.0)
-                    with conn.makefile("rb") as reader:
-                        raw = reader.readline(8193)
-                    if len(raw) > 8192 or not raw.endswith(b"\n"):
-                        conn.sendall(b"ERROR: Invalid or oversized command")
-                        continue
-                    data = raw.decode("utf-8")
-                    if data:
-                        resp = self.handle_client_cmd(data)
-                        conn.sendall(resp.encode("utf-8"))
+                # Slow display work must not block status or Manual Only requests.
+                threading.Thread(target=self.serve_client, args=(conn,), daemon=True).start()
             except socket.timeout:
                 continue
             except Exception as e:
@@ -306,6 +323,21 @@ class PadPilotDaemon:
         server.close()
         if SOCKET_PATH.exists() and SOCKET_PATH.lstat().st_ino == endpoint.st_ino:
             SOCKET_PATH.unlink()
+
+    def serve_client(self, conn) -> None:
+        with conn:
+            try:
+                conn.settimeout(3.0)
+                with conn.makefile("rb") as reader:
+                    raw = reader.readline(8193)
+                if len(raw) > 8192 or not raw.endswith(b"\n"):
+                    conn.sendall(b"ERROR: Invalid or oversized command")
+                    return
+                response = self.handle_client_cmd(raw.decode("utf-8"))
+                conn.sendall(response.encode("utf-8"))
+            except Exception as error:
+                if self.running:
+                    logger.warning('IPC client error: %s', type(error).__name__)
 
     def ensure_betterdisplay_running(self) -> None:
         """Ensure BetterDisplay app is running."""
@@ -397,7 +429,7 @@ class PadPilotDaemon:
 
     def try_boot_connection(self, deadline: float) -> bool:
         """Search for up to three 30-second rounds, then submit at most one connection round."""
-        with self.engine._eval_lock:
+        def request():
             if (time.monotonic() >= deadline or self.config.mode != OperationMode.MANUAL_ONLY
                     or not self.config.connect_on_boot or self.engine.runtime.user_override
                     or self.engine._transition_revision):
@@ -412,6 +444,7 @@ class PadPilotDaemon:
                 return True
             self.engine.request_sidecar_connection(require_headless=True)
             return False
+        return bool(self.engine.run_control(request))
 
     def sync_usb_monitor(self):
         enabled = self.config.usb_event_wakeup

@@ -8,6 +8,17 @@
 
 ---
 
+## 先選擇已安裝的 PadPilot
+
+DMG 使用者不需要下載原始碼或另外安裝 Python。以下指令在「終端機」執行；先設定 App 內的指令位置，後續指令在同一個終端機視窗執行：
+
+```bash
+PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
+"$PADPILOT_CLI" --version
+```
+
+若 App 安裝在個人「應用程式」，將第一行改成 `PADPILOT_CLI="$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`；其他位置請填實際路徑。原始碼安裝者請先進入專案資料夾、啟用安裝時使用的 Python 環境，再設 `PADPILOT_CLI="$PWD/bin/padpilot-cli"`。下文標示「僅原始碼版」的步驟不適用於 DMG。
+
 ## 目錄 (Table of Contents)
 
 - [1. FileVault 與無頭冷開機限制 (`#filevault`)](#filevault)
@@ -35,7 +46,7 @@ PadPilot 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段�
 
 ### 解決方法
 1. 保留可用的實體螢幕完成解鎖與登入，再確認 Sidecar 能手動連線。
-2. 登入後執行 `./bin/padpilot-cli status`，確認服務有回應，再測試 iPad 接管。
+2. 登入後執行 `"$PADPILOT_CLI" status`，確認服務有回應，再測試 iPad 接管。
 3. 無頭使用前，先驗證自己的冷開機與救援流程；不同硬體組合仍為待驗證。
 
 **安裝不要求關閉 FileVault 或開啟自動登入。** 這些設定會影響資料與帳號安全，也不能保證 Sidecar 在數秒內連線；不要為通過檢查而降低系統安全性。
@@ -70,10 +81,10 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 ### 解決方法
 1. 開啟 **BetterDisplay.app**。
 2. 依已安裝版本的 [BetterDisplay CLI 說明](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI)確認控制介面可用；設定名稱與位置可能因版本而異。
-3. 確認具備所需 Pro 授權或有效試用，並確認 PadPilot 使用正確的 CLI 路徑。
-4. 在終端機測試執行：
+3. PadPilot 目前的功能可搭配 BetterDisplay 免費版使用，不要求 Pro 或試用資格。請確認 BetterDisplay 已開啟，且 PadPilot 使用正確的 App／CLI 路徑。
+4. 在終端機測試 BetterDisplay App 內建的 CLI，不必另裝 `betterdisplaycli`。以下假設 BetterDisplay 位於 `/Applications`；若安裝在其他位置，請改用實際 App 路徑：
    ```bash
-   betterdisplaycli get -identifiers
+   "/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay" get -identifiers
    ```
    確認指令成功且能讀到預期裝置。CLI 有回應不代表 Sidecar 配對與實際顯示已通過驗收。
 5. 若 macOS 系統設定彈出「輔助使用 (Accessibility)」或「螢幕錄製 (Screen Recording)」權限要求，請核對實際提出要求的 App（例如 BetterDisplay）及系統提示，不要一律授權 Terminal 或其他 App。原生選單本身只讀快照並呼叫 CLI。
@@ -84,18 +95,17 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 ## 4. 開機虛擬/佔位螢幕 (Generic Display) 處理
 
 ### 現象
-無接實體螢幕開機時，PadPilot 偵測到名為 `Generic Display` 或 `Generic` 的裝置，導致系統誤以為有實體螢幕而暫停連線 iPad。
+沒有實體螢幕卻被判定有螢幕，或真實螢幕名為 `Generic Display`／`Generic` 而未計入實體螢幕，讓自動模式的選擇不符預期。
 
 ### 原因
-部分 Mac 機型在未接螢幕開機時，GPU 會產生極簡的佔位 framebuffer 裝置。
+部分 Mac 在無實體螢幕開機時，會出現 `Generic`／`Generic Display` 佔位畫面，因此 PadPilot 預設排除這兩個精確名稱。這是已觀察到的辨識方式，不能保證所有同名畫面都是佔位。
 
 ### 解決方法
-- PadPilot 內建**精確佔位過濾邏輯**，已將已知之佔位名稱排除在實體螢幕外。
-- 若您的實體螢幕剛好也叫 `Generic` 或 `Generic Display`，請保留狀態並另行收集 EDID／識別資料供排查：
-  ```bash
-  ./bin/padpilot-cli status --json
-  ```
-- 不應把真正的實體螢幕加入忽略清單；請回報其識別資料，避免擴大名稱排除範圍。
+1. 開啟 **「連線螢幕狀態」**，找到該螢幕卡片；已排除的螢幕仍保留在清單中。
+2. 勾選 **「排除實體螢幕判斷」**，讓它不計入「有實體螢幕」；若是真實的 Generic 螢幕，取消勾選即可計入。按 **「恢復自動判斷」**可清除這台螢幕的個別設定，恢復原有規則。
+3. 設定依螢幕 UUID 記住，同名螢幕互不影響。若未取得穩定 UUID，就無法修改；請重新整理並確認 BetterDisplay 已開啟、可辨識該螢幕。
+
+這個選項只改變實體螢幕的有無判斷，不會關閉螢幕或停止 PadPilot 控制它。**排除所有實體螢幕後，自動模式會視為沒有實體螢幕，並可能嘗試讓 iPad 接手。** Sidecar 與已識別的虛擬備援原本就不計入實體螢幕，其用途與控制不變。
 
 ---
 
@@ -110,11 +120,13 @@ PadPilot 內建**保護性退避機制**：
 - 當 Sidecar 連線連續失敗達 3 次（每次間隔 3 秒），通知一次並停止自動重試，保留實體或虛擬備援。30 秒冷卻結束後仍維持暫停，不會因 iPad 關閉但仍留在 Sidecar 清單而持續連線、累積警告。USB 插拔及喚醒與自動偵測 iPad 可繼續開啟。
 
 ### 恢復方式
+想先停止這輪自動連線，可切換到「僅手動模式」，中止目前等待與後續重試。已送到 macOS 的命令可能仍會完成；之後仍可按按鈕或快速鍵明確要求連線。
+
 1. 檢查 iPad 是否處於睡眠鎖定狀態（點亮 iPad 螢幕）。
 2. 檢查傳輸線是否接觸不良。目標 iPad 的 USB 或 Sidecar 可用狀態重新由無變有後，待剩餘冷卻結束會恢復有限次數的嘗試。若只是點亮螢幕、沒有重新偵測到裝置，請選「重新連線」。一般 USB 喚醒、重新整理或接回實體螢幕不會解除暫停。
 3. 若確認硬體已正常，需要清除暫時覆寫與冷卻時可執行：
    ```bash
-   ./bin/padpilot-cli action reset
+   "$PADPILOT_CLI" action reset
    ```
    背景服務會重新評估；需要手動連線時再選「重新連線」。送出成功不等於連線完成。
 
@@ -129,12 +141,12 @@ PadPilot 內建**保護性退避機制**：
 ### 解決方法
 1. 檢查 LaunchAgent 是否已載入：
    ```bash
-   ./bin/padpilot-cli autostart status
-   ./bin/padpilot-cli status
+   "$PADPILOT_CLI" autostart status
+   "$PADPILOT_CLI" status
    ```
 2. 若未載入，透過 CLI 重新啟用自啟：
    ```bash
-   ./bin/padpilot-cli autostart enable
+   "$PADPILOT_CLI" autostart enable
    ```
 3. 本版的 plist 位於 `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist`，不會建立 `~/Library/LaunchAgents` 下的檔案。若狀態為 `requiresApproval`，請到「系統設定 → 一般 → 登入項目」允許 PadPilot 背景執行。測試用舊版外部 LaunchAgent 必須自行停止並清除；本版不做遷移。
 
@@ -143,11 +155,11 @@ PadPilot 內建**保護性退避機制**：
 <a id="logs"></a>
 ## 7. 如何收集除錯日誌回報問題
 
-若上述指引仍無法排除您的問題，請整理重現步驟與日誌；目前 GitHub 倉庫為私人，僅有存取權限的帳號可提交 Issue：
+若仍無法排除問題，請整理重現步驟、版本與相關日誌，提交至 [GitHub Issues](https://github.com/kcayut/PadPilot/issues)。安全漏洞請先閱讀[安全政策](../SECURITY.md)，不要在公開 Issue 附上漏洞細節。
 
 ```bash
 # 即時查看日誌
-./bin/padpilot-cli open-log
+"$PADPILOT_CLI" open-log
 
 # 或查看日誌檔案
 tail -n 50 ~/Library/Logs/PadPilot/padpilot.log
@@ -158,10 +170,11 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 <a id="safe-startup"></a>
 ## 8. 預檢、私人路徑或啟動握手失敗
 
-- `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，再執行 `./scripts/install.sh --check`。不要把 help 成功當成授權或實機驗收通過。
-- 設定視窗無法開啟：更新原始碼後請重新執行 `./scripts/install.sh`，建置與目前版本相符的 App。
+- `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，DMG 版可執行 `"$PADPILOT_CLI" gui diagnostics` 開啟診斷並重新整理 BetterDisplay 卡片。僅原始碼版才需在專案目錄執行 `./scripts/install.sh --check`。help 成功不代表 Sidecar 或實際顯示正常。
+- 設定視窗無法開啟：DMG 版請先依[安裝指南](INSTALLATION.md)的 Python 復原步驟檢查，或重新下載並安裝發行版。僅原始碼版才需在更新原始碼後執行 `./scripts/install.sh`，建置相符的 App。
 - `Refusing unsafe state directory/file`：先停止操作，檢查訊息指定路徑的所有者、符號連結與硬連結。不要對 `/tmp` 或他人目錄遞迴改權限、刪除或強制接管。確認是自己的舊資料後先備份，再由擁有者整理；應用程式會拒絕不可信路徑。
 - `Login service belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
 - `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/PadPilot/launchd.stderr.log` 與 `padpilot.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。
+- 發行版更新失敗：即使新版 CLI 無法執行，安裝器仍會先確認新版程式與背景服務已停止，再還原舊版。若無法確認停止，會保留目前 App 與備份並回報 `Rollback incomplete`；請保留它們與錯誤紀錄，不要反覆覆蓋安裝。
 
 IPC 日誌僅記錄命令名稱；歷史日誌、診斷狀態與實際錯誤仍可能包含裝置資訊。分享前遮蔽序號、UUID、帳號及個人路徑。

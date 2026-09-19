@@ -12,7 +12,7 @@ Apple Silicon、macOS 14 以降に対応し、Intel 版は提供しません。[
 
 **開発版は ad-hoc 署名のみで、Developer ID 署名と Apple の公証はありません。** 開発元や悪意あるソフトウェアを確認できない警告では、取得元を確認した上で [Apple の手順](https://support.apple.com/en-us/102445)に従い「プライバシーとセキュリティ → このまま開く」を利用してください。破損の警告では再取得して SHA-256 を確認します。Gatekeeper 全体を無効にしたり、すべてを誤警告と判断したりしないでください。
 
-BetterDisplay アプリのインストール、起動、制御に必要なライセンスは引き続き必要です。独立した `betterdisplaycli` は任意で、アプリ内蔵 CLI で制御できます。`/Applications`、`~/Applications`、LaunchServices 登録先を検出します。詳細設定で App／CLI のパスを手動指定することもできます。
+BetterDisplay アプリを別途インストールして起動してください。現在の PadPilot の機能は無料版で利用でき、Pro や試用資格は必要ありません。独立した `betterdisplaycli` は任意で、アプリ内蔵 CLI で制御できます。`/Applications`、`~/Applications`、LaunchServices 登録先を検出します。詳細設定で App／CLI のパスを手動指定することもできます。
 
 ### スクリプトでの導入と Python 選択
 
@@ -69,7 +69,7 @@ git push github v0.1.0-dev.1
 
 まず公開する変更を commit します。`vX.Y.Z`、`vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N` に対応します。**ローカルで tag を作るだけでは起動せず、GitHub への push が必要です。** ARM runner がソフトウェア検査、ビルド、パッケージ化、移動後の動作検査を実行し、全添付ファイルの転送後に prerelease として自動公開します。Apple 証明書や手動承認は不要です。公開済み版は上書きせず、新しい tag を使用します。失敗した下書きは再実行できます。実機での受け入れ結果は引き続き unknown です。
 
-ローカルで同じ成果物を作るには、Python 3.12 以降と Apple のビルドツールで `python3 scripts/build_release.py --tag v0.1.0-dev.1` を実行します。出力先は `dist/<tag>/` です。CPython の取得元と SHA-256 は `scripts/python-runtime.json` に固定し、ライセンス文書を同梱します。完全な tag と build commit は成果物に記録されます。
+ローカルで同じ成果物を作るには、Python 3.12 以降と Apple のビルドツールが必要です。ビルド用の仮想環境で `python3 -m pip install -r scripts/dmg-requirements.txt` を実行してから、`python3 scripts/build_release.py --tag v0.1.0-dev.1` を実行します。出力先は `dist/<tag>/` です。DMG のレイアウト用パッケージはビルド専用で、App の実行環境には含めません。`--no-dmg` で DMG とこの依存関係を省略できます。CPython の取得元と SHA-256 は `scripts/python-runtime.json` に固定し、ライセンス文書を同梱します。完全な tag と build commit は成果物に記録されます。
 
 ## ソース版の導入（開発用）
 
@@ -105,7 +105,7 @@ PadPilot は **Swift/AppKit メニュー、SwiftUI ネイティブ設定画面�
 )
 ```
 
-**ダウンロードの条件：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) が公開され、`scripts/bootstrap.sh` が `main` で公開されている必要があります。非公開リポジトリや未公開スクリプトは 404 になるため、それまでは権限を持って取得したソースで下記の手順を実行してください。スクリプト全体を一時ファイルへダウンロードしてから実行し、ソースのアーカイブもパスとファイルの種類を検査してから展開します。
+**ダウンロード方法：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) の `main` からスクリプトを取得します。404 の場合は URL を確認するか、[Releases](https://github.com/kcayut/PadPilot/releases) の DMG を利用してください。スクリプト全体を一時ファイルへダウンロードしてから実行し、ソースのアーカイブもパスとファイルの種類を検査してから展開します。
 
 ダウンロードに Git や Python の事前導入は不要です。ソースは `~/Applications/PadPilot-source` に保存し、既存の無関係なフォルダーは上書きしません。再実行時は同じソースを使用して導入を再開し、自動更新はしません。`.padpilot-install.json` は管理対象のソースと新規導入した依存関係を記録するため、残してください。
 
@@ -135,7 +135,7 @@ cd "$HOME/Applications/PadPilot-source"
 ./scripts/install.sh --yes --install-deps
 ```
 
-`--python` は Python 実行ファイル、`--betterdisplay-path` は `.app` フォルダーまたは CLI 実行ファイルを指定します。`--yes` は第三者ソフトウェア導入の許可ではなく、必須依存関係の不足時は停止します。手動で導入するか `--install-deps` を指定してください。BetterDisplay CLI の help 成功だけでは、ライセンス、Sidecar、実際の画面表示は確認できません。
+`--python` は Python 実行ファイル、`--betterdisplay-path` は `.app` フォルダーまたは CLI 実行ファイルを指定します。`--yes` は第三者ソフトウェア導入の許可ではなく、必須依存関係の不足時は停止します。手動で導入するか `--install-deps` を指定してください。BetterDisplay CLI の help 成功だけでは、Sidecar や実際の画面表示は確認できません。
 
 Homebrew ではPython 3.14 と公式の [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay) を使用します。`--yes --install-deps` でも管理者パスワードや Apple のインストール画面が必要な場合があり、完全な無人導入は保証しません。
 

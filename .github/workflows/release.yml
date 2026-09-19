@@ -48,7 +48,9 @@ jobs:
             exit 1
           fi
       - name: Package and verify relocated app
-        run: python scripts/build_release.py --tag "$RELEASE_TAG"
+        run: |
+          python -m pip install -r scripts/dmg-requirements.txt
+          python scripts/build_release.py --tag "$RELEASE_TAG"
       - name: Publish complete development prerelease
         run: |
           directory="dist/$RELEASE_TAG"

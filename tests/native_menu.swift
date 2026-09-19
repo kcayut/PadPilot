@@ -93,7 +93,7 @@ struct NativeMenuCheck {
                     precondition(item.image?.isTemplate == true)
                     precondition(item.image?.size == NSSize(width: 18, height: 18))
                 }
-                precondition(item.isEnabled == (row.enabled && (!busy || row.args.isEmpty || row.args.first == "gui")), "enabled mismatch: \(row.title), busy=\(busy), args=\(row.args)")
+                precondition(item.isEnabled == (row.enabled && (!busy || row.args.isEmpty || row.args.first == "gui" || row.args == ["set-mode", "manual_only"])), "enabled mismatch: \(row.title), busy=\(busy), args=\(row.args)")
                 precondition(item.state == (row.checked ? .on : .off))
                 precondition((item.action == #selector(Actions.perform(_:))) == validAction(row.args))
                 precondition(item.representedObject as? [String] == row.args)
@@ -101,6 +101,33 @@ struct NativeMenuCheck {
             precondition(menu.items.filter { $0.submenu != nil }.count == 5)
             precondition(items.last?.representedObject as? [String] == ["exit"])
         }
+        let pendingMenu = makeMenu(model.items, target: actions, action: #selector(Actions.perform(_:)), busy: true, manualModePending: true)
+        precondition(flattened(pendingMenu).first { $0.representedObject as? [String] == ["set-mode", "manual_only"] }?.isEnabled == false)
+        let delegate = AppDelegate()
+        delegate.checkPrepareActions(model)
+        var completions: [(Result<Data, Error>) -> Void] = []
+        delegate.checkRunCLI = { args, completion in
+            if args == ["menu-json"] { completion(.success(try! JSONEncoder().encode(model))) }
+            else { completions.append(completion) }
+        }
+        let staleError = NSError(domain: "Old command timed out", code: 1)
+        delegate.checkPerformAction(["set-mode", "automatic"])
+        delegate.checkPerformAction(["set-mode", "manual_only"])
+        delegate.checkPerformAction(["set-mode", "manual_only"])
+        delegate.checkPerformAction(["set-mode", "prefer_ipad"])
+        precondition(completions.count == 2 && delegate.checkBusy)
+        completions[0](.failure(staleError))
+        precondition(delegate.checkBusy && delegate.checkErrors.isEmpty, "Old callback cleared the pending manual request")
+        completions[1](.success(Data()))
+        precondition(!delegate.checkBusy)
+        delegate.checkPerformAction(["set-mode", "automatic"])
+        delegate.checkPerformAction(["set-mode", "manual_only"])
+        completions[3](.success(Data()))
+        delegate.checkPerformAction(["set-mode", "prefer_ipad"])
+        completions[2](.failure(staleError))
+        precondition(delegate.checkBusy && delegate.checkErrors.isEmpty, "Late callback cleared a newer request or displayed an obsolete error")
+        completions[4](.success(Data()))
+        precondition(!delegate.checkBusy)
         precondition(validAction(["gui", "wizard", "--delete", String(repeating: "a", count: 64)]))
         precondition(SettingsRequest(url: URL(string: "padpilot://settings?page=diagnostics")!)?.page == "diagnostics")
         for url in ["https://settings?page=about", "padpilot://other", "padpilot://settings?page=../file",

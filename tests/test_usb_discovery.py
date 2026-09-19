@@ -139,7 +139,7 @@ class DiscoveryTests(unittest.TestCase):
         self.detector.observe = MagicMock(side_effect=[(actual, signature), (connected, signature), (connected, signature)])
         engine = StateEngine(self.cfg, self.detector, self.bd)
         engine._export_status = MagicMock()
-        with patch('core.state_engine.time.sleep'):
+        with patch('core.state_engine.StateEngine._wait'):
             engine.evaluate(async_transition=False)
         self.bd.connect_sidecar.assert_called_once_with(UUID)
         self.bd.set_main_display.assert_called_once_with('display-uuid')
@@ -194,6 +194,7 @@ class EventSettingsTests(unittest.TestCase):
         daemon = DAEMON['PadPilotDaemon'].__new__(DAEMON['PadPilotDaemon'])
         daemon.config = Config()
         daemon.engine = MagicMock()
+        daemon.engine.run_control.side_effect = lambda action: action()
         daemon.detector = MagicMock()
         daemon.wakeup = threading.Event()
         daemon.usb_monitor = MagicMock()
@@ -222,6 +223,7 @@ class EventSettingsTests(unittest.TestCase):
         daemon.bd_cli.ensure_virtual_display.return_value = (True, 'OK')
         daemon.ensure_betterdisplay_running = MagicMock()
         daemon.engine = MagicMock()
+        daemon.engine.run_control.side_effect = lambda action: action()
         daemon.engine.runtime.debounce_until = 0
         def evaluate(trigger):
             if trigger == 'startup':

@@ -32,7 +32,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
         self.engine = StateEngine(self.cfg, self.detector, self.bd)
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
-        for target in ('core.state_engine.write_atomic_status', 'core.state_engine.notify_error', 'core.state_engine.time.sleep'):
+        for target in ('core.state_engine.write_atomic_status', 'core.state_engine.notify_error', 'core.state_engine.StateEngine._wait'):
             self.stack.enter_context(patch(target))
 
     def connect(self, _):

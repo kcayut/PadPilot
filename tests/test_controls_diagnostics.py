@@ -37,7 +37,7 @@ class ControlsTests(unittest.TestCase):
         engine.actual = actual
         engine.desired = engine.policy(actual, cfg, engine.runtime)
         with patch.object(engine, '_observe', return_value=actual), \
-             patch.object(engine, '_export_status'), patch('core.state_engine.time.sleep'):
+             patch.object(engine, '_export_status'), patch('core.state_engine.StateEngine._wait'):
             engine._run_transition()
         bd.set_main_display.assert_called_once_with('DISPLAY')
 

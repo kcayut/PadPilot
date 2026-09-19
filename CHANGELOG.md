@@ -7,38 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-dev.2] - 2026-09-20
+
+Second public development prerelease. Includes the following changes since `v0.1.0-dev.1`.
+
+### Added
+- A three-language DMG installation layout with a BetterDisplay download shortcut, drag-to-Applications guidance, first-launch approval steps, and an offline installation guide.
+- Per-display controls in Connected displays to include or exclude a monitor from physical-display detection, saved by display UUID, with a reset to automatic detection. Generic placeholders remain excluded by default; Sidecar and virtual fallback roles are unchanged.
+- Contact email in the website's ECPay support section.
+
 ### Fixed
-- Restore the previous app, LaunchAgent, and pre-install running state after installation failure; purge recoverable fallback configuration too.
-- Share latest-file selection across primary/fallback readers and installer preflight; reject malformed configuration without silently enabling automation or overwriting the original.
-- Preserve verified Sidecar session/display identity during discovery loss, retain errors across repeated identifier queries, and avoid switching displays when identity is unknown.
-- Send GUI configuration revisions for optimistic concurrency; preserve the original revision of unsaved rename drafts.
-- Treat FileVault and automatic login as informational checks, interpolate virtual-display names correctly, and check both shell scripts independently in release gates.
-- Align the PR privacy checklist with the documented release scanner.
+- Switching to Manual only can cancel a blocked connection round without waiting for hardware discovery or a connection command to return. Stop subsequent retries and main-display changes, discard older queued controls and UI callbacks, and keep explicit new connection requests usable. Commands already sent to macOS may still finish.
+- Keep status and Manual only requests responsive during slow IPC operations; preserve connection-request coalescing and prevent cancelled boot work from restarting.
+- Recover from release-update failure even when the replacement CLI cannot run, after independently confirming the replacement service and processes have stopped. Preserve the app and backup if shutdown cannot be verified.
+- Align BetterDisplay requirements across the three languages: current PadPilot features work without Pro or a trial; BetterDisplay's own license terms still apply.
+- Make troubleshooting commands usable from a DMG installation without a source checkout or separate Python installation; distinguish source-only repair steps.
+- Remove obsolete private-testing and repository-access wording, clarify how to request a security contact without publishing vulnerability details, and document the published development release below.
 
 ### Changed
-- Replaced the Tk settings window with native SwiftUI settings in PadPilot.app, preserving the shared Python core and CLI/IPC transactions; Python no longer needs Tk.
-- Settings requests reuse the existing window and restore it from the Dock, preserving its page and drafts; CLI requests use the same app.
-- The Dock and Finder app icon now use the artwork from the README, packaged at standard and Retina sizes.
-- Simplified setup to the current native app, removing obsolete installation options and migration of previous integrations.
-- Added a copy-and-paste source installer and interactive Python, BetterDisplay, and Apple build-tool setup with custom paths and explicit dependency-install consent.
-- Added uninstall previews and separate configuration, log, managed-source, and recorded-dependency choices; existing shared dependencies remain preserved by default.
-- App, launchd, and the installed CLI shortcut use the selected Python; custom BetterDisplay paths also work during startup, and setup protects open settings windows.
-- GUI help and diagnostic links now open localized GitHub documentation pinned to the source revision; source archives retain the revision and copies without revision metadata use the matching version tag.
-- Changed licensing from MIT to PolyForm Noncommercial 1.0.0, with required attribution to kcayut in NOTICE; updated the three READMEs and About page, and bundled LICENSE/NOTICE in built apps. Previously granted MIT rights remain unchanged.
-- Added a localized About page with the shared version, GitHub link, and disabled Buy Me a Coffee/PayPal placeholders until recipient URLs are configured; moved the version out of the sidebar.
-- Settings GUI displays the shared application version; usage and diagnostic help links open bundled guides in the selected language.
-- Added Japanese README, English/Japanese user documentation, language navigation, and a development archive maintained in Traditional Chinese.
-- Accepted six reviewed historical private-path findings by exact commit, file, and category; current files and new historical findings remain blocking.
-- Added read-only installer preflight, shared launchd startup with a verified daemon handshake, and failure rollback. New installations enable daemon and menu startup after login, including after a restart.
-- Hardened private state/log/socket permissions, rejected foreign and linked state paths, removed IPC payload logging, and limited stop/uninstall to verified owned targets.
-- Added local release gates, redacted tree/history privacy findings, installer/security regression tests, and an explicit physical acceptance checklist.
-- Added GitHub Actions for macOS/Python 3.10 and 3.14 software checks plus an independent full-history privacy gate. Repository access is private; public publishing remains deferred.
-- Replaced the SwiftBar plugin with a native Swift/AppKit menu app, retaining the Python state engine, CLI, and shared translations.
-- Added `menu-json`, native menu contract tests, and a dependency-free local app build.
-- Installer builds PadPilot.app and preserves existing preferences; uninstalled app integrations go to Trash.
-- App still references the local Python and source checkout; standalone Python bundling, release signing, and notarization are not included.
+- Remove the remaining development-document directory and stop tracking local agent instructions.
+
+## [0.1.0-dev.1] - 2026-09-16
+
+First public GitHub development prerelease, built from `27ce07453dbed94fb2c4063a482e3705974c26b9`. Published at `2026-09-16 16:16:53 UTC` (`2026-09-17 00:16:53` in Taiwan). This is a prerelease, not a stable `0.1.0` release.
+
+### Added
+- Relocatable **Apple Silicon / macOS 14+** app with bundled CPython and native Swift components. Published DMG, ZIP, `SHA256SUMS`, and `build-info.json`; users do not need a compiler, Homebrew, or a separate Python installation.
+- Shared bundled/external Python selection for the app, CLI, and background service, with a bundled-runtime recovery command if an external Python is missing.
+- A configurable global connection shortcut and bounded one-shot connection requests. Fresh installations use Manual only with optional headless boot connection enabled: search for up to three 30-second rounds, then make at most one bounded connection round. A later disconnect does not start another manual-mode connection round.
+- Automatic USB event wakeup, configurable iPad inference, and explicit saved pairing selection. Saved Sidecar identities take priority; ambiguous or incomplete discovery does not guess a control target.
+- Traditional Chinese, English, and Japanese native settings, diagnostics, pairing management, About content, and user guides; localized help links pinned to the source revision.
+- Public three-language introduction website with GitHub Pages deployment, illustrated setup guidance, and a real-device demonstration video.
+- Optional external support links for PayPal, Ko-fi, O'Pay, and ECPay in the relevant README, About, and website surfaces.
+- Software, native-menu, layout, installer, security, and release-relocation checks, plus macOS Python 3.10/3.14 CI and an independent history privacy gate. Tag-triggered builds publish development release assets.
+
+### Changed
+- Replace the SwiftBar integration and Tk settings window with a native AppKit menu and SwiftUI settings, retaining the shared Python state engine and CLI/IPC actions.
+- Reuse the existing settings window and preserve its page and drafts. Opening the app shows settings and the menu; login/background startup shows the menu only. Use distinct Manual only and stopped-service icons and the project artwork for the app icon.
+- Use an app-bundled `SMAppService` login agent. Exit stops display automation; an enabled native login service watches for the app moving to Trash and unregisters itself. No external LaunchAgent plist is installed by this version.
+- Provide source and release installers, explicit dependency-install choices, custom Python/BetterDisplay paths, and uninstall previews. Preserve existing preferences and app locations; retain settings, logs, and shared dependencies by default.
+- Change the license from MIT to PolyForm Noncommercial 1.0.0 with attribution in `NOTICE`, bundled with the app. Rights to copies previously obtained under MIT remain unchanged.
+
+### Fixed
+- Pause automatic Sidecar retries after repeated failure instead of repeatedly reconnecting to an unavailable cached target. Retain the physical or virtual fallback, including after iPad takeover.
+- Require both the configured Sidecar session and its online display before takeover. Preserve verified session/display identity through discovery loss and avoid changing displays when identity is unknown.
+- Use configuration revisions to reject stale GUI changes and retain the original revision of unsaved drafts. Reject malformed configuration without silently enabling automation or overwriting it.
+- Verify daemon ownership and startup handshakes, use shared primary/fallback state-file selection, and restore prior installation state on supported failure paths.
+- Harden state, log, and socket permissions; reject foreign or linked state paths; omit IPC payloads from logs; and restrict stop/uninstall operations to verified owned targets.
+- Handle dangling integration symlinks on Python 3.10, resolve custom BetterDisplay paths at startup, and check both installation shell scripts in release validation.
+
+### Limitations
+- BetterDisplay must be installed and running separately; its built-in CLI is sufficient.
+- This release is ad-hoc signed, without Developer ID signing or Apple notarization, and has no Intel build.
+- Software and relocation checks do not establish Sidecar, USB hotplug, sleep/wake, or cold-boot acceptance on every user's hardware. FileVault unlock and pre-login display takeover are not supported.
 
 ## [0.1.0] - 2026-09-10
+
+Historical internal development record retained from the original changelog; this was not a tagged public stable release. The SwiftBar, Tk, and MIT descriptions below describe that earlier state.
 
 ### Added
 - **Display State Machine**:
@@ -58,3 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Standard MIT License.
   - Restructured documentation, troubleshooting guide, and installation guides.
   - GitHub issue forms and PR templates.
+
+[Unreleased]: https://github.com/kcayut/PadPilot/compare/v0.1.0-dev.1...main
+[0.1.0-dev.1]: https://github.com/kcayut/PadPilot/releases/tag/v0.1.0-dev.1

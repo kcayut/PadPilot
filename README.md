@@ -80,6 +80,8 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 按下後等畫面出現，再到 **「連線螢幕狀態」**確認主／副螢幕。**「已偵測到 Sidecar」只代表找到裝置，還不等於已經顯示桌面。**
 
+若螢幕被誤判，可在這一頁的螢幕卡片勾選或取消 **「排除實體螢幕判斷」**；設定只影響它是否計入「有實體螢幕」，不會停止控制或關閉螢幕。`Generic`／`Generic Display` 預設排除，真實螢幕可取消勾選；也可按「恢復自動判斷」。**排除所有實體螢幕後，自動模式會視為沒有實體螢幕，並可能嘗試連線 iPad。** [詳細說明](docs/TROUBLESHOOTING.md#generic-display)
+
 ### 4. 決定要自己控制，還是自動連線
 
 左邊選 **「運作與偏好」**。剛開始可維持預設的 **「僅手動模式」**；想更自動，再切換模式。
@@ -117,7 +119,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 - **按了卻沒畫面**：到「連線螢幕狀態」和「狀態與診斷」看原因；連線需要時間，命令送出成功不代表已完成。
 - **畫面一直切來切去**：先改成「僅手動模式」，檢查是否有其他工具也在調整主螢幕。
 
-更多問題看[疑難排解](docs/TROUBLESHOOTING.md)。GUI 內的說明連結會開啟 GitHub 上對應版本、對應語言的文件；私人倉庫需登入有權限的帳號。
+更多問題看[疑難排解](docs/TROUBLESHOOTING.md)。GUI 內的說明連結會開啟 GitHub 上對應版本、對應語言的文件。
 
 <details>
 <summary>選單列圖示怎麼看？</summary>
@@ -249,4 +251,4 @@ PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，�
 
 感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。
 
-BetterDisplay 由使用者另行安裝，未隨 PadPilot 散佈。使用者仍須遵守其[授權條款](https://github.com/waydabber/BetterDisplay/discussions/739)：非企業使用者可使用免費功能；企業使用原則上需要 Pro，個人工作用途的例外以官方條款為準。
+BetterDisplay 由使用者另行安裝，未隨 PadPilot 散佈。PadPilot 目前的功能不要求 BetterDisplay Pro 或試用資格；BetterDisplay 自身的[授權條款](https://github.com/waydabber/BetterDisplay/discussions/739)仍適用。

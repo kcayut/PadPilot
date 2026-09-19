@@ -236,7 +236,7 @@ func validAction(_ args: [String]) -> Bool {
         && args[3].range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil
 }
 
-func makeMenu(_ rows: [MenuRow], target: AnyObject, action: Selector, busy: Bool) -> NSMenu {
+func makeMenu(_ rows: [MenuRow], target: AnyObject, action: Selector, busy: Bool, manualModePending: Bool = false) -> NSMenu {
     let root = NSMenu()
     root.autoenablesItems = false
     var stack = [root]
@@ -261,7 +261,9 @@ func makeMenu(_ rows: [MenuRow], target: AnyObject, action: Selector, busy: Bool
         if let icon = row.icon { item.image = menuIcon(icon) }
         item.target = target
         item.representedObject = row.args
-        item.isEnabled = row.enabled && (!busy || row.args.isEmpty || row.args.first == "gui")
+        let manual = row.args == ["set-mode", "manual_only"]
+        item.isEnabled = row.enabled && (!manual || !manualModePending)
+            && (!busy || row.args.isEmpty || row.args.first == "gui" || manual)
         item.state = row.checked ? .on : .off
         menu.addItem(item)
     }
@@ -276,6 +278,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var snapshotData: Data?
     private var reading = false
     private var busy = false
+    private var manualModePending = false
+    private var operationEpoch = 0
     private var menuOpen = false
     private var lastRead = Date.distantPast
     private var lastSignature = ""
@@ -406,6 +410,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     #if MENU_TESTING
     var checkMenuVisible: Bool { statusItem?.isVisible == true && statusItem.menu != nil }
+    var checkRunCLI: (([String], @escaping (Result<Data, Error>) -> Void) -> Void)?
+    private(set) var checkErrors: [String] = []
+    var checkBusy: Bool { busy }
+    func checkPrepareActions(_ model: MenuSnapshot) {
+        runtime = Runtime(python: "/usr/bin/false", project_root: "/tmp")
+        snapshot = model
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    }
+    func checkPerformAction(_ args: [String]) {
+        let item = NSMenuItem(); item.representedObject = args
+        performAction(item)
+    }
     #endif
 
     private func setIcon(_ name: String) {
@@ -430,9 +446,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // crashed daemon and freshness expiry without keeping a Python process alive.
         guard force || signature != lastSignature || Date().timeIntervalSince(lastRead) >= 5 else { return }
         reading = true
+        let epoch = operationEpoch
         lastSignature = signature
         lastRead = Date()
         runCLI(["menu-json"], timeout: 5) { result in
+            guard epoch == self.operationEpoch else { return }
             self.reading = false
             do {
                 let data = try result.get()
@@ -467,7 +485,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func rebuildMenu() {
         guard let snapshot else { recoveryMenu(); return }
-        let menu = makeMenu(snapshot.items, target: self, action: #selector(performAction(_:)), busy: busy)
+        let menu = makeMenu(snapshot.items, target: self, action: #selector(performAction(_:)), busy: busy, manualModePending: manualModePending)
         menu.delegate = self
         statusItem.menu = menu
     }
@@ -498,12 +516,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func requestConnection() {
         guard !busy, runtime != nil, snapshot?.hidden == false else { return }
+        operationEpoch += 1
+        let epoch = operationEpoch
+        reading = false
         busy = true
+        if !menuOpen { rebuildMenu() }
         runCLI(["action", "connect_ipad"], timeout: 75) { result in
+            guard epoch == self.operationEpoch else { return }
             self.busy = false
             if case .failure(let error) = result {
                 self.shortcutNotice(error.localizedDescription)
             }
+            if !self.menuOpen { self.rebuildMenu() }
             self.refresh(force: true)
         }
     }
@@ -521,7 +545,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func performAction(_ item: NSMenuItem) {
         guard let args = item.representedObject as? [String], validAction(args), runtime != nil else { return }
         let isGUI = args.first == "gui"
-        guard isGUI || !busy else { return }
+        let manual = args == ["set-mode", "manual_only"]
+        guard isGUI || (manual ? !manualModePending : !busy) else { return }
         // Recheck the last refreshed model when a menu stayed open across a change.
         guard snapshot?.items.contains(where: { $0.args == args && $0.enabled }) == true else {
             refresh(force: true); return
@@ -539,19 +564,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.activate(ignoringOtherApps: true)
             guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
-        if !isGUI { busy = true; setIcon("working") }
+        operationEpoch += 1
+        let epoch = operationEpoch
+        reading = false
+        manualModePending = manual
+        busy = true; setIcon("working")
+        if !menuOpen { rebuildMenu() }
         runCLI(args, timeout: isGUI ? nil : 75) { result in
-            if !isGUI { self.busy = false }
+            guard epoch == self.operationEpoch else { return }
+            self.busy = false
+            self.manualModePending = false
             switch result {
             case .success:
                 if args == ["exit"] { NSApp.terminate(nil); return }
             case .failure(let error): self.showError(error.localizedDescription)
             }
+            if !self.menuOpen { self.rebuildMenu() }
             self.refresh(force: true)
         }
     }
 
     private func showError(_ message: String) {
+        #if MENU_TESTING
+        if checkRunCLI != nil { checkErrors.append(message); return }
+        #endif
         let alert = NSAlert()
         alert.messageText = "PadPilot"
         alert.informativeText = message
@@ -561,6 +597,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func runCLI(_ arguments: [String], timeout: Double?, completion: @escaping (Result<Data, Error>) -> Void) {
+        #if MENU_TESTING
+        if let checkRunCLI { checkRunCLI(arguments, completion); return }
+        #endif
         let python = runtime.python
         let root = runtime.project_root
         let cliArguments = runtime.cliArguments

@@ -31,7 +31,7 @@ class BootConnectionTests(unittest.TestCase):
         self.daemon.engine, self.daemon.config = self.engine, self.cfg
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
-        for target in ('core.state_engine.write_atomic_status', 'core.state_engine.notify_error', 'core.state_engine.time.sleep'):
+        for target in ('core.state_engine.write_atomic_status', 'core.state_engine.notify_error', 'core.state_engine.StateEngine._wait'):
             self.stack.enter_context(patch(target))
 
     def test_defaults_existing_preferences_order_and_setting_transaction(self):

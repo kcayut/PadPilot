@@ -47,6 +47,7 @@ private final class SettingsModel: ObservableObject {
     @Published var data: SettingsObject = [:]
     @Published var page: String? = "paired"
     @Published var busy = false
+    @Published var manualModePending = false
     @Published var notice = ""
     @Published var drafts: [String: String] = [:]
     @Published var logFilter = "all"
@@ -65,6 +66,8 @@ private final class SettingsModel: ObservableObject {
     var recordedCommands: [[String: Any]] = []
     var confirmationAnswer: Bool?
     var injectedFailure: String?
+    var deferCompletions = false
+    var pendingCompletions: [(Result<Data, Error>) -> Void] = []
     #else
     let fixtureMode = false
     #endif
@@ -80,6 +83,7 @@ private final class SettingsModel: ObservableObject {
     var revision: Int { (config["revision"] as? Int) ?? (data["config_revision"] as? Int) ?? 0 }
     var readonly: Bool { !data.text("config_error").isEmpty || data.isEmpty }
     var disabled: Bool { readonly || busy }
+    var manualModeDisabled: Bool { readonly || manualModePending }
     var profiles: [SettingsObject] { data.rows("profiles") }
     var candidates: [SettingsObject] { actual.rows("sidecar_devices").filter { !$0.text("uuid").isEmpty } }
     var usbs: [SettingsObject] { actual.rows("usb_devices").filter { !$0.text("serial").isEmpty } }
@@ -127,6 +131,7 @@ private final class SettingsModel: ObservableObject {
     }
     func stop() {
         visible = false; snapshotEpoch += 1
+        reading = false; busy = false; manualModePending = false
         timer?.invalidate(); timer = nil; pendingRefresh = nil; pendingSelection = nil
     }
     func refresh(scan: Bool = false, section: String? = nil, rebaseDrafts: Bool = false) {
@@ -147,6 +152,7 @@ private final class SettingsModel: ObservableObject {
         if section == "decision" { args.append("--refresh") }
         let epoch = snapshotEpoch
         execute(args, timeout: section == "authenticated_checks" ? 180 : (explicit ? 75 : 10)) { result in
+            guard epoch == self.snapshotEpoch else { return }
             self.reading = false
             if explicit { self.busy = false }
             defer {
@@ -243,18 +249,25 @@ private final class SettingsModel: ObservableObject {
         }
     }
     func change(_ operation: String, _ values: SettingsObject, draftKey: String? = nil) {
-        guard !disabled else { return }
+        let manual = operation == "set_mode" && values.text("mode") == "manual_only"
+        guard manual ? !manualModeDisabled : !disabled else { return }
         var payload = values
-        payload["__expected_revision__"] = draftKey.flatMap { draftRevisions[$0] } ?? confirmationRevision ?? revision
+        // Cancelling one mode must not depend on a pending operation's stale revision.
+        if !manual { payload["__expected_revision__"] = draftKey.flatMap { draftRevisions[$0] } ?? confirmationRevision ?? revision }
         guard let input = try? JSONSerialization.data(withJSONObject: payload) else { return }
         snapshotEpoch += 1
+        let epoch = snapshotEpoch
+        reading = false; pendingRefresh = nil
+        manualModePending = manual
         busy = true
         notice = tr("處理中，請稍候…")
         let args = operation == "set_autostart"
             ? ["autostart", values.flag("enabled") ? "enable" : "disable", "--expected-revision", String(payload["__expected_revision__"] as? Int ?? revision)]
             : ["change-settings", operation]
         execute(args, input: operation == "set_autostart" ? nil : input, timeout: 75) { result in
+            guard epoch == self.snapshotEpoch else { return }
             self.busy = false
+            self.manualModePending = false
             switch result {
             case .success:
                 if let key = draftKey { self.drafts.removeValue(forKey: key); self.draftRevisions.removeValue(forKey: key) }
@@ -270,8 +283,11 @@ private final class SettingsModel: ObservableObject {
     func control(_ entry: SettingsObject, action: String) {
         guard !disabled, entry.flag("can_control"), !entry.text("key").isEmpty else { return }
         snapshotEpoch += 1
+        let epoch = snapshotEpoch
+        reading = false; pendingRefresh = nil
         busy = true
         execute(["action", action, "--expected-revision", String(revision), "--target-key", entry.text("key")], timeout: 75) { result in
+            guard epoch == self.snapshotEpoch else { return }
             self.busy = false
             if case .failure(let error) = result { self.showError(error.localizedDescription) }
             self.refresh(scan: true)
@@ -388,6 +404,7 @@ private final class SettingsModel: ObservableObject {
         #if PADPILOT_GUI_CHECKS
         if fixtureMode {
             recordedCommands.append(["args": arguments, "payload": input.flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [:]])
+            if deferCompletions { pendingCompletions.append(completion); return }
             if arguments.first != "gui-data", let message = injectedFailure {
                 injectedFailure = nil; completion(.failure(failure(message))); return
             }
@@ -533,6 +550,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func checkStop() { model.stop() }
     func checkPoll() { model.poll() }
     func checkFailure(_ message: String) { model.injectedFailure = message }
+    func checkDeferCommands(_ deferred: Bool) { model.deferCompletions = deferred }
+    func checkCompleteCommand(_ index: Int, error: String? = nil) {
+        let completion = model.pendingCompletions.remove(at: index)
+        if let error { completion(.failure(NSError(domain: "PadPilotGUICheck", code: 1, userInfo: [NSLocalizedDescriptionKey: error]))) }
+        else { completion(.success((try? JSONSerialization.data(withJSONObject: model.data)) ?? Data())) }
+    }
     func checkLogFilter(_ key: String) -> String { model.logFilter = key; return model.filteredLogs }
     func checkRefresh(_ section: String) { model.refresh(section: section) }
     func checkProfileAction(_ action: String, key: String) {
@@ -851,10 +874,12 @@ private struct SettingsPreferencesView: View {
                         Text(model.tr(mode.1)).font(settingsFont(.headline))
                         Spacer()
                         if model.config.text("mode") == mode.0 { Label(model.tr("✓ 目前生效中"), systemImage: "checkmark.circle.fill").foregroundStyle(.blue) }
-                        else {
-                            Button(model.tr("切換為此模式")) {
-                                model.confirm(model.tr("切換至{0}?", model.tr(mode.1)), model.tr(mode.2)) { model.change("set_mode", ["mode": mode.0]) }
-                            }.disabled(model.disabled)
+                        if model.config.text("mode") != mode.0 || (mode.0 == "manual_only" && (model.busy || model.status.object("runtime").text("transition_state", "IDLE") != "IDLE")) {
+                            Button(model.tr(model.config.text("mode") == mode.0 ? "停止目前連線嘗試" : "切換為此模式")) {
+                                if mode.0 == "manual_only" { model.change("set_mode", ["mode": mode.0]) }
+                                else { model.confirm(model.tr("切換至{0}?", model.tr(mode.1)), model.tr(mode.2)) { model.change("set_mode", ["mode": mode.0]) } }
+                            }.disabled(mode.0 == "manual_only" ? model.manualModeDisabled : model.disabled)
+                                .accessibilityIdentifier("mode.\(mode.0)")
                         }
                     }
                     Text(model.tr(mode.2)).font(settingsFont(.callout)).foregroundStyle(.secondary)
@@ -999,7 +1024,10 @@ private struct SettingsDisplaysView: View {
         } else if model.actual.rows("online_displays").isEmpty {
             SettingsCard(title: model.tr("目前無任何上線顯示器")) { EmptyView() }
         } else {
-            ForEach(Array(model.actual.rows("online_displays").enumerated()), id: \.offset) { _, display in
+            ForEach(Array(model.actual.rows("online_displays").enumerated()), id: \.offset) { index, display in
+                let uuid = display.text("uuid").uppercased()
+                let managed = display.flag("is_sidecar") || display.flag("is_virtual")
+                let editable = !uuid.isEmpty && !managed
                 SettingsCard(title: "") {
                     HStack(alignment: .top) {
                         Label(display.text("name", model.tr("未命名螢幕")), systemImage: display.flag("is_sidecar") ? "ipad" : "display").font(settingsFont(.headline))
@@ -1010,6 +1038,32 @@ private struct SettingsDisplaysView: View {
                         Text("\(display.text("width", "0")) × \(display.text("height", "0"))").monospacedDigit()
                         Spacer()
                         Text(display.flag("is_sidecar") ? "Sidecar" : model.tr(display.flag("is_virtual") ? "虛擬螢幕" : "實體螢幕")).foregroundStyle(.secondary)
+                    }
+                    Toggle(model.tr("排除實體螢幕判斷"), isOn: Binding(
+                        get: { managed || display.flag("excluded_from_physical_detection") },
+                        set: { excluded in
+                            guard editable else { return }
+                            model.change("set_display_exclusion", ["uuid": uuid, "excluded": excluded])
+                        }))
+                        .toggleStyle(.checkbox)
+                        .disabled(model.disabled || !editable)
+                        .accessibilityIdentifier("display-exclusion.\(uuid.isEmpty ? "unidentified.\(index)" : uuid)")
+                    Text(model.tr(managed ? "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。"
+                                  : uuid.isEmpty ? "無法取得螢幕識別碼，暫時不能調整。"
+                                  : "只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。"))
+                        .font(settingsFont(.caption1)).foregroundStyle(.secondary)
+                    if editable {
+                        HStack {
+                            Text("UUID \(uuid.prefix(8))").font(settingsFont(.caption1, monospaced: true))
+                                .foregroundStyle(.secondary).help(uuid)
+                            Spacer()
+                            if model.config.object("display_exclusions")[uuid] != nil {
+                                Button(model.tr("恢復自動判斷")) {
+                                    model.change("set_display_exclusion", ["uuid": uuid, "excluded": NSNull()])
+                                }.disabled(model.disabled)
+                                    .accessibilityIdentifier("display-exclusion-reset.\(uuid)")
+                            }
+                        }
                     }
                 }
             }

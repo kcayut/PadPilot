@@ -12,8 +12,10 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
+import copy
 from contextlib import contextmanager
 from dataclasses import replace
+from functools import wraps
 from typing import Any, Optional, Tuple
 
 from core.betterdisplay import BetterDisplayCLI
@@ -39,6 +41,34 @@ logger = get_logger("StateEngine")
 STATE_QUERY_ERRORS = {"usb", "displays", "identifiers", "sidecar", "sidecar_connection", "sidecar_identity"}
 
 
+class _Cancelled(Exception):
+    """A newer Manual Only request superseded this operation."""
+
+
+def _serialized(method):
+    @wraps(method)
+    def run(self, *args, **kwargs):
+        # Capture before waiting: queued commands are cancelled too. Nested calls
+        # share the original token so they cannot revive a cancelled operation.
+        token = getattr(self._operation_local, 'token', self._cancel_token)
+        with self._eval_lock:
+            outer = not hasattr(self._operation_local, 'token')
+            if outer:
+                self._operation_local.token = token
+            try:
+                self._check_cancelled()
+                return method(self, *args, **kwargs)
+            except _Cancelled:
+                if not outer:
+                    raise
+                return None
+            finally:
+                if outer:
+                    del self._operation_local.token
+                    self._apply_pending_manual()
+    return run
+
+
 class StateEngine:
     """Manages display automation, state transitions, debounce, and user overrides."""
 
@@ -54,8 +84,12 @@ class StateEngine:
 
         self._transition_lock = threading.Lock()
         self._transition_revision = 0
-        # ponytail: serialize one display topology; use a command queue if IPC latency matters.
+        # Hardware remains single-flight; Manual Only can cancel without this lock.
         self._eval_lock = threading.RLock()
+        self._control_lock = threading.RLock()
+        self._operation_local = threading.local()
+        self._cancel_token = threading.Event()
+        self._pending_manual = None
         self.status_revision = 0
         self._last_exported_meaningful_content = None
         self._last_snapshot: Optional[StatusSnapshot] = None
@@ -67,14 +101,75 @@ class StateEngine:
 
     def set_mode(self, mode: OperationMode) -> None:
         """Update operational mode."""
-        with self._eval_lock:
+        if mode == OperationMode.MANUAL_ONLY:
+            config = copy.deepcopy(self.config)
+            config.mode = mode
+            self.request_manual_mode(config)
+            return
+
+        def update():
             logger.info(f"Mode changed: {self.runtime.mode} -> {mode}")
             self.runtime.mode = mode
             self.config.mode = mode
             # Reset runtime transient overrides if mode explicitly changed
             self.runtime.user_override = None
             self.evaluate(trigger="mode_change")
+        self.run_control(update)
 
+    @_serialized
+    def run_control(self, action):
+        """Keep IPC validation and its action on the same display operation."""
+        return action()
+
+    def request_manual_mode(self, config: Config) -> None:
+        """Cancel now; the hardware worker adopts the saved config at a safe point."""
+        with self._control_lock:
+            self._pending_manual = config
+            self._cancel_token.set()
+            self._cancel_token = threading.Event()
+            # Count an explicit pause immediately, also consuming pending boot work.
+            self._transition_revision += 1
+        if not hasattr(self._operation_local, 'token') and self._eval_lock.acquire(blocking=False):
+            try:
+                self._apply_pending_manual()
+            finally:
+                self._eval_lock.release()
+
+    def _apply_pending_manual(self) -> None:
+        with self._control_lock:
+            if self._pending_manual is None:
+                return
+            self.config = self.detector.config = self._pending_manual
+            self._pending_manual = None
+            self.runtime.mode = OperationMode.MANUAL_ONLY
+            self.runtime.user_override = None
+            self.runtime.transition_state = TransitionState.IDLE
+            self.runtime.dirty = False
+            self.runtime.retry_count = 0
+            self.runtime.cooldown_until = 0.0
+            self.runtime.last_error = None
+            if self.actual:
+                self.desired = self.policy(self.actual, self.config, self.runtime)
+                # Reuse the last observation without changing its timestamp.
+                self._export_status(satisfied=True)
+
+    def _check_cancelled(self) -> None:
+        token = getattr(self._operation_local, 'token', None)
+        if token is not None and token.is_set():
+            raise _Cancelled()
+
+    def _display_command(self, action, *args):
+        self._check_cancelled()
+        result = action(*args)
+        self._check_cancelled()
+        return result
+
+    def _wait(self, seconds: float) -> None:
+        token = getattr(self._operation_local, 'token', self._cancel_token)
+        token.wait(max(0.0, seconds))
+        self._check_cancelled()
+
+    @_serialized
     def set_user_override(self, target_role: DisplayRole, async_transition: bool = True, *, one_shot: bool = False) -> None:
         """Set a user manual override bound to current topology generation."""
         with self._eval_lock:
@@ -98,8 +193,13 @@ class StateEngine:
     def request_sidecar_connection(self, async_transition: bool = True, *, require_headless: bool = False) -> bool:
         """Explicit one-shot request; repeated presses never queue another retry budget."""
         revision = self._transition_revision
-        if self._transition_lock.locked() or (self.runtime.user_override and self.runtime.user_override.one_shot):
+        if self._pending_manual is None and (self._transition_lock.locked()
+                or (self.runtime.user_override and self.runtime.user_override.one_shot)):
             return True
+        return self._request_sidecar_connection(revision, async_transition, require_headless=require_headless)
+
+    @_serialized
+    def _request_sidecar_connection(self, revision, async_transition, *, require_headless):
         with self._eval_lock:
             # Wait for a normal scan, but coalesce with any transition that ran meanwhile.
             if revision != self._transition_revision or (self.runtime.user_override and self.runtime.user_override.one_shot):
@@ -137,6 +237,7 @@ class StateEngine:
             return True
 
     def _complete_one_shot(self, request) -> None:
+        self._check_cancelled()
         if request and request.one_shot and self.runtime.user_override is request:
             self.runtime.user_override = None
             if self.actual:
@@ -151,6 +252,7 @@ class StateEngine:
         finally:
             self._complete_one_shot(request)
 
+    @_serialized
     def clear_user_override(self, async_transition: bool = True) -> None:
         """Clear active user manual override."""
         with self._eval_lock:
@@ -158,6 +260,7 @@ class StateEngine:
             self.runtime.user_override = None
             self.evaluate(trigger="clear_override", async_transition=async_transition)
 
+    @_serialized
     def reset_automation(self, async_transition: bool = True) -> None:
         """Reset runtime transient state without wiping persistent preferences."""
         with self._eval_lock:
@@ -171,6 +274,7 @@ class StateEngine:
             self.runtime.transition_state = TransitionState.IDLE
             self.evaluate(trigger="manual_reset", async_transition=async_transition)
 
+    @_serialized
     def reconnect_sidecar(self) -> bool:
         with self._eval_lock:
             actual = self._observe()
@@ -415,7 +519,9 @@ class StateEngine:
         previous = self._last_valid_actual or self.actual
         had_physical = bool(previous and previous.physical_displays)
         had_sidecar = bool(previous and previous.sidecar_connected)
+        self._check_cancelled()
         actual, signature = self.detector.observe(current_generation=self.runtime.topology_generation)
+        self._check_cancelled()
         if STATE_QUERY_ERRORS.intersection(actual.discovery_errors):
             self.actual = actual
             return actual  # Unknown observations are not physical unplug/disconnect events.
@@ -464,6 +570,7 @@ class StateEngine:
         self._last_valid_actual = actual
         return actual
 
+    @_serialized
     def evaluate(self, trigger: str = "periodic", async_transition: bool = True) -> None:
         """Run single evaluation cycle. Protected against re-entrant calls."""
         with self._eval_lock:
@@ -515,7 +622,9 @@ class StateEngine:
             self.runtime.dirty = True
             return
 
-        thread = threading.Thread(target=self._run_transition, daemon=True)
+        self._check_cancelled()
+        token = getattr(self._operation_local, 'token', self._cancel_token)
+        thread = threading.Thread(target=self._run_transition, args=(token,), daemon=True)
         thread.start()
 
     def _set_main_display(self, actual: ActualState, target_name: str) -> bool:
@@ -523,23 +632,23 @@ class StateEngine:
             if actual.sidecar_display_id is not None:
                 matches = [d for d in actual.online_displays if d.is_sidecar and
                            d.display_id == actual.sidecar_display_id]
-                return len(matches) == 1 and self.bd_cli.set_main_display(matches[0].uuid or matches[0].name)
+                return len(matches) == 1 and self._display_command(self.bd_cli.set_main_display, matches[0].uuid or matches[0].name)
             target = self.target_ipad(actual)
             live_names = [d.get("name") for d in actual.sidecar_devices
                           if d.get("uuid", "").casefold() == target.sidecar_uuid.casefold()]
             name = live_names[0] if len(live_names) == 1 and live_names[0] else target.name
             matches = [d for d in actual.online_displays if d.is_sidecar and d.name == name]
             spec = matches[0].uuid or matches[0].name if len(matches) == 1 else name
-            return bool(spec) and self.bd_cli.set_main_display(spec)
+            return bool(spec) and self._display_command(self.bd_cli.set_main_display, spec)
         if target_name == "virtual":
             if not (actual.virtual_display_connected or
-                    self.bd_cli.connect_virtual_display(self.config.virtual_display_name)):
+                    self._display_command(self.bd_cli.connect_virtual_display, self.config.virtual_display_name)):
                 return False
-            time.sleep(1.0)
-            return self.bd_cli.set_main_display(self.config.virtual_display_name)
+            self._wait(1.0)
+            return self._display_command(self.bd_cli.set_main_display, self.config.virtual_display_name)
         if target_name == "physical" and actual.physical_displays:
             display = actual.physical_displays[0]
-            return self.bd_cli.set_main_display(display.uuid or display.name)
+            return self._display_command(self.bd_cli.set_main_display, display.uuid or display.name)
         return False
 
     def _disconnect_sidecar(self, actual: ActualState) -> bool:
@@ -566,16 +675,21 @@ class StateEngine:
                 or (current_target.sidecar_uuid or current_target.name).casefold() != specifier.casefold()):
             self.runtime.last_error = error
             return False
-        if self.bd_cli.disconnect_sidecar(specifier):
+        if self._display_command(self.bd_cli.disconnect_sidecar, specifier):
             self.runtime.last_error = None
             return True
         self.runtime.last_error = "Could not disconnect the configured iPad."
         return False
 
-    def _run_transition(self) -> None:
+    @_serialized
+    def _run_transition(self, token=None) -> None:
         """Single-flight transition execution thread."""
+        if token is not None and token.is_set():
+            return
         with self._eval_lock, self._transition_lock, self._one_shot_scope():
-            self._transition_revision += 1
+            with self._control_lock:
+                self._check_cancelled()
+                self._transition_revision += 1
             while True:
                 self.runtime.dirty = False
                 actual = self.actual
@@ -599,7 +713,7 @@ class StateEngine:
                 if pending_sidecar:
                     if (not actual.physical_displays and actual.virtual_display_exists
                             and not actual.virtual_display_connected):
-                        if not self.bd_cli.connect_virtual_display(self.config.virtual_display_name):
+                        if not self._display_command(self.bd_cli.connect_virtual_display, self.config.virtual_display_name):
                             logger.warning("Could not connect virtual fallback before Sidecar")
                     connected = False
                     cancelled = False
@@ -611,7 +725,7 @@ class StateEngine:
 
                         # Connect Sidecar
                         # A connected session may still be waiting for its display.
-                        accepted = actual.sidecar_connected or self.bd_cli.connect_sidecar(specifier)
+                        accepted = actual.sidecar_connected or self._display_command(self.bd_cli.connect_sidecar, specifier)
                         self.runtime.transition_state = TransitionState.WAITING_FOR_DISPLAY
                         self._export_status(satisfied=False, evaluation_state="applying")
                         # Use the existing retry interval to verify readiness before another attempt.
@@ -630,7 +744,7 @@ class StateEngine:
                             remaining = deadline - time.monotonic()
                             if connected or cancelled or not accepted or remaining <= 0:
                                 break
-                            time.sleep(min(1.0, remaining))
+                            self._wait(min(1.0, remaining))
 
                         if cancelled:
                             success = False
@@ -653,6 +767,7 @@ class StateEngine:
                                 err_msg = f"Sidecar connection failed after {self.config.max_retries} attempts. Automatic retries paused until iPad reappears or manual reconnect."
                                 self.runtime.last_error = err_msg
                                 logger.error(err_msg)
+                                self._check_cancelled()
                                 notify_error(err_msg, subtitle="Sidecar Connection Error")
                                 success = False
                                 break
@@ -660,7 +775,7 @@ class StateEngine:
                                 success = False
                                 break
                             if not accepted:
-                                time.sleep(self.config.retry_interval)
+                                self._wait(self.config.retry_interval)
 
                 if pending_sidecar and success:
                     desired = self.policy(actual, self.config, self.runtime)
@@ -727,6 +842,7 @@ class StateEngine:
 
     def _export_status(self, satisfied: bool, evaluation_state: str = "idle") -> None:
         """Atomically persist status snapshot only if meaningful content changed."""
+        self._check_cancelled()
         if not self.actual or not self.desired:
             return
 

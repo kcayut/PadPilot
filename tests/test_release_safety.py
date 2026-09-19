@@ -120,6 +120,7 @@ class ReleaseSafetyTests(unittest.TestCase):
         daemon = cls.__new__(cls)
         daemon.config = config.Config()
         daemon.engine = MagicMock(status_revision=1)
+        daemon.engine.run_control.side_effect = lambda action: action()
         daemon.apply_config_change = MagicMock(return_value=(False, daemon.config))
         secret = 'PRIVATE_SERIAL_SENTINEL'
         payloads = [json.dumps({'command': 'save_pairing', 'params': {'name': secret}}),

@@ -85,6 +85,7 @@ class Config:
     retry_interval: float = 3.0
     cooldown_seconds: float = 30.0
     ignore_list: List[str] = field(default_factory=lambda: ["Dummy", "Virtual", "Capture"])
+    display_exclusions: dict[str, bool] = field(default_factory=dict)
     virtual_display_name: str = DEFAULT_VIRTUAL_DISPLAY_NAME
     betterdisplaycli_path: Optional[str] = None
     revision: int = 1
@@ -107,6 +108,7 @@ class Config:
             "retry_interval": self.retry_interval,
             "cooldown_seconds": self.cooldown_seconds,
             "ignore_list": self.ignore_list,
+            "display_exclusions": dict(self.display_exclusions),
             "virtual_display_name": self.virtual_display_name,
             "betterdisplaycli_path": self.betterdisplaycli_path,
             "revision": self.revision,
@@ -152,6 +154,17 @@ class Config:
             not isinstance(item, str) for item in data.get('ignore_list', [])
         ):
             raise ValueError('ignore_list must contain strings')
+        exclusions = data.get('display_exclusions', {})
+        if not isinstance(exclusions, dict) or any(
+            not isinstance(key, str) or type(value) is not bool for key, value in exclusions.items()
+        ):
+            raise ValueError('Invalid display_exclusions')
+        try:
+            exclusions = {str(UUID(key)).upper(): value for key, value in exclusions.items()}
+        except ValueError as error:
+            raise ValueError('Invalid display exclusion UUID') from error
+        if len(exclusions) != len(data.get('display_exclusions', {})):
+            raise ValueError('Duplicate display exclusion UUID')
         if not isinstance(data.get('virtual_display_name', DEFAULT_VIRTUAL_DISPLAY_NAME), str):
             raise ValueError('Invalid virtual_display_name')
         if data.get('betterdisplaycli_path') is not None and not isinstance(data['betterdisplaycli_path'], str):
@@ -186,6 +199,7 @@ class Config:
             retry_interval=float(data.get("retry_interval", 3.0)),
             cooldown_seconds=float(data.get("cooldown_seconds", 30.0)),
             ignore_list=list(data.get("ignore_list", ["Dummy", "Virtual", "Capture"])),
+            display_exclusions=exclusions,
             virtual_display_name=str(data.get("virtual_display_name", DEFAULT_VIRTUAL_DISPLAY_NAME)),
             betterdisplaycli_path=data.get("betterdisplaycli_path"),
             revision=int(data.get("revision", 1)),

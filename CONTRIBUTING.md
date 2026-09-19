@@ -18,7 +18,7 @@
 
 ### 複製專案與檢查
 
-GitHub 倉庫目前為私人。具有存取權限的帳號可先複製，再執行唯讀預檢；已取得原始碼者直接執行最後一步：
+先從 GitHub 複製專案，再執行唯讀預檢；已取得原始碼者可直接在專案目錄執行最後一步：
 
 ```bash
 git clone https://github.com/kcayut/PadPilot.git
@@ -85,11 +85,11 @@ GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整�
 
 GUI 的使用說明與診斷說明連到 GitHub 上對應來源 commit 的文件；開啟 GUI 時固定修訂，不跟隨 `main`。Git 封存檔透過 `.gitattributes` 的 `export-subst` 保留修訂；若來源沒有 Git 記錄或封存修訂，才使用 `v<core.__version__>` 標籤。
 
-正式發布時，先將程式、三語使用者文件與版本號一起提交並推送，確認檢查通過，再為同一 commit 建立 `vX.Y.Z` 標籤與 Release。不要移動或重用已發布的版本標籤；修改內容須使用新版本。未提交或未推送的開發內容無法在 GitHub 文件中呈現。目前尚無版本標籤；對外發布前須建立相符標籤，並確保使用者有文件存取權限（私人倉庫的文件亦受限）。
+正式發布時，先將程式、三語使用者文件與版本號一起提交並推送，確認檢查通過，再為同一 commit 建立 `vX.Y.Z` 標籤與 Release。不要移動或重用已發布的版本標籤；修改內容須使用新版本。未提交或未推送的開發內容無法在 GitHub 文件中呈現。每次發布都須確認對應 commit 與標籤的文件連結可供使用者開啟。
 
 ## 🚀 Pull Request 流程
 
-目前私人倉庫需要存取權限；Pull Request 不代表正式發布。公開前仍需完成隱私與實機驗收。
+歡迎透過 Fork 與 Pull Request 提交修改。合併 Pull Request 不等於發布新版；發布前仍需完成隱私檢查與實機驗收。
 
 1. Fork 專案至您的個人帳號。
 2. 從 `main` 分支建立特性分支（例如 `feature/awesome-idea` 或 `fix/sidecar-timeout`）。

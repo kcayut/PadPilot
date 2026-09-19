@@ -285,7 +285,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
             reason="Headless fallback",
             needs_main_display_target="virtual",
         )
-        with patch("time.sleep"):
+        with patch.object(self.engine, "_wait"):
             self.engine._run_transition()
         self.mock_bd_cli.connect_virtual_display.assert_called_with("PadPilotVirtual")
         self.mock_bd_cli.set_main_display.assert_called_with("PadPilotVirtual")

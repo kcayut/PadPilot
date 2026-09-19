@@ -28,7 +28,7 @@ class RegressionTests(unittest.TestCase):
         self.ipad = DisplayInfo(2, "Target iPad", is_main=True, is_sidecar=True)
         self.detector.observe.return_value = (ActualState(), ((), False))
         for target in ("core.state_engine.write_atomic_status", "core.state_engine.notify_error",
-                       "core.state_engine.time.sleep"):
+                       "core.state_engine.StateEngine._wait"):
             mock = patch(target)
             mock.start()
             self.addCleanup(mock.stop)
@@ -448,7 +448,7 @@ class RegressionTests(unittest.TestCase):
         self.assertIsNone(self.engine.runtime.user_override)
         self.assertGreater(self.engine.runtime.debounce_until, time.time())
 
-    def test_mode_change_waits_for_inflight_transition(self):
+    def test_manual_mode_cancels_inflight_transition_without_waiting(self):
         entered, release, changed = threading.Event(), threading.Event(), threading.Event()
         actual = ActualState(sidecar_available=True)
         self.detector.observe.return_value = (actual, ((), False))
@@ -471,7 +471,7 @@ class RegressionTests(unittest.TestCase):
         try:
             self.assertTrue(entered.wait(1))
             setter.start()
-            self.assertFalse(changed.wait(0.05))
+            self.assertTrue(changed.wait(0.5))
         finally:
             release.set()
             worker.join(2)

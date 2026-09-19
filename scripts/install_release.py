@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,7 @@ from core.config import load_config
 from core.runtime import app_runtime, bundled_app, check_python, preference_path, read_preference
 from core.storage import atomic_write
 from manage_app import ensure_settings_closed, stop_menu_apps, trash, installation_service
-from core.autostart import service_command
+from core.autostart import daemon_pids, job_loaded, service_command
 
 
 def cli(app, *args, capture=False):
@@ -78,9 +79,27 @@ def install(source, target, python=None):
         except Exception as error:
             try:
                 if replaced:
-                    service_command('unregister', target)
-                    cli(target, 'exit')
+                    stop_errors = []
+                    try:
+                        service_command('unregister', target)
+                    except (OSError, RuntimeError, subprocess.SubprocessError) as stop_error:
+                        stop_errors.append(str(stop_error))
+                    try:
+                        cli(target, 'exit')
+                    except (OSError, RuntimeError, subprocess.SubprocessError) as stop_error:
+                        stop_errors.append(str(stop_error))
                     stop_menu_apps([target])
+                    # The failed app's CLI may be unusable. Verify shutdown from
+                    # this installer before replacing any files or preferences.
+                    if (job_loaded(target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
+                            or daemon_pids(app_runtime(target)[0])):
+                        detail = '; '.join(stop_errors) or 'replacement service or daemon is still active'
+                        raise RuntimeError(f'Cannot confirm replacement stopped; app and backup preserved: {detail}')
+                    paths = '|'.join(re.escape(str(path)) for path in {target, target.resolve()})
+                    remaining = subprocess.run(['pgrep', '-f', r'(^| )(' + paths + r')/Contents/'],
+                                               capture_output=True, text=True, timeout=2)
+                    if remaining.returncode != 1:
+                        raise RuntimeError('Replacement app processes may still be running; app and backup preserved')
                     trash(target)
                 if previous_app:
                     previous_app.rename(target)

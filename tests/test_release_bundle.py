@@ -1,6 +1,7 @@
 import json
 import os
 import plistlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -84,35 +85,110 @@ class ReleaseBundleTests(unittest.TestCase):
             runtime.check_python('/bin/sh')
 
     def test_failed_release_install_restores_app_preferences_and_agent(self):
-        with tempfile.TemporaryDirectory() as directory, patch.object(Path, 'home', return_value=Path(directory)), \
-                patch.object(install_release, 'load_config'), patch.object(install_release, 'ensure_settings_closed'), \
-                patch.object(install_release, 'stop_menu_apps'), \
-                patch.object(install_release, 'installation_service', return_value='enabled'), \
-                patch.object(install_release, 'service_command', return_value='notRegistered'), \
-                patch.object(install_release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 113)):
-            home = Path(directory).resolve()
-            source = bundle(home / 'download/PadPilot.app')
-            target = bundle(home / 'Applications/PadPilot.app')
-            sentinel = target / 'previous-version'
-            sentinel.write_text('keep')
-            pref = runtime.preference_path()
-            original_pref = b'{"python":"/opt/previous/python3"}\n'
-            atomic_write(pref, original_pref)
-            plist = target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
-            plist.parent.mkdir(parents=True)
-            previous_root = runtime.app_runtime(target)[0]
-            original_plist = autostart.generate_plist_content().encode()
-            atomic_write(plist, original_plist, private_parent=False)
-            def fake_cli(app, *args, **kwargs):
-                if args == ('gui-data',):
-                    raise subprocess.CalledProcessError(1, ['gui-data'])
-                return subprocess.CompletedProcess([], 0, stdout='{"daemon_responding":false}')
-            with patch.object(install_release, 'cli', side_effect=fake_cli):
-                with self.assertRaises(subprocess.CalledProcessError):
-                    install_release.install(source, target)
-            self.assertEqual(sentinel.read_text(), 'keep')
-            self.assertEqual(pref.read_bytes(), original_pref)
-            self.assertEqual(plist.read_bytes(), original_plist)
+        for failure, was_running, previous_service in [('gui-data', False, 'enabled'), ('broken-cli', True, 'enabled'),
+                ('broken-cli', True, 'notRegistered'), ('broken-cli-unregister', False, 'enabled'), ('unregister', True, 'enabled')]:
+            with self.subTest(failure=failure, previous_service=previous_service), tempfile.TemporaryDirectory() as directory, \
+                    patch.object(Path, 'home', return_value=Path(directory)), \
+                    patch.object(install_release, 'load_config'), patch.object(install_release, 'ensure_settings_closed'), \
+                    patch.object(install_release, 'stop_menu_apps'), \
+                    patch.object(install_release, 'installation_service', return_value=previous_service), \
+                    patch.object(install_release.subprocess, 'run', side_effect=lambda command, **kwargs:
+                                 subprocess.CompletedProcess(command, 1 if command[0] == 'pgrep' else 0)) as process_checks:
+                home = Path(directory).resolve()
+                source = bundle(home / 'download/PadPilot.app')
+                target = bundle(home / 'Applications [test] with spaces/PadPilot.app')
+                sentinel = target / 'previous-version'
+                sentinel.write_text('keep')
+                pref = runtime.preference_path()
+                original_pref = b'{"python":"/opt/previous/python3"}\n'
+                atomic_write(pref, original_pref)
+                plist = target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+                original_plist = autostart.generate_plist_content().encode()
+                atomic_write(plist, original_plist, private_parent=False)
+                state = {'registered': previous_service == 'enabled', 'running': was_running}
+                def fake_cli(app, *args, **kwargs):
+                    if not sentinel.exists() and (failure.startswith('broken-cli')
+                            or args == (('start',) if failure == 'unregister' else ('gui-data',))):
+                        raise subprocess.CalledProcessError(1, list(args))
+                    if args == ('exit',): state['running'] = False
+                    if args == ('start',): state['running'] = True
+                    return subprocess.CompletedProcess([], 0, stdout=json.dumps({'daemon_responding': state['running']}))
+                def service(action, app):
+                    state['registered'] = state['running'] = action == 'register'
+                    if action == 'unregister' and not sentinel.exists() and 'unregister' in failure:
+                        # The native command can time out after launchd removed the job.
+                        raise subprocess.TimeoutExpired(['PadPilot', '--service', action], 30)
+                    return 'enabled' if state['registered'] else 'notRegistered'
+                with patch.object(install_release, 'cli', side_effect=fake_cli), \
+                     patch.object(install_release, 'service_command', side_effect=service), \
+                     patch.object(install_release, 'job_loaded', side_effect=lambda path: state['registered']), \
+                     patch.object(install_release, 'daemon_pids', side_effect=lambda root: [123] if state['running'] else []) as pids:
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        install_release.install(source, target)
+                    pids.assert_called_once_with(runtime.app_runtime(target)[0])
+                self.assertEqual(sentinel.read_text(), 'keep')
+                self.assertEqual(pref.read_bytes(), original_pref)
+                self.assertEqual(plist.read_bytes(), original_plist)
+                self.assertEqual(state, {'registered': previous_service == 'enabled', 'running': was_running})
+                pattern = next(call.args[0][-1] for call in process_checks.call_args_list if call.args[0][0] == 'pgrep')
+                self.assertRegex(f'{target}/Contents/MacOS/PadPilot --daemon', pattern)
+                self.assertRegex(f'/opt/python3 -I -B {target}/Contents/Resources/PadPilot/bin/padpilot-cli exit', pattern)
+                self.assertNotRegex(f'{source}/Contents/Resources/Python/bin/python3 installer', pattern)
+
+    def test_rollback_preserves_both_apps_when_replacement_shutdown_is_unverified(self):
+        for blocked in ('job', 'daemon', 'job-query', 'daemon-query', 'menu', 'native', 'native-query'):
+            with self.subTest(blocked=blocked), tempfile.TemporaryDirectory() as directory, \
+                    patch.object(Path, 'home', return_value=Path(directory)), \
+                    patch.object(install_release, 'load_config'), patch.object(install_release, 'ensure_settings_closed'), \
+                    patch.object(install_release, 'installation_service', return_value='enabled'), \
+                    patch.object(install_release, 'service_command', return_value='notRegistered') as service, \
+                    patch.object(install_release.subprocess, 'run', side_effect=lambda command, **kwargs:
+                                 subprocess.CompletedProcess(command, 2 if blocked == 'native-query' else 0)):
+                home = Path(directory).resolve()
+                source = bundle(home / 'download/PadPilot.app')
+                target = bundle(home / 'Applications/PadPilot.app')
+                (source / 'replacement').write_text('new')
+                (target / 'previous-version').write_text('old')
+                pref = runtime.preference_path()
+                atomic_write(pref, b'{"python":"/opt/previous/python3"}\n')
+                def fake_cli(app, *args, **kwargs):
+                    if (app / 'replacement').exists():
+                        raise subprocess.CalledProcessError(1, list(args))
+                    return subprocess.CompletedProcess([], 0, stdout='{"daemon_responding":false}')
+                with patch.object(install_release, 'cli', side_effect=fake_cli), \
+                     patch.object(install_release, 'stop_menu_apps', side_effect=[None, RuntimeError('menu still running')] if blocked == 'menu' else None), \
+                     patch.object(install_release, 'job_loaded', return_value=blocked == 'job',
+                                  side_effect=RuntimeError('ownership cannot be verified') if blocked == 'job-query' else None), \
+                     patch.object(install_release, 'daemon_pids', return_value=[123] if blocked == 'daemon' else [],
+                                  side_effect=RuntimeError('processes cannot be verified') if blocked == 'daemon-query' else None):
+                    with self.assertRaisesRegex(RuntimeError, 'Rollback incomplete'):
+                        install_release.install(source, target)
+                self.assertTrue((target / 'replacement').exists())
+                self.assertFalse((target / 'previous-version').exists())
+                self.assertEqual(pref.read_bytes(), b'{}\n')
+                self.assertEqual(len(list((home / '.Trash').glob('*/PadPilot.app/previous-version'))), 1)
+                self.assertNotIn('register', [call.args[0] for call in service.call_args_list])
+
+    def test_daemon_pid_check_uses_target_root_and_verifies_interpreter_identity(self):
+        source = Path('/download/PadPilot.app/Contents/Resources/PadPilot')
+        target = Path('/Applications/PadPilot.app/Contents/Resources/PadPilot')
+        python = '/opt/test/bin/python3'
+        def run(command, **kwargs):
+            if command[0] == 'pgrep':
+                self.assertEqual(command[-1], r'(^| )' + re.escape(str(target / 'bin/padpilotd')) + r'( |$)')
+                output = '12 34 56'
+            elif command[-1] == 'comm=':
+                output = python
+            else:
+                output = {'12': f'{python} -I -B {target}/bin/padpilotd',
+                          '34': f'{python} -I -B {source}/bin/padpilotd',
+                          '56': f'/opt/other/bin/python3 -I -B {target}/bin/padpilotd'}[command[command.index('-p') + 1]]
+            return subprocess.CompletedProcess(command, 0, stdout=output)
+        with patch.object(autostart, 'PROJECT_ROOT', source), \
+             patch.object(autostart.subprocess, 'run', side_effect=run), \
+             patch.object(autostart.shutil, 'which', return_value=None):
+            self.assertEqual(autostart.daemon_pids(target), [12])
+            self.assertEqual(autostart.PROJECT_ROOT, source)
 
     def test_uninstall_unregisters_before_trashing_and_preserves_app_on_failure(self):
         import manage_app

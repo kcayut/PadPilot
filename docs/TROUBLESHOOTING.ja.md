@@ -6,6 +6,17 @@
 
 macOS 上での状態警告、デバイス認識、接続エラーと対処方法をまとめています。
 
+## インストール済みの PadPilot を選ぶ
+
+DMG 版ではソースのダウンロードや Python の追加インストールは不要です。「ターミナル」でアプリ内の CLI の場所を設定し、以降のコマンドも同じウインドウで実行してください。
+
+```bash
+PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
+"$PADPILOT_CLI" --version
+```
+
+個人の「アプリケーション」にある場合、最初の行を `PADPILOT_CLI="$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` に変更します。別の場所なら実際のパスを指定してください。ソース版ではプロジェクトフォルダーに移動し、インストール時の Python 環境を有効にしてから `PADPILOT_CLI="$PWD/bin/padpilot-cli"` と設定します。「ソース版のみ」の手順は DMG 版には不要です。
+
 ## 目次
 
 - [1. FileVault とモニターなしのコールドブート](#filevault)
@@ -30,7 +41,7 @@ macOS 上での状態警告、デバイス認識、接続エラーと対処方�
 **対処方法：**
 
 1. 物理モニターでロック解除とログインを行い、Sidecar の手動接続を確認します。
-2. ログイン後に `./bin/padpilot-cli status` でサービスの応答を確認してから、iPad への切り替えを試します。
+2. ログイン後に `"$PADPILOT_CLI" status` でサービスの応答を確認してから、iPad への切り替えを試します。
 3. モニターなしで使う前に、自分の環境でコールドブートと復旧手順を検証してください。ハードウェアの組み合わせごとに確認が必要です。
 
 **インストールのために FileVault を無効化したり、自動ログインを有効化したりする必要はありません。** これらはデータとアカウントの安全性に関わる設定であり、Sidecar が数秒で接続する保証にもなりません。検査を通すためにシステムの安全性を下げないでください。
@@ -58,11 +69,11 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 
 1. BetterDisplay.app を開きます。
 2. インストール済みバージョンの [BetterDisplay CLI ガイド](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI)を確認します。設定名や場所はバージョンによって異なります。
-3. 必要な Pro ライセンスまたは有効な試用期間と、PadPilot に設定した CLI のパスを確認します。
-4. 次を実行します。
+3. 現在の PadPilot の機能は BetterDisplay の無料版で利用でき、Pro や試用資格は必要ありません。BetterDisplay が起動しており、PadPilot の App／CLI パスが正しいことを確認します。
+4. BetterDisplay 内蔵の CLI を確認します。単体の `betterdisplaycli` は不要です。以下は `/Applications` にある場合の例なので、別の場所なら実際の App パスに置き換えてください。
 
    ```bash
-   betterdisplaycli get -identifiers
+   "/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay" get -identifiers
    ```
 
    正常終了し、想定するデバイスが取得できることを確認します。CLI の応答だけでは、Sidecar のペアリングや画面表示の検証にはなりません。
@@ -71,17 +82,15 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 <a id="generic-display"></a>
 ## 4. Generic Display のプレースホルダー
 
-**症状：** モニターなしの起動時に `Generic Display` または `Generic` が検出され、物理モニターがあると誤判定されます。
+**症状：** 物理モニターがないのにあると判定される、または実物の `Generic Display`／`Generic` モニターが数えられず、自動モードが想定と違う判断をします。
 
-一部の環境では実物のモニターがなくても仮の framebuffer が現れます。PadPilot は既知の名前と完全一致したものを除外しますが、これはすべての機種に通用する識別方法ではありません。
+一部の Mac はモニターなしで起動すると `Generic`／`Generic Display` の仮の画面を表示するため、PadPilot はこの二つの名前との完全一致を既定で除外します。これは観測に基づく判定で、同名の画面がすべて仮の画面とは限りません。
 
-実際のモニター名も `Generic` または `Generic Display` の場合、状態を保存し、EDID・識別情報を別途収集して調査に使用してください。
+1. **「接続中のディスプレイ」**を開き、対象のカードを探します。除外された画面も一覧に残ります。
+2. **「物理ディスプレイ判定から除外」**をオンにすると、物理モニターとして数えなくなります。実物の Generic モニターならチェックを外して数えるようにできます。**「自動判定に戻す」**でこの画面の個別設定を解除し、既定の規則に戻します。
+3. 設定は画面の UUID ごとに保存するため、同名の画面には影響しません。安定した UUID が取得できない場合は変更できません。一覧を更新し、BetterDisplay が起動して画面を識別できることを確認してください。
 
-```bash
-./bin/padpilot-cli status --json
-```
-
-本物の物理モニターを無視リストに追加しないでください。名前による除外を広げるのではなく、識別情報を添えて報告してください。
+この設定は物理モニターの有無の判定だけに影響し、画面を消したり PadPilot の制御を止めたりしません。**すべての物理モニターを除外すると、自動モードはモニターがないものとして iPad への切り替えを試みる場合があります。** Sidecar と識別済みの仮想予備画面は元から物理モニターとして数えず、その用途と制御は変わりません。
 
 <a id="cooldown"></a>
 ## 5. 切断・再試行・クールダウン
@@ -90,12 +99,14 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 
 接続試行は最大 3 回、間隔は 3 秒です。上限に達すると一度だけ通知し、物理または仮想の予備画面を維持して自動再試行を停止します。利用できない iPad が Sidecar の一覧に残っていても、30 秒後に再試行を繰り返しません。USB 通知と iPad 自動検出は有効のまま使えます。
 
+現在の自動接続を止めるには「手動モード」に切り替えると、待機中の処理と以降の再試行を中止できます。macOS に送信済みの命令は完了する場合がありますが、その後もボタンやショートカットで明示的に接続できます。
+
 1. 必要に応じて iPad を起こし、ロックを解除します。
 2. ケーブルや接続部分を確認します。対象 iPad の USB または Sidecar 検出が「なし」から「あり」に変わると、残りのクールダウン後に回数制限付きの試行を再開します。画面を起こしても検出状態が変わらない場合は「再接続」を選びます。通常の USB 通知、更新、物理モニターの接続変更では停止を解除しません。
 3. 原因を解消し、一時的な手動指定とクールダウンを解除したい場合に実行します。
 
    ```bash
-   ./bin/padpilot-cli action reset
+   "$PADPILOT_CLI" action reset
    ```
 
 サービスが状態を再評価します。手動で接続する場合は「再接続」を選びます。コマンドの受付成功は接続完了を意味しません。
@@ -108,14 +119,14 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 1. 起動設定とサービスの状態を確認します。
 
    ```bash
-   ./bin/padpilot-cli autostart status
-   ./bin/padpilot-cli status
+   "$PADPILOT_CLI" autostart status
+   "$PADPILOT_CLI" status
    ```
 
 2. 必要ならログイン時起動を有効にします。
 
    ```bash
-   ./bin/padpilot-cli autostart enable
+   "$PADPILOT_CLI" autostart enable
    ```
 
 3. plist は `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist` に同梱され、`~/Library/LaunchAgents` には作成されません。`requiresApproval` の場合は「システム設定 → 一般 → ログイン項目」で PadPilot を許可してください。開発版の古い LaunchAgent は手動で停止・削除してください。この版では移行しません。
@@ -123,11 +134,11 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 <a id="logs"></a>
 ## 7. ログの収集
 
-解決しない場合は再現手順と関連ログをまとめてください。GitHub リポジトリは非公開のため、Issue の投稿にはアクセス権が必要です。
+解決しない場合は、再現手順、バージョン、関連ログを [GitHub Issues](https://github.com/kcayut/PadPilot/issues) に投稿してください。脆弱性については先に[セキュリティ方針](../SECURITY.md)を読み、詳細を公開 Issue に書かないでください。
 
 ```bash
 # 状態と診断画面を開く
-./bin/padpilot-cli open-log
+"$PADPILOT_CLI" open-log
 
 # ログファイルを読む
 tail -n 50 ~/Library/Logs/PadPilot/padpilot.log
@@ -139,10 +150,11 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 <a id="safe-startup"></a>
 ## 8. 事前確認・危険なパス・応答確認の失敗
 
-- `FAIL: BetterDisplay CLI`：アプリのインストールだけでは CLI の動作は保証されません。CLI 機能と保存された実行パスを確認し、`./scripts/install.sh --check` を再実行します。help 成功はライセンスや実機検証の証拠ではありません。
-- 設定画面が開かない：ソース更新後に `./scripts/install.sh` を再実行して、現在のバージョンに対応するアプリをビルドしてください。
+- `FAIL: BetterDisplay CLI`：アプリのインストールだけでは CLI の動作は保証されません。CLI 機能と保存された実行パスを確認し、`"$PADPILOT_CLI" gui diagnostics` で診断を開き、BetterDisplay のカードを更新します。ソース版のみ、プロジェクト内で `./scripts/install.sh --check` を実行します。help 成功だけでは Sidecar や実際の表示は確認できません。
+- 設定画面が開かない：DMG 版は[インストールガイド](INSTALLATION.ja.md)の Python 復旧手順を確認するか、リリースを再ダウンロードしてインストールします。ソース版のみ、ソース更新後に `./scripts/install.sh` を再実行してアプリをビルドしてください。
 - `Refusing unsafe state directory/file`：操作を止め、指定パスの所有者、シンボリックリンク、ハードリンクを確認します。`/tmp` や他人のディレクトリを再帰的に権限変更・削除・取得しないでください。自分のデータだと確認したうえでバックアップし、所有者が整理します。
 - `Login service belongs to another ...`：同名アプリ・サービスが別のチェックアウトに属しています。元のソースの場所でアンインストーラーを使い、名前に padpilot を含む全プロセスを一括終了しないでください。
 - `Daemon handshake failed`：このプロジェクトのサービス応答を確認できておらず、インストール成功ではありません。`~/Library/Logs/PadPilot/launchd.stderr.log` と `padpilot.log` を確認し、パス・権限・BetterDisplay の問題を解消して再試行します。`Rollback incomplete` もある場合は以前の状態の復元も未確認です。記録を保存し、連続した再インストールは避けてください。
+- リリース版の更新失敗：新版の CLI が実行できなくても、インストーラーは新版アプリとバックグラウンドサービスの停止を確認してから旧版を復元します。停止を確認できない場合は現在のアプリとバックアップを保持し、`Rollback incomplete` を報告します。それらとエラーの記録を残し、繰り返し上書きインストールしないでください。
 
 IPC ログにはコマンド名のみを記録しますが、過去のログ、診断、実際のエラーにはデバイス情報が含まれることがあります。共有前にシリアル番号、UUID、アカウント、個人のパスを伏せてください。

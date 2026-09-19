@@ -12,7 +12,7 @@
 
 **開發預覽版沒有 Developer ID 簽章與 Apple 公證，只有 ad-hoc 簽章。** 遇到無法驗證開發者／無法檢查惡意軟體時，確認來源後依 [Apple 說明](https://support.apple.com/en-us/102445) 使用「隱私權與安全性 → 仍要打開」。若顯示損毀，請重新下載並核對 SHA-256；不要關閉整體 Gatekeeper，也不要把所有損毀警告視為誤報。
 
-BetterDisplay App 仍須安裝、執行並具備控制功能所需授權。獨立 `betterdisplaycli` 可選；App 內建 CLI 已足夠。自動偵測涵蓋 `/Applications`、`~/Applications` 與 LaunchServices 登記的位置；也可在進階選項手動指定 App／CLI。
+BetterDisplay App 仍須另行安裝並開啟；PadPilot 目前的功能可搭配免費版使用，不要求 Pro 或試用資格。獨立 `betterdisplaycli` 可選；App 內建 CLI 已足夠。自動偵測涵蓋 `/Applications`、`~/Applications` 與 LaunchServices 登記的位置；也可在進階選項手動指定 App／CLI。
 
 ### 腳本安裝與 Python 選擇
 
@@ -30,7 +30,7 @@ BetterDisplay App 仍須安裝、執行並具備控制功能所需授權。獨�
 )
 ```
 
-腳本包含預覽版在內選取最新公開發行包，核對 SHA-256，唯讀掛載 DMG，再使用包內 Python 安裝。預設目的地為 `/Applications/PadPilot.app`；若沒有寫入權限，可加 `--target "$HOME/Applications/PadPilot.app"`，不需要 sudo。首次發行尚未公開時會停止，不會改用原始碼版本。
+腳本包含預覽版在內選取最新公開發行包，核對 SHA-256，唯讀掛載 DMG，再使用包內 Python 安裝。預設目的地為 `/Applications/PadPilot.app`；若沒有寫入權限，可加 `--target "$HOME/Applications/PadPilot.app"`，不需要 sudo。若找不到可下載的發行包就會停止，不會改用原始碼版本。
 
 - `--bundled`：使用內建 CPython；`--yes` 未指定 Python 時也採此選項。
 - `--python /absolute/path/python3`：選擇自己的 Apple Silicon CPython 3.10+，會先驗證版本、架構及必要模組。
@@ -69,7 +69,7 @@ git push github v0.1.0-dev.1
 
 先將程式變更提交到要發行的 commit。支援 `vX.Y.Z` 或 `vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N`。**本機打 tag 不會觸發，推送至 GitHub 才會觸發。** workflow 在 ARM runner 執行軟體檢查、編譯、封裝與搬移測試，完成所有附件後自動公開為 prerelease，不需要 Apple 憑證或人工核准。已公開版本不覆寫，修正請推新 tag；失敗的草稿可重跑。獨立硬體驗收仍標記 unknown。
 
-本機建立相同產物：`python3 scripts/build_release.py --tag v0.1.0-dev.1`，需 Python 3.12+ 與 Apple 編譯工具；輸出在 `dist/<tag>/`。CPython 來源與 SHA-256 固定在 `scripts/python-runtime.json`，授權文件隨 Python 一起保留。版本完整 tag 與建置 commit 記在產物中。
+本機建立相同產物：需 Python 3.12+ 與 Apple 編譯工具，先在建置用虛擬環境執行 `python3 -m pip install -r scripts/dmg-requirements.txt`，再執行 `python3 scripts/build_release.py --tag v0.1.0-dev.1`；輸出在 `dist/<tag>/`。DMG 排版套件僅用於建置，不會加入 App 執行環境；`--no-dmg` 可略過 DMG 與這項依賴。CPython 來源與 SHA-256 固定在 `scripts/python-runtime.json`，授權文件隨 Python 一起保留。版本完整 tag 與建置 commit 記在產物中。
 
 ## 原始碼安裝（開發用）
 
@@ -105,7 +105,7 @@ PadPilot 提供 **Swift／AppKit 選單列＋SwiftUI 原生設定視窗＋Python
 )
 ```
 
-**下載條件：** [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 必須設為公開，且 `scripts/bootstrap.sh` 已發布於 `main`。尚未公開或腳本不存在會回傳 404；可先使用有權限取得的原始碼與下方本機安裝方式。這段指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
+**下載方式：** 腳本會從 [kcayut/PadPilot](https://github.com/kcayut/PadPilot) 的 `main` 下載。若出現 404，請確認網址或改用 [Releases](https://github.com/kcayut/PadPilot/releases) 的 DMG。指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
 
 下載不需先有 Git 或 Python。原始碼固定存於 `~/Applications/PadPilot-source`，不會覆蓋同名的非管理資料夾；重跑會沿用這份原始碼繼續安裝，不下載更新。`.padpilot-install.json` 記錄受管理的來源與安裝器新增的依賴，供解除安裝辨識；請保留它。
 
@@ -135,7 +135,7 @@ cd "$HOME/Applications/PadPilot-source"
 ./scripts/install.sh --yes --install-deps
 ```
 
-`--python` 接受 Python 執行檔；`--betterdisplay-path` 接受 `.app` 資料夾或 CLI 執行檔。`--yes` 不等於同意安裝第三方軟體；缺少必要依賴時會停止，需手動安裝或加 `--install-deps`。BetterDisplay CLI help 成功不代表授權、Sidecar 或實際顯示可用。
+`--python` 接受 Python 執行檔；`--betterdisplay-path` 接受 `.app` 資料夾或 CLI 執行檔。`--yes` 不等於同意安裝第三方軟體；缺少必要依賴時會停止，需手動安裝或加 `--install-deps`。BetterDisplay CLI help 成功不代表 Sidecar 或實際顯示可用。
 
 Homebrew 自動安裝使用 Python 3.14，BetterDisplay 來自官方 [betterdisplay cask](https://formulae.brew.sh/cask/betterdisplay)。`--yes --install-deps` 仍可能需要管理員密碼或 Apple 安裝視窗，並非保證完全無人值守。
 

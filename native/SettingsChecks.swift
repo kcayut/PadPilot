@@ -15,6 +15,7 @@ private func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(
 private struct CheckElement {
     let element: AXUIElement
     let label: String
+    let identifier: String
     let role: String
     let enabled: Bool
     let checked: Bool?
@@ -36,7 +37,8 @@ private struct CheckElement {
             var point = CGPoint.zero, size = CGSize.zero
             if let origin = value(element, kAXPositionAttribute), CFGetTypeID(origin) == AXValueGetTypeID() { AXValueGetValue(origin as! AXValue, .cgPoint, &point) }
             if let dimensions = value(element, kAXSizeAttribute), CFGetTypeID(dimensions) == AXValueGetTypeID() { AXValueGetValue(dimensions as! AXValue, .cgSize, &size) }
-            result.append(CheckElement(element: element, label: label, role: role,
+            result.append(CheckElement(element: element, label: label,
+                                       identifier: value(element, kAXIdentifierAttribute) as? String ?? "", role: role,
                                        enabled: value(element, kAXEnabledAttribute) as? Bool ?? true,
                                        checked: (value(element, kAXValueAttribute) as? NSNumber)?.boolValue,
                                        frame: NSRect(origin: point, size: size)))
@@ -94,6 +96,55 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
             try require(nodes.contains { $0.label == expectedText }, "Missing native page content: \(language)/\(page)/\(expectedText)")
             if page == "search" {
                 try require(nodes.contains { $0.role == "AXButton" && $0.label == strings["配對"] && $0.enabled }, "The unpaired candidate has no enabled native Pair button")
+            }
+            if page == "displays" {
+                let displayIDs = ["AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB",
+                                  "CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC", "DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD",
+                                  "EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE", "unidentified.5"]
+                let checkboxes = nodes.filter { $0.role == "AXCheckBox" && $0.identifier.hasPrefix("display-exclusion.") }
+                try require(checkboxes.count == displayIDs.count, "Each display needs an exclusion checkbox: \(language)")
+                for (index, uuid) in displayIDs.enumerated() {
+                    guard let checkbox = checkboxes.first(where: { $0.identifier == "display-exclusion.\(uuid)" }) else {
+                        throw NSError(domain: "Missing display exclusion checkbox: \(uuid)", code: 27)
+                    }
+                    try require(checkbox.label == strings["排除實體螢幕判斷"], "Display exclusion label was not localized: \(language)")
+                    try require(checkbox.enabled == (index < 3) && checkbox.checked == (1...4).contains(index),
+                                "Display exclusion state or protected role is incorrect: \(uuid)")
+                    if index < 3 {
+                        try require(nodes.contains { $0.label == "UUID \(uuid.prefix(8))" }, "Missing UUID to distinguish displays with the same name")
+                    }
+                }
+                for key in ["只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。", "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。", "無法取得螢幕識別碼，暫時不能調整。"] {
+                    try require(nodes.contains { $0.label == strings[key] }, "Missing display exclusion explanation: \(language)/\(key)")
+                }
+                for (uuid, excluded) in [(displayIDs[0], true), (displayIDs[1], false)] {
+                    guard let checkbox = elements(content).first(where: { $0.identifier == "display-exclusion.\(uuid)" && $0.role == "AXCheckBox" }) else {
+                        throw NSError(domain: "Missing actionable display exclusion checkbox", code: 28)
+                    }
+                    let before = mutations(controller).count
+                    try require(checkbox.press(), "Display exclusion checkbox could not be clicked")
+                    await settle()
+                    let command = mutations(controller).last ?? [:], payload = command["payload"] as? CheckObject ?? [:]
+                    try require(mutations(controller).count == before + 1 && command["args"] as? [String] == ["change-settings", "set_display_exclusion"],
+                                "Display exclusion bypassed the shared transaction")
+                    try require(payload["uuid"] as? String == uuid && payload["excluded"] as? Bool == excluded && payload["__expected_revision__"] as? Int == 7,
+                                "Display exclusion lost its precise UUID, value or revision")
+                }
+                guard let reset = elements(content).first(where: { $0.identifier == "display-exclusion-reset.\(displayIDs[2])" && $0.role == "AXButton" }) else {
+                    throw NSError(domain: "Missing automatic display detection reset", code: 29)
+                }
+                try require(reset.label == strings["恢復自動判斷"] && reset.enabled && reset.press(), "Automatic detection reset is not localized or actionable")
+                await settle()
+                let resetCommand = mutations(controller).last ?? [:], resetPayload = resetCommand["payload"] as? CheckObject ?? [:]
+                try require(resetCommand["args"] as? [String] == ["change-settings", "set_display_exclusion"]
+                            && resetPayload["uuid"] as? String == displayIDs[2] && resetPayload["excluded"] is NSNull
+                            && resetPayload["__expected_revision__"] as? Int == 7, "Automatic detection reset did not remove the precise override")
+                var readonly = fixture; readonly["config_error"] = "Unreadable original config"
+                controller.loadFixture(readonly, page: "displays"); await settle()
+                try require(elements(content).filter { $0.identifier.hasPrefix("display-exclusion.") || $0.identifier.hasPrefix("display-exclusion-reset.") }.allSatisfy { !$0.enabled },
+                            "Readonly settings allow display exclusion changes")
+                controller.loadFixture(fixture, page: "displays"); await settle()
+                nodes = elements(content)
             }
             if page == "settings" {
                 try require(nodes.contains { $0.label == strings["全域快速鍵"] }, "Missing global shortcut settings")
@@ -245,6 +296,60 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
 
     guard let fixture = fixtures["zh-Hant"], let profile = (fixture["profiles"] as? [CheckObject])?.first,
           let profileKey = profile["key"] as? String, let uuid = profile["sidecar_uuid"] as? String else { throw NSError(domain: "Missing profile fixture", code: 5) }
+    // Delay the actual controller's CLI callbacks to exercise cancellation while busy.
+    var automatic = fixture, automaticConfig = fixture["config"] as? CheckObject ?? [:]
+    automaticConfig["mode"] = "automatic"; automatic["config"] = automaticConfig
+    controller.loadFixture(automatic, page: "settings"); controller.show(page: "settings")
+    controller.checkDeferCommands(true)
+    controller.checkProfileAction("reconnect_sidecar", key: profileKey)
+    await settle()
+    guard let manualButton = elements(content).first(where: { $0.identifier == "mode.manual_only" && $0.role == "AXButton" }) else {
+        throw NSError(domain: "Missing manual-mode cancellation button", code: 30)
+    }
+    try require(elements(content).first(where: { $0.identifier == "mode.prefer_ipad" })?.enabled == false,
+                "Busy settings enabled a competing automatic mode")
+    try require(manualButton.enabled && manualButton.press(), "Busy settings prevented switching to manual mode")
+    let manualPayload = mutations(controller).last?["payload"] as? CheckObject ?? [:]
+    try require(manualPayload["mode"] as? String == "manual_only" && manualPayload["__expected_revision__"] == nil,
+                "Cancellation reused a revision made stale by the pending command")
+    let cancellationCount = mutations(controller).count
+    controller.checkAction("set_mode", payload: ["mode": "manual_only"])
+    controller.checkAction("set_mode", payload: ["mode": "prefer_ipad"])
+    try require(mutations(controller).count == cancellationCount, "Pending cancellation allowed duplicate or competing requests")
+    controller.checkCompleteCommand(0, error: "Obsolete connection timeout")
+    try require(controller.checkSnapshot()["busy"] as? Bool == true
+                && controller.checkSnapshot()["notice"] as? String != "Obsolete connection timeout",
+                "Old control completion cleared the pending cancellation or displayed its error")
+    controller.checkCompleteCommand(0)
+    var manual = fixture, manualConfig = fixture["config"] as? CheckObject ?? [:]
+    manualConfig["mode"] = "manual_only"; manualConfig["revision"] = 8; manual["config"] = manualConfig
+    controller.checkApplyFixture(manual)
+    controller.checkCompleteCommand(0)
+    try require(controller.checkSnapshot()["busy"] as? Bool == false
+                && controller.checkSnapshot()["config_revision"] as? Int == 8,
+                "Manual-mode acknowledgement did not refresh the saved configuration")
+    var connectingManual = manual, connectingStatus = manual["status"] as? CheckObject ?? [:]
+    connectingStatus["runtime"] = ["transition_state": "CONNECTING_SIDECAR"]
+    connectingManual["status"] = connectingStatus
+    controller.checkApplyFixture(connectingManual); await settle()
+    try require(elements(content).contains { $0.identifier == "mode.manual_only" && $0.enabled
+                && $0.label == "停止目前連線嘗試" }, "An existing manual-mode connection has no cancellation button")
+
+    controller.loadFixture(automatic, page: "settings")
+    controller.checkRefresh("decision")
+    controller.checkAction("set_mode", payload: ["mode": "manual_only"])
+    controller.checkCompleteCommand(1)
+    controller.checkApplyFixture(manual)
+    controller.checkCompleteCommand(1)
+    controller.checkAction("set_language", payload: ["language": "en"])
+    controller.checkCompleteCommand(0, error: "Obsolete scan timeout")
+    try require(controller.checkSnapshot()["busy"] as? Bool == true
+                && controller.checkSnapshot()["notice"] as? String != "Obsolete scan timeout",
+                "Late scan completion cleared a newer command or displayed its error")
+    controller.checkCompleteCommand(0)
+    controller.checkCompleteCommand(0)
+    controller.checkDeferCommands(false)
+
     controller.loadFixture(fixture)
     controller.show()
     let initialNumber = window.windowNumber
@@ -332,6 +437,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
     var readonly = fixture; readonly["config_error"] = "Unreadable original config"
     controller.checkApplyFixture(readonly)
     controller.checkAction("set_auto_detect_ipad", payload: ["enabled": true])
+    controller.checkAction("set_mode", payload: ["mode": "manual_only"])
     controller.checkProfileAction("delete", key: profileKey)
     try require(mutations(controller).count == count, "Readonly window sent a mutation")
     controller.loadFixture(fixture)

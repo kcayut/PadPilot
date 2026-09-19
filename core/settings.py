@@ -1,7 +1,9 @@
 """Validated settings changes shared by the daemon and offline CLI."""
 from core.betterdisplay import BetterDisplayCLI
 from core.config import Config, validate_connection_hotkey
+from core.detector import DisplayDetector
 from core.models import OperationMode
+from uuid import UUID
 
 
 class ConflictError(Exception):
@@ -73,6 +75,29 @@ def apply_change(cfg: Config, action: str, payload: dict, bd=None) -> bool:
         changed = cfg.virtual_display_name != name
         cfg.virtual_display_name = name
         return changed
+    if action == 'set_display_exclusion':
+        if (set(payload) != {'uuid', 'excluded'} or not isinstance(payload['uuid'], str)
+                or (payload['excluded'] is not None and type(payload['excluded']) is not bool)):
+            raise ValueError('無效的螢幕排除設定')
+        try:
+            key = str(UUID(payload['uuid'])).upper()
+        except ValueError as error:
+            raise ValueError('無效的螢幕排除設定') from error
+        detector = DisplayDetector(cfg, bd)
+        displays = detector.get_online_displays()
+        if detector.display_error or getattr(bd, 'identifiers_error', ''):
+            raise ValueError('無法確認螢幕清單，設定未變更。')
+        matches = [d for d in displays if (d.uuid or '').upper() == key]
+        if len(matches) != 1:
+            raise ValueError('螢幕已離線或識別不唯一，請重新整理。')
+        if matches[0].is_sidecar or matches[0].is_virtual:
+            raise ValueError('Sidecar 與虛擬螢幕不計入實體螢幕判斷。')
+        previous = cfg.display_exclusions.get(key)
+        if payload['excluded'] is None:
+            cfg.display_exclusions.pop(key, None)
+        else:
+            cfg.display_exclusions[key] = payload['excluded']
+        return previous != payload['excluded']
     if action == 'set_betterdisplaycli_path':
         if 'path' not in payload:
             raise ValueError('無效的設定資料')

@@ -82,6 +82,7 @@ class GuiSettingsTests(unittest.TestCase):
         cls = DAEMON['PadPilotDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
+        obj.engine.run_control.side_effect = lambda action: action()
         cfg = self.config()
         with patch.dict(cls.handle_client_cmd.__globals__, {'load_config': lambda: cfg, 'save_config': MagicMock()}):
             response = obj.handle_client_cmd('delete_pairing:'+json.dumps({'key': pairing_key(ONE)}))
@@ -93,6 +94,7 @@ class GuiSettingsTests(unittest.TestCase):
         cls = DAEMON['PadPilotDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
+        obj.engine.run_control.side_effect = lambda action: action()
         obj.bd_cli = MagicMock(identifiers_error='')
         obj.bd_cli.get_display_identifiers.return_value = [{'name':'Alternate', 'deviceType':'VirtualScreen'}]
         override = obj.engine.runtime.user_override
@@ -125,6 +127,7 @@ class GuiSettingsTests(unittest.TestCase):
         cls = DAEMON['PadPilotDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
+        obj.engine.run_control.side_effect = lambda action: action()
         cfg = self.config()
         cfg.betterdisplaycli_path = '/old/path'
         mock_bd = MagicMock()

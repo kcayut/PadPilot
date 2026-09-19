@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 
 from build_app import ROOT, build
+from build_dmg import build_dmg
 
 
 def release_version(tag):
@@ -113,15 +114,7 @@ def main():
     subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(app), str(zipped)], check=True)
     assets = [zipped]
     if not args.no_dmg:
-        with tempfile.TemporaryDirectory(prefix='padpilot-dmg-') as directory:
-            stage = Path(directory)
-            shutil.copytree(app, stage / 'payload', symlinks=True)
-            (stage / 'payload').rename(stage / 'PadPilot.app')
-            (stage / 'Applications').symlink_to('/Applications')
-            dmg = destination / (stem + '.dmg')
-            subprocess.run(['hdiutil', 'create', '-ov', '-format', 'UDZO', '-volname', 'PadPilot',
-                            '-srcfolder', str(stage), str(dmg)], check=True)
-            assets.append(dmg)
+        assets.append(build_dmg(app, destination / (stem + '.dmg')))
     (destination / 'SHA256SUMS').write_text(''.join(
         f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in assets))
     (destination / 'build-info.json').write_text(json.dumps({
