@@ -13,6 +13,10 @@
   <b>繁體中文</b> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
 </p>
 
+<p align="center">
+  🌐 <a href="https://kcayut.github.io/PadPilot/">介紹網站</a>
+</p>
+
 PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
 
 **支援全域快速鍵，多台 Mac 也能方便操作。**

@@ -13,6 +13,10 @@
   <a href="README.md">繁體中文</a> | <a href="README.en.md">English</a> | <b>日本語</b>
 </p>
 
+<p align="center">
+  🌐 <a href="https://kcayut.github.io/PadPilot/">紹介サイト</a>
+</p>
+
 PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
 
 **グローバルショートカットで、複数の Mac も手軽に操作。**

@@ -13,6 +13,10 @@
   <a href="README.md">繁體中文</a> | <b>English</b> | <a href="README.ja.md">日本語</a>
 </p>
 
+<p align="center">
+  🌐 <a href="https://kcayut.github.io/PadPilot/">Project website</a>
+</p>
+
 PadPilot lets you use an **iPad as your Mac's main or secondary display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections, switching between main and secondary displays, and automatic takeover when no physical monitor is available, depending on your settings.
 
 **Global keyboard shortcuts make working with multiple Macs easier.**
