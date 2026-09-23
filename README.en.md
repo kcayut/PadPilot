@@ -28,7 +28,9 @@ If you use multiple Mac minis as servers, switch your keyboard to the Mac you wa
 
 Development-build demo filmed after initial setup. Other builds and hardware configurations require separate verification. The boot wait is sped up 8×, and the final frame is held for one extra second. [Watch the higher-quality MP4](docs/videos/headless-boot-demo.mp4).
 
-**[View releases](https://github.com/kcayut/SidecarSwitch/releases)**
+**[Download for macOS (DMG)](https://github.com/kcayut/SidecarSwitch/releases/download/v0.1.0-dev.3/SidecarSwitch-0.1.0-dev.3-macos-arm64.dmg)**
+
+v0.1.0-dev.3 · Apple Silicon · macOS 14+ · [Release notes](https://github.com/kcayut/SidecarSwitch/releases/tag/v0.1.0-dev.3)
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -49,7 +51,7 @@ Development-build demo filmed after initial setup. Other builds and hardware con
 
 For use with multiple Macs, complete SidecarSwitch pairing and global keyboard shortcut setup on each Mac first.
 
-Prebuilt SidecarSwitch installers are being prepared. For now, follow the [source installation instructions](docs/INSTALLATION.en.md#source-installation).
+The v0.1.0-dev.3 installer is available for Apple Silicon and macOS 14+. Use the DMG download above, or follow the [source installation instructions](docs/INSTALLATION.en.md#source-installation) to build it yourself.
 
 ## Follow the screenshots
 
@@ -57,7 +59,7 @@ These screenshots demonstrate the native interface using **the project's sample 
 
 ### 1. Install and open the app
 
-Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases), open it, and drag **SidecarSwitch.app into Applications**. Then open the app. Python is included; no Homebrew or compiler tools are needed.
+Download the [v0.1.0-dev.3 DMG](https://github.com/kcayut/SidecarSwitch/releases/download/v0.1.0-dev.3/SidecarSwitch-0.1.0-dev.3-macos-arm64.dmg), open it, and drag **SidecarSwitch.app into Applications**. Then open the app. Python is included; no Homebrew or compiler tools are needed.
 
 The settings window opens with the app. Closing the window keeps the menu bar icon available. Choose **Settings & pairing** from that menu, or double-click the app, to open it again.
 

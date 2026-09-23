@@ -34,7 +34,7 @@ BetterDisplay App 仍須另行安裝並開啟；SidecarSwitch 目前的功能可
 
 - `--bundled`：使用內建 CPython；`--yes` 未指定 Python 時也採此選項。
 - `--python /absolute/path/python3`：選擇自己的 Apple Silicon CPython 3.10+，會先驗證版本、架構及必要模組。
-- `--tag v0.1.0-dev.1`：指定已存在的發行版本，而非最新版本。
+- `--tag v0.1.0-dev.3`：指定已存在的發行版本，而非最新版本。
 
 首次安裝完成後，開啟 App 才啟動背景服務。更新器會先解除原生登入服務註冊，再替換 App，恢復原本已啟用的登入啟動及執行狀態；已被系統停用／等待允許的項目不會自動重新申請。設定、配對與 Python 選擇檔保留；腳本更新仍會再次選擇 Python。安裝失敗會嘗試還原 App、設定與服務。變更安裝位置前，可用下方 CLI 移除原安裝並保留設定。
 
@@ -63,13 +63,13 @@ GUI、CLI、daemon 與登入啟動均使用同一選擇，記錄在 `~/Library/A
 以下假設 GitHub 遠端名為 `github`；若直接從 GitHub clone，通常是 `origin`，請以 `git remote -v` 確認。推送到 Gitea 不會觸發 GitHub Actions。
 
 ```bash
-git tag v0.1.0-dev.1
-git push github v0.1.0-dev.1
+git tag v0.1.0-dev.3
+git push github v0.1.0-dev.3
 ```
 
 先將程式變更提交到要發行的 commit。支援 `vX.Y.Z` 或 `vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N`。**本機打 tag 不會觸發，推送至 GitHub 才會觸發。** workflow 在 ARM runner 執行軟體檢查、編譯、封裝與搬移測試，完成所有附件後自動公開為 prerelease，不需要 Apple 憑證或人工核准。已公開版本不覆寫，修正請推新 tag；失敗的草稿可重跑。獨立硬體驗收仍標記 unknown。
 
-本機建立相同產物：需 Python 3.12+ 與 Apple 編譯工具，先在建置用虛擬環境執行 `python3 -m pip install -r scripts/dmg-requirements.txt`，再執行 `python3 scripts/build_release.py --tag v0.1.0-dev.1`；輸出在 `dist/<tag>/`。DMG 排版套件僅用於建置，不會加入 App 執行環境；`--no-dmg` 可略過 DMG 與這項依賴。CPython 來源與 SHA-256 固定在 `scripts/python-runtime.json`，授權文件隨 Python 一起保留。版本完整 tag 與建置 commit 記在產物中。
+本機建立相同產物：需 Python 3.12+ 與 Apple 編譯工具，先在建置用虛擬環境執行 `python3 -m pip install -r scripts/dmg-requirements.txt`，再執行 `python3 scripts/build_release.py --tag v0.1.0-dev.3`；輸出在 `dist/<tag>/`。DMG 排版套件僅用於建置，不會加入 App 執行環境；`--no-dmg` 可略過 DMG 與這項依賴。CPython 來源與 SHA-256 固定在 `scripts/python-runtime.json`，授權文件隨 Python 一起保留。版本完整 tag 與建置 commit 記在產物中。
 
 <a id="source-installation"></a>
 ## 原始碼安裝（開發用）

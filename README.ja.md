@@ -28,7 +28,9 @@ SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使�
 
 初期設定済みの実機で撮影した開発版のデモです。バージョンや機器の組み合わせごとに検証が必要です。起動の待ち時間は8倍速、最後の画面は1秒長く表示しています。[高画質の MP4 を見る](docs/videos/headless-boot-demo.mp4)。
 
-**[リリースを見る](https://github.com/kcayut/SidecarSwitch/releases)**
+**[macOS 版をダウンロード（DMG）](https://github.com/kcayut/SidecarSwitch/releases/download/v0.1.0-dev.3/SidecarSwitch-0.1.0-dev.3-macos-arm64.dmg)**
+
+v0.1.0-dev.3 · Apple Silicon · macOS 14+ · [リリースノート](https://github.com/kcayut/SidecarSwitch/releases/tag/v0.1.0-dev.3)
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -49,7 +51,7 @@ SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使�
 
 複数の Mac で使う場合は、各 Mac で SidecarSwitch のペアリングとグローバルショートカットの設定を済ませてください。
 
-SidecarSwitch のビルド済みインストーラーは準備中です。現在は[ソース版の導入手順](docs/INSTALLATION.ja.md#source-installation)でインストールできます。
+Apple Silicon・macOS 14 以降に対応する v0.1.0-dev.3 のインストーラーを公開しました。上の DMG から導入できます。[ソース版の導入手順](docs/INSTALLATION.ja.md#source-installation)で自分でビルドすることもできます。
 
 ## 画面を見ながら始めよう
 
@@ -57,7 +59,7 @@ SidecarSwitch のビルド済みインストーラーは準備中です。現在
 
 ### 1. インストールして開く
 
-[GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases) から `.dmg` をダウンロードし、**SidecarSwitch.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
+[v0.1.0-dev.3 DMG](https://github.com/kcayut/SidecarSwitch/releases/download/v0.1.0-dev.3/SidecarSwitch-0.1.0-dev.3-macos-arm64.dmg) をダウンロードし、**SidecarSwitch.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
 
 起動すると設定画面が開きます。画面を閉じてもメニューバーは残ります。もう一度開くには、メニューの **「設定とペアリング」**を選ぶか、App をダブルクリックします。
 

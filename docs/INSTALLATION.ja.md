@@ -34,7 +34,7 @@ BetterDisplay アプリを別途インストールして起動してください
 
 - `--bundled`：同梱 CPython を使います。Python 指定なしの `--yes` も同じです。
 - `--python /absolute/path/python3`：自分の Apple Silicon CPython 3.10 以降を使い、版、アーキテクチャ、必須モジュールを検証します。
-- `--tag v0.1.0-dev.1`：公開済みの版を指定します。
+- `--tag v0.1.0-dev.3`：公開済みの版を指定します。
 
 新規インストール後はアプリを開くとサービスが起動します。更新時はネイティブのログインサービスを登録解除してからアプリを置き換え、有効だったログイン起動と実行状態を復元します。システムで無効にされた項目や許可待ちの項目は自動で再申請しません。設定とペアリングは保持され、スクリプト更新では Python を再選択します。失敗時はアプリ・設定・サービスの復元を試みます。配置先を変える場合は、下記 CLI で元のアプリを削除し、設定を保持してください。
 
@@ -63,13 +63,13 @@ GUI、CLI、daemon、ログイン起動は共通の選択を使用し、`~/Libra
 以下は GitHub の remote 名を `github` としています。GitHub から直接 clone した場合は通常 `origin` です。`git remote -v` で確認して置き換えてください。Gitea への push では GitHub Actions は起動しません。
 
 ```bash
-git tag v0.1.0-dev.1
-git push github v0.1.0-dev.1
+git tag v0.1.0-dev.3
+git push github v0.1.0-dev.3
 ```
 
 まず公開する変更を commit します。`vX.Y.Z`、`vX.Y.Z-dev.N`／`alpha.N`／`beta.N`／`rc.N` に対応します。**ローカルで tag を作るだけでは起動せず、GitHub への push が必要です。** ARM runner がソフトウェア検査、ビルド、パッケージ化、移動後の動作検査を実行し、全添付ファイルの転送後に prerelease として自動公開します。Apple 証明書や手動承認は不要です。公開済み版は上書きせず、新しい tag を使用します。失敗した下書きは再実行できます。実機での受け入れ結果は引き続き unknown です。
 
-ローカルで同じ成果物を作るには、Python 3.12 以降と Apple のビルドツールが必要です。ビルド用の仮想環境で `python3 -m pip install -r scripts/dmg-requirements.txt` を実行してから、`python3 scripts/build_release.py --tag v0.1.0-dev.1` を実行します。出力先は `dist/<tag>/` です。DMG のレイアウト用パッケージはビルド専用で、App の実行環境には含めません。`--no-dmg` で DMG とこの依存関係を省略できます。CPython の取得元と SHA-256 は `scripts/python-runtime.json` に固定し、ライセンス文書を同梱します。完全な tag と build commit は成果物に記録されます。
+ローカルで同じ成果物を作るには、Python 3.12 以降と Apple のビルドツールが必要です。ビルド用の仮想環境で `python3 -m pip install -r scripts/dmg-requirements.txt` を実行してから、`python3 scripts/build_release.py --tag v0.1.0-dev.3` を実行します。出力先は `dist/<tag>/` です。DMG のレイアウト用パッケージはビルド専用で、App の実行環境には含めません。`--no-dmg` で DMG とこの依存関係を省略できます。CPython の取得元と SHA-256 は `scripts/python-runtime.json` に固定し、ライセンス文書を同梱します。完全な tag と build commit は成果物に記録されます。
 
 <a id="source-installation"></a>
 ## ソース版の導入（開発用）

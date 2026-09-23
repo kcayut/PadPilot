@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-dev.3] - 2026-09-23
+
+Development prerelease for Apple Silicon and macOS 14+, with a directly downloadable SidecarSwitch DMG and three-language installation guidance.
+
 ### Changed
 - Correct website language URLs and add canonical URLs and a three-page sitemap.
 
@@ -91,5 +95,6 @@ Historical internal development record retained from the original changelog; thi
   - Restructured documentation, troubleshooting guide, and installation guides.
   - GitHub issue forms and PR templates.
 
-[Unreleased]: https://github.com/kcayut/SidecarSwitch/compare/v0.1.0-dev.1...main
+[Unreleased]: https://github.com/kcayut/SidecarSwitch/compare/v0.1.0-dev.3...main
+[0.1.0-dev.3]: https://github.com/kcayut/SidecarSwitch/releases/tag/v0.1.0-dev.3
 [0.1.0-dev.1]: https://github.com/kcayut/SidecarSwitch/releases/tag/v0.1.0-dev.1
