@@ -4,7 +4,7 @@
 
 ## 下載已編譯版本（建議）
 
-支援 Apple Silicon、macOS 14+，不提供 Intel 版本。從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，將 `SidecarSwitch.app` 拖入 Applications 後開啟。也提供 `.zip`、`SHA256SUMS` 與 `build-info.json`；App 內含 Swift 執行檔、CPython、標準函式庫與 SidecarSwitch 核心，使用者無需編譯或安裝 pip 套件。
+支援 Apple Silicon、macOS 14+，不提供 Intel 版本。從 [GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases) 下載 `.dmg`，將 `SidecarSwitch.app` 拖入 Applications 後開啟。也提供 `.zip`、`SHA256SUMS` 與 `build-info.json`；App 內含 Swift 執行檔、CPython、標準函式庫與 SidecarSwitch 核心，使用者無需編譯或安裝 pip 套件。
 
 雙擊已安裝的 App 會直接開啟控制 GUI 與選單列圖示。關閉視窗後，選單列仍會保留；再次雙擊可重開 GUI。登入或背景啟動只顯示選單列。
 
@@ -24,7 +24,7 @@ BetterDisplay App 仍須另行安裝並開啟；SidecarSwitch 目前的功能可
   installer="$(mktemp -t sidecarswitch-release-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/install_release.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
@@ -100,13 +100,13 @@ SidecarSwitch 提供 **Swift／AppKit 選單列＋SwiftUI 原生設定視窗＋P
   installer="$(mktemp -t sidecarswitch-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/bootstrap.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
 ```
 
-**下載方式：** 腳本會從 [SidecarSwitch](https://github.com/kcayut/PadPilot) 的 `main` 下載。若出現 404，請確認網址或改用 [Releases](https://github.com/kcayut/PadPilot/releases) 的 DMG。指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
+**下載方式：** 腳本會從 [SidecarSwitch](https://github.com/kcayut/SidecarSwitch) 的 `main` 下載。若出現 404，請確認網址或改用 [Releases](https://github.com/kcayut/SidecarSwitch/releases) 的 DMG。指令會先完整下載腳本至暫存檔，下載成功才執行；來源壓縮檔也會先檢查路徑與檔案類型才解壓。
 
 下載不需先有 Git 或 Python。原始碼固定存於 `~/Applications/SidecarSwitch-source`，不會覆蓋同名的非管理資料夾；重跑會沿用這份原始碼繼續安裝，不下載更新。`.sidecarswitch-install.json` 記錄受管理的來源與安裝器新增的依賴，供解除安裝辨識；請保留它。
 

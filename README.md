@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  🌐 <a href="https://kcayut.github.io/PadPilot/">介紹網站</a>
+  🌐 <a href="https://kcayut.github.io/SidecarSwitch/">介紹網站</a>
 </p>
 
 SidecarSwitch 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
@@ -28,7 +28,7 @@ SidecarSwitch 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Ma
 
 開發版實機示範，已完成首次設定；不同版本與硬體仍需個別驗證。開機等待段加速 8 倍，最後畫面多停 1 秒。[觀看清晰版 MP4](docs/videos/headless-boot-demo.mp4)。
 
-**[查看發行版本](https://github.com/kcayut/PadPilot/releases)**
+**[查看發行版本](https://github.com/kcayut/SidecarSwitch/releases)**
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -57,7 +57,7 @@ SidecarSwitch 的預編譯安裝包準備中，目前可依[原始碼安裝說�
 
 ### 1. 安裝，打開 App
 
-從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，打開後把 **SidecarSwitch.app 拖進 Applications**，再開啟 App。已內建 Python，不必另裝 Homebrew 或編譯工具。
+從 [GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases) 下載 `.dmg`，打開後把 **SidecarSwitch.app 拖進 Applications**，再開啟 App。已內建 Python，不必另裝 Homebrew 或編譯工具。
 
 開啟後就會看到設定視窗。關掉視窗，選單列仍會保留；要再開設定，點選單列的 **「設定與配對」**，或再雙擊 App。
 

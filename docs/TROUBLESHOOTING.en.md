@@ -134,7 +134,7 @@ The daemon reevaluates state. Choose Reconnect for a manual connection attempt. 
 <a id="logs"></a>
 ## 7. Collecting logs
 
-If the problem persists, include reproduction steps, versions, and relevant logs in a [GitHub issue](https://github.com/kcayut/PadPilot/issues). For security vulnerabilities, read the [security policy](../SECURITY.md) first and keep vulnerability details out of public issues.
+If the problem persists, include reproduction steps, versions, and relevant logs in a [GitHub issue](https://github.com/kcayut/SidecarSwitch/issues). For security vulnerabilities, read the [security policy](../SECURITY.md) first and keep vulnerability details out of public issues.
 
 ```bash
 # Open status and diagnostics

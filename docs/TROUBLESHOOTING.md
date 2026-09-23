@@ -155,7 +155,7 @@ SidecarSwitch 內建**保護性退避機制**：
 <a id="logs"></a>
 ## 7. 如何收集除錯日誌回報問題
 
-若仍無法排除問題，請整理重現步驟、版本與相關日誌，提交至 [GitHub Issues](https://github.com/kcayut/PadPilot/issues)。安全漏洞請先閱讀[安全政策](../SECURITY.md)，不要在公開 Issue 附上漏洞細節。
+若仍無法排除問題，請整理重現步驟、版本與相關日誌，提交至 [GitHub Issues](https://github.com/kcayut/SidecarSwitch/issues)。安全漏洞請先閱讀[安全政策](../SECURITY.md)，不要在公開 Issue 附上漏洞細節。
 
 ```bash
 # 即時查看日誌

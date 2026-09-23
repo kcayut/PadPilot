@@ -15,7 +15,7 @@ SidecarSwitch runs as a local macOS background daemon that interacts with user s
 
 **A verified private reporting channel is not yet listed here.** Do not assume that a GitHub profile provides a private contact channel.
 
-Until a private channel is published here, you may [open an issue](https://github.com/kcayut/PadPilot/issues) solely to ask for a security contact. Do not include vulnerability descriptions, reproduction steps, exploit code, or sensitive logs in that public request. Keep the details private until a confidential channel is confirmed.
+Until a private channel is published here, you may [open an issue](https://github.com/kcayut/SidecarSwitch/issues) solely to ask for a security contact. Do not include vulnerability descriptions, reproduction steps, exploit code, or sensitive logs in that public request. Keep the details private until a confidential channel is confirmed.
 
 ### What information to include:
 - A clear description of the vulnerability.

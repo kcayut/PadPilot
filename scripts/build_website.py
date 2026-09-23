@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "website"
 OUTPUT = ROOT / "build" / "website"
 LANGUAGES = {"zh-Hant": ("index.html", "繁體中文"), "en": ("en.html", "English"), "ja": ("ja.html", "日本語")}
-SITE_URL = "https://kcayut.github.io/PadPilot/"
+SITE_URL = "https://kcayut.github.io/SidecarSwitch/"
 
 
 class References(HTMLParser):

@@ -134,7 +134,7 @@ SidecarSwitch は CLI を使って画面の役割と仮想ディスプレイを�
 <a id="logs"></a>
 ## 7. ログの収集
 
-解決しない場合は、再現手順、バージョン、関連ログを [GitHub Issues](https://github.com/kcayut/PadPilot/issues) に投稿してください。脆弱性については先に[セキュリティ方針](../SECURITY.md)を読み、詳細を公開 Issue に書かないでください。
+解決しない場合は、再現手順、バージョン、関連ログを [GitHub Issues](https://github.com/kcayut/SidecarSwitch/issues) に投稿してください。脆弱性については先に[セキュリティ方針](../SECURITY.md)を読み、詳細を公開 Issue に書かないでください。
 
 ```bash
 # 状態と診断画面を開く

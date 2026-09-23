@@ -21,7 +21,7 @@
 先從 GitHub 複製專案，再執行唯讀預檢；已取得原始碼者可直接在專案目錄執行最後一步：
 
 ```bash
-git clone https://github.com/kcayut/PadPilot.git SidecarSwitch
+git clone https://github.com/kcayut/SidecarSwitch.git SidecarSwitch
 cd SidecarSwitch
 ./scripts/install.sh --check
 ```

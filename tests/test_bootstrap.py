@@ -41,7 +41,7 @@ class BootstrapTests(unittest.TestCase):
                         ("scripts/install.sh", 'printf "%s\\n" "$*" >> "$INSTALL_LOG"\n'),
                         ("scripts/uninstall.sh", "exit 0\n"),
                     ):
-                        entry = tarfile.TarInfo(f"PadPilot-main/{name}")
+                        entry = tarfile.TarInfo(f"SidecarSwitch-main/{name}")
                         payload = body.encode()
                         entry.size, entry.mode = len(payload), 0o755
                         tar.addfile(entry, io.BytesIO(payload))
@@ -89,10 +89,10 @@ class BootstrapTests(unittest.TestCase):
                 self.assertFalse((root / label / "Applications").exists())
 
             for label, entry in (
-                ("traversal", tarfile.TarInfo("PadPilot-main/../../escape")),
+                ("traversal", tarfile.TarInfo("SidecarSwitch-main/../../escape")),
                 ("wrong-root", tarfile.TarInfo("Elsewhere/install.sh")),
-                ("symlink", tarfile.TarInfo("PadPilot-main/linked")),
-                ("hardlink", tarfile.TarInfo("PadPilot-main/hardlinked")),
+                ("symlink", tarfile.TarInfo("SidecarSwitch-main/linked")),
+                ("hardlink", tarfile.TarInfo("SidecarSwitch-main/hardlinked")),
             ):
                 with self.subTest(label=label):
                     if label in {"symlink", "hardlink"}:

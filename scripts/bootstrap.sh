@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SOURCE_ROOT="$HOME/Applications/SidecarSwitch-source"
-ARCHIVE_URL="https://codeload.github.com/kcayut/PadPilot/tar.gz/refs/heads/main"
+ARCHIVE_URL="https://codeload.github.com/kcayut/SidecarSwitch/tar.gz/refs/heads/main"
 die() { printf 'SidecarSwitch: %s\n' "$*" >&2; exit 1; }
 
 case "${1:-}" in
@@ -60,7 +60,7 @@ tar -tzf "$WORK_DIR/source.tar.gz" > "$WORK_DIR/members" || die "Invalid source 
 [[ -s "$WORK_DIR/members" ]] || die "Empty source archive."
 while IFS= read -r MEMBER; do
     case "$MEMBER" in
-        PadPilot-main|PadPilot-main/|PadPilot-main/*) ;;
+        SidecarSwitch-main|SidecarSwitch-main/|SidecarSwitch-main/*) ;;
         *) die "Unexpected archive path. Nothing was installed." ;;
     esac
     case "/$MEMBER/" in
@@ -73,14 +73,14 @@ LC_ALL=C awk 'substr($0, 1, 1) != "-" && substr($0, 1, 1) != "d" { exit 1 }' "$W
     die "Source archive contains links or special files. Nothing was installed."
 mkdir "$WORK_DIR/extracted"
 tar -xzf "$WORK_DIR/source.tar.gz" --no-same-owner --no-same-permissions -C "$WORK_DIR/extracted"
-[[ -f "$WORK_DIR/extracted/PadPilot-main/scripts/install.sh" &&
-   -f "$WORK_DIR/extracted/PadPilot-main/scripts/uninstall.sh" ]] || die "Archive is missing the SidecarSwitch installer."
-cat > "$WORK_DIR/extracted/PadPilot-main/.sidecarswitch-install.json" <<'EOF'
+[[ -f "$WORK_DIR/extracted/SidecarSwitch-main/scripts/install.sh" &&
+   -f "$WORK_DIR/extracted/SidecarSwitch-main/scripts/uninstall.sh" ]] || die "Archive is missing the SidecarSwitch installer."
+cat > "$WORK_DIR/extracted/SidecarSwitch-main/.sidecarswitch-install.json" <<'EOF'
 {"schema": 1, "managed_source": true, "dependencies": []}
 EOF
 mkdir -p "$HOME/Applications"
 [[ ! -e "$SOURCE_ROOT" && ! -L "$SOURCE_ROOT" ]] || die "Source destination appeared during download. Nothing was overwritten."
-mv "$WORK_DIR/extracted/PadPilot-main" "$SOURCE_ROOT"
+mv "$WORK_DIR/extracted/SidecarSwitch-main" "$SOURCE_ROOT"
 echo "Source saved in: $SOURCE_ROOT"
 echo 'Keep this folder while SidecarSwitch is installed. Rerun this command to resume installation.'
 /bin/bash "$SOURCE_ROOT/scripts/install.sh" ${ARGS[@]+"${ARGS[@]}"}

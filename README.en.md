@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  🌐 <a href="https://kcayut.github.io/PadPilot/">Project website</a>
+  🌐 <a href="https://kcayut.github.io/SidecarSwitch/">Project website</a>
 </p>
 
 SidecarSwitch lets you use an **iPad as your Mac's main or secondary display**, with Mac mini setups in mind. It works with Apple Sidecar and BetterDisplay for manual connections, switching between main and secondary displays, and automatic takeover when no physical monitor is available, depending on your settings.
@@ -28,7 +28,7 @@ If you use multiple Mac minis as servers, switch your keyboard to the Mac you wa
 
 Development-build demo filmed after initial setup. Other builds and hardware configurations require separate verification. The boot wait is sped up 8×, and the final frame is held for one extra second. [Watch the higher-quality MP4](docs/videos/headless-boot-demo.mp4).
 
-**[View releases](https://github.com/kcayut/PadPilot/releases)**
+**[View releases](https://github.com/kcayut/SidecarSwitch/releases)**
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -57,7 +57,7 @@ These screenshots demonstrate the native interface using **the project's sample 
 
 ### 1. Install and open the app
 
-Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), open it, and drag **SidecarSwitch.app into Applications**. Then open the app. Python is included; no Homebrew or compiler tools are needed.
+Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases), open it, and drag **SidecarSwitch.app into Applications**. Then open the app. Python is included; no Homebrew or compiler tools are needed.
 
 The settings window opens with the app. Closing the window keeps the menu bar icon available. Choose **Settings & pairing** from that menu, or double-click the app, to open it again.
 

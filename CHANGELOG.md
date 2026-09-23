@@ -91,5 +91,5 @@ Historical internal development record retained from the original changelog; thi
   - Restructured documentation, troubleshooting guide, and installation guides.
   - GitHub issue forms and PR templates.
 
-[Unreleased]: https://github.com/kcayut/PadPilot/compare/v0.1.0-dev.1...main
-[0.1.0-dev.1]: https://github.com/kcayut/PadPilot/releases/tag/v0.1.0-dev.1
+[Unreleased]: https://github.com/kcayut/SidecarSwitch/compare/v0.1.0-dev.1...main
+[0.1.0-dev.1]: https://github.com/kcayut/SidecarSwitch/releases/tag/v0.1.0-dev.1

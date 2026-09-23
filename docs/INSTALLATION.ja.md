@@ -4,7 +4,7 @@
 
 ## ビルド済みアプリを取得（推奨）
 
-Apple Silicon、macOS 14 以降に対応し、Intel 版は提供しません。[GitHub Releases](https://github.com/kcayut/PadPilot/releases) の `.dmg` を開き、`SidecarSwitch.app` を Applications にドラッグして起動します。ZIP、`SHA256SUMS`、`build-info.json` も提供します。Swift、CPython、標準ライブラリ、SidecarSwitch のコアを同梱し、利用者によるビルドや pip パッケージの導入は不要です。
+Apple Silicon、macOS 14 以降に対応し、Intel 版は提供しません。[GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases) の `.dmg` を開き、`SidecarSwitch.app` を Applications にドラッグして起動します。ZIP、`SHA256SUMS`、`build-info.json` も提供します。Swift、CPython、標準ライブラリ、SidecarSwitch のコアを同梱し、利用者によるビルドや pip パッケージの導入は不要です。
 
 インストール済みのアプリをダブルクリックすると、操作画面とメニューバーのアイコンが同時に開きます。画面を閉じてもアイコンは残り、再度ダブルクリックすると画面を開き直せます。ログイン時やバックグラウンドでの起動では、メニューバーのアイコンのみ表示します。
 
@@ -24,7 +24,7 @@ BetterDisplay アプリを別途インストールして起動してください
   installer="$(mktemp -t sidecarswitch-release-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/install_release.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
@@ -100,13 +100,13 @@ SidecarSwitch は **Swift/AppKit メニュー、SwiftUI ネイティブ設定画
   installer="$(mktemp -t sidecarswitch-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/bootstrap.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
 ```
 
-**ダウンロード方法：** [SidecarSwitch](https://github.com/kcayut/PadPilot) の `main` からスクリプトを取得します。404 の場合は URL を確認するか、[Releases](https://github.com/kcayut/PadPilot/releases) の DMG を利用してください。スクリプト全体を一時ファイルへダウンロードしてから実行し、ソースのアーカイブもパスとファイルの種類を検査してから展開します。
+**ダウンロード方法：** [SidecarSwitch](https://github.com/kcayut/SidecarSwitch) の `main` からスクリプトを取得します。404 の場合は URL を確認するか、[Releases](https://github.com/kcayut/SidecarSwitch/releases) の DMG を利用してください。スクリプト全体を一時ファイルへダウンロードしてから実行し、ソースのアーカイブもパスとファイルの種類を検査してから展開します。
 
 ダウンロードに Git や Python の事前導入は不要です。ソースは `~/Applications/SidecarSwitch-source` に保存し、既存の無関係なフォルダーは上書きしません。再実行時は同じソースを使用して導入を再開し、自動更新はしません。`.sidecarswitch-install.json` は管理対象のソースと新規導入した依存関係を記録するため、残してください。
 

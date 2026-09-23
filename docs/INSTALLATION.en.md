@@ -4,7 +4,7 @@
 
 ## Download a prebuilt app (recommended)
 
-Releases support Apple Silicon and macOS 14+, with no Intel build. Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/PadPilot/releases), drag `SidecarSwitch.app` into Applications, and open it. ZIP, `SHA256SUMS`, and `build-info.json` are also provided. Swift, CPython, its standard library, and SidecarSwitch’s core are bundled; no user-side compiler or pip packages are needed.
+Releases support Apple Silicon and macOS 14+, with no Intel build. Download the `.dmg` from [GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases), drag `SidecarSwitch.app` into Applications, and open it. ZIP, `SHA256SUMS`, and `build-info.json` are also provided. Swift, CPython, its standard library, and SidecarSwitch’s core are bundled; no user-side compiler or pip packages are needed.
 
 Double-click the installed app to open its control window and menu bar icon together. Closing the window keeps the menu bar icon available; double-click again to reopen the window. Login and background startup show only the menu bar icon.
 
@@ -24,7 +24,7 @@ Save and close SidecarSwitch settings. Download the official installer and run i
   installer="$(mktemp -t sidecarswitch-release-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/install_release.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/install_release.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
@@ -100,13 +100,13 @@ Paste the entire block into Terminal:
   installer="$(mktemp -t sidecarswitch-install)"
   trap 'rm -f "$installer"' EXIT
   curl --fail --location --proto '=https' --tlsv1.2 \
-    https://raw.githubusercontent.com/kcayut/PadPilot/main/scripts/bootstrap.sh \
+    https://raw.githubusercontent.com/kcayut/SidecarSwitch/main/scripts/bootstrap.sh \
     --output "$installer"
   /bin/bash "$installer"
 )
 ```
 
-**Download behavior:** The script is downloaded from `main` in [SidecarSwitch](https://github.com/kcayut/PadPilot). For a 404 response, check the URL or use the DMG from [Releases](https://github.com/kcayut/PadPilot/releases). The complete script is downloaded to a temporary file before running it; source archives are checked for unsafe paths and file types before extraction.
+**Download behavior:** The script is downloaded from `main` in [SidecarSwitch](https://github.com/kcayut/SidecarSwitch). For a 404 response, check the URL or use the DMG from [Releases](https://github.com/kcayut/SidecarSwitch/releases). The complete script is downloaded to a temporary file before running it; source archives are checked for unsafe paths and file types before extraction.
 
 Downloading requires neither Git nor Python. Source is kept in `~/Applications/SidecarSwitch-source`; an unrelated existing folder is never overwritten. Rerunning reuses that source and resumes installation without downloading updates. Keep `.sidecarswitch-install.json`: it records the managed source and newly installed dependencies for the uninstaller.
 

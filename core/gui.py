@@ -20,7 +20,7 @@ from core.settings import is_virtual_device
 from core.storage import read_private_json, UnsafePathError
 
 ROOT = Path(__file__).resolve().parents[1]
-GITHUB_URL = 'https://github.com/kcayut/PadPilot'
+GITHUB_URL = 'https://github.com/kcayut/SidecarSwitch'
 DONATION_URLS = {
     'PayPal': 'https://www.paypal.com/paypalme/oilstuck',
     'Ko-fi': 'https://ko-fi.com/kcayut',

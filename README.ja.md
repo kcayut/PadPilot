@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  🌐 <a href="https://kcayut.github.io/PadPilot/">紹介サイト</a>
+  🌐 <a href="https://kcayut.github.io/SidecarSwitch/">紹介サイト</a>
 </p>
 
 SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
@@ -28,7 +28,7 @@ SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使�
 
 初期設定済みの実機で撮影した開発版のデモです。バージョンや機器の組み合わせごとに検証が必要です。起動の待ち時間は8倍速、最後の画面は1秒長く表示しています。[高画質の MP4 を見る](docs/videos/headless-boot-demo.mp4)。
 
-**[リリースを見る](https://github.com/kcayut/PadPilot/releases)**
+**[リリースを見る](https://github.com/kcayut/SidecarSwitch/releases)**
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -57,7 +57,7 @@ SidecarSwitch のビルド済みインストーラーは準備中です。現在
 
 ### 1. インストールして開く
 
-[GitHub Releases](https://github.com/kcayut/PadPilot/releases) から `.dmg` をダウンロードし、**SidecarSwitch.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
+[GitHub Releases](https://github.com/kcayut/SidecarSwitch/releases) から `.dmg` をダウンロードし、**SidecarSwitch.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
 
 起動すると設定画面が開きます。画面を閉じてもメニューバーは残ります。もう一度開くには、メニューの **「設定とペアリング」**を選ぶか、App をダブルクリックします。
 

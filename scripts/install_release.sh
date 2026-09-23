@@ -46,7 +46,7 @@ cleanup() { [[ ! -d "$MOUNT" ]] || hdiutil detach "$MOUNT" -quiet || true; rm -r
 trap cleanup EXIT
 download() { curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 --retry 2 "$1" --output "$2"; }
 if [[ -z "$TAG" ]]; then
-    download 'https://api.github.com/repos/kcayut/PadPilot/releases?per_page=100' "$WORK_DIR/releases.json" || die 'Could not read published releases.'
+    download 'https://api.github.com/repos/kcayut/SidecarSwitch/releases?per_page=100' "$WORK_DIR/releases.json" || die 'Could not read published releases.'
     INDEX=0
     while plutil -extract "$INDEX.tag_name" raw -o - "$WORK_DIR/releases.json" > "$WORK_DIR/tag" 2>/dev/null; do
         DRAFT="$(plutil -extract "$INDEX.draft" raw -o - "$WORK_DIR/releases.json")"
@@ -64,7 +64,7 @@ if [[ -z "$TAG" ]]; then
     [[ -n "$TAG" ]] || die 'No published SidecarSwitch release found yet. Use the source installer until the first tag is published.'
 fi
 ASSET="SidecarSwitch-${TAG#v}-macos-arm64.dmg"
-BASE="https://github.com/kcayut/PadPilot/releases/download/$TAG"
+BASE="https://github.com/kcayut/SidecarSwitch/releases/download/$TAG"
 echo "Downloading $TAG..."
 download "$BASE/$ASSET" "$WORK_DIR/$ASSET" || die 'Release download failed; nothing installed.'
 download "$BASE/SHA256SUMS" "$WORK_DIR/SHA256SUMS" || die 'Release checksums unavailable.'
