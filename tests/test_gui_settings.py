@@ -15,7 +15,7 @@ from core.settings import apply_change
 
 ROOT = Path(__file__).resolve().parents[1]
 MENU = runpy.run_path(str(ROOT/'core/menu.py'))
-DAEMON = runpy.run_path(str(ROOT/'bin/padpilotd'))
+DAEMON = runpy.run_path(str(ROOT/'bin/sidecarswitchd'))
 ONE = {'name': '同名 iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111', 'usb_serial': 'usb1'}
 TWO = dict(ONE, sidecar_uuid='22222222-2222-4222-8222-222222222222', usb_serial='usb2')
 
@@ -79,7 +79,7 @@ class GuiSettingsTests(unittest.TestCase):
         self.assertFalse(any('同名 iPad' in row['title'] for row in model['items']))
 
     def test_daemon_deleting_target_pauses_before_reevaluation(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
         obj.engine.run_control.side_effect = lambda action: action()
@@ -91,7 +91,7 @@ class GuiSettingsTests(unittest.TestCase):
         obj.engine.reset_automation.assert_called_once()
 
     def test_virtual_change_preserves_current_override(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
         obj.engine.run_control.side_effect = lambda action: action()
@@ -124,7 +124,7 @@ class GuiSettingsTests(unittest.TestCase):
             apply_change(cfg, 'set_betterdisplaycli_path', {'path': 123})
 
     def test_daemon_handles_betterdisplaycli_path_change(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
         obj.engine.run_control.side_effect = lambda action: action()
@@ -170,13 +170,13 @@ class GuiSettingsTests(unittest.TestCase):
 
     def test_native_launch_reuses_app_and_rejects_invalid_profile_key(self):
         from core.gui import run_gui
-        app = ROOT / 'build/PadPilot.app'
+        app = ROOT / 'build/SidecarSwitch.app'
         with patch('core.autostart.find_menu_app', return_value=app), \
              patch('core.gui.subprocess.run') as launch:
             run_gui('diagnostics')
             args = launch.call_args.args[0]
             self.assertEqual(args[:3], ['/usr/bin/open', '-a', str(app)])
-            self.assertIn('padpilot://settings?page=diagnostics', args)
+            self.assertIn('sidecarswitch://settings?page=diagnostics', args)
             run_gui('wizard', delete=pairing_key(ONE))
             self.assertIn('page=search&delete=' + pairing_key(ONE), launch.call_args.args[0][3])
             launch.reset_mock()

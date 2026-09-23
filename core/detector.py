@@ -1,4 +1,4 @@
-"""Hardware and display topology detector for PadPilot.
+"""Hardware and display topology detector for SidecarSwitch.
 
 Uses CoreGraphics (ctypes) and IOKit (ioreg) for low-cost, high-speed detection.
 Does not rely on high-frequency system_profiler polling.
@@ -120,7 +120,7 @@ class DisplayDetector:
                     name = self.config.ipad.name or f"iPad ({w}x{h})"
                     is_sidecar = True
                 elif vendor == 2198 or vendor == 0x0896:
-                    name = self.config.virtual_display_name or "PadPilotVirtual"
+                    name = self.config.virtual_display_name or "SidecarSwitchVirtual"
                     is_virtual = True
                 elif vendor != 0:
                     name = f"Monitor 0x{vendor:x} ({w}x{h})"

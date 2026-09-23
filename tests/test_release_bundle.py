@@ -19,22 +19,88 @@ from core.storage import atomic_write
 
 def bundle(path):
     contents = path / 'Contents'
-    (contents / 'Resources/PadPilot/bin').mkdir(parents=True)
+    (contents / 'Resources/SidecarSwitch/bin').mkdir(parents=True)
     (contents / 'Resources/Python/bin').mkdir(parents=True)
     (contents / 'Resources/Python/bin/python3').write_bytes(b'python-placeholder')
-    (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+    (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
     (contents / 'Resources/runtime.json').write_text(json.dumps({
-        'bundled': True, 'project_root': 'PadPilot', 'python': 'Python/bin/python3'}))
+        'bundled': True, 'project_root': 'SidecarSwitch', 'python': 'Python/bin/python3'}))
     return path
 
 
 class ReleaseBundleTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'darwin', 'Release selection uses macOS plutil')
+    def test_download_selects_only_a_published_sidecarswitch_dmg(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture, requests = root / 'releases.json', root / 'requests.txt'
+            curl = root / 'curl'
+            curl.write_text(f'#!{sys.executable}\n' + '''import os, shutil, sys
+from pathlib import Path
+url = next(arg for arg in sys.argv if arg.startswith('https://'))
+with open(os.environ['REQUESTS'], 'a') as log:
+    log.write(url + '\\n')
+if '/releases?' not in url:
+    sys.exit(1)  # Stop before any app download, mounting, or installation.
+shutil.copyfile(os.environ['FIXTURE'], sys.argv[sys.argv.index('--output') + 1])
+''')
+            curl.chmod(0o755)
+            for name, output in (('uname', 'if [ "$1" = -s ]; then echo Darwin; else echo arm64; fi'),
+                                 ('sw_vers', 'echo 15.0')):
+                tool = root / name
+                tool.write_text('#!/bin/sh\n' + output + '\n')
+                tool.chmod(0o755)
+            releases = [
+                {'tag_name': 'v0.1.0-dev.4', 'draft': False, 'assets': [{'name': 'unrelated.dmg'}]},
+                {'tag_name': 'v0.1.0-dev.3', 'draft': True,
+                 'assets': [{'name': 'SidecarSwitch-0.1.0-dev.3-macos-arm64.dmg'}]},
+                {'tag_name': 'v0.1.0-dev.2', 'draft': False,
+                 'assets': [{'name': 'SHA256SUMS'}, {'name': 'SidecarSwitch-0.1.0-dev.2-macos-arm64.dmg'}]},
+            ]
+            for available in (True, False):
+                fixture.write_text(json.dumps(releases if available else releases[:2]))
+                requests.unlink(missing_ok=True)
+                result = subprocess.run(['bash', str(ROOT / 'scripts/install_release.sh'), '--yes', '--bundled'],
+                                        env=dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
+                                                 FIXTURE=str(fixture), REQUESTS=str(requests)),
+                                        capture_output=True, text=True)
+                urls = requests.read_text().splitlines()
+                self.assertNotEqual(result.returncode, 0)
+                if available:
+                    self.assertEqual(len(urls), 2)
+                    self.assertTrue(urls[-1].endswith('/v0.1.0-dev.2/SidecarSwitch-0.1.0-dev.2-macos-arm64.dmg'))
+                else:
+                    self.assertEqual(len(urls), 1)
+                    self.assertIn('No published SidecarSwitch release found yet', result.stderr)
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'Icon decoding uses macOS tools')
+    def test_app_icon_decodes_at_every_standard_and_retina_size(self):
+        from build_app import build_icon
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            icon = root / 'SidecarSwitch.icns'
+            build_icon(root, icon)
+            data = icon.read_bytes()
+            self.assertEqual(data[:4], b'icns')
+            self.assertEqual(int.from_bytes(data[4:8], 'big'), len(data))
+            decoded = root / 'decoded.iconset'
+            subprocess.run(['/usr/bin/iconutil', '-c', 'iconset', str(icon), '-o', str(decoded)],
+                           check=True, capture_output=True)
+            self.assertEqual(len(list(decoded.glob('*.png'))), 10)
+            for size in (16, 32, 128, 256, 512):
+                for scale in (1, 2):
+                    name = f'icon_{size}x{size}' + ('@2x' if scale == 2 else '') + '.png'
+                    png = (decoded / name).read_bytes()
+                    self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+                    self.assertEqual(int.from_bytes(png[16:20], 'big'), size * scale)
+                    self.assertEqual(int.from_bytes(png[20:24], 'big'), size * scale)
+
     def test_relocation_preserves_runtime_and_launch_agent_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            app = bundle(root / 'PadPilot.app')
+            app = bundle(root / 'SidecarSwitch.app')
             (root / 'Folder with spaces').mkdir()
-            moved = root / 'Folder with spaces/PadPilot.app'
+            moved = root / 'Folder with spaces/SidecarSwitch.app'
             app.rename(moved)
             project, python = runtime.app_runtime(moved)
             self.assertEqual(runtime.bundled_app(project), moved)
@@ -43,8 +109,8 @@ class ReleaseBundleTests(unittest.TestCase):
             plist.write_text(autostart.generate_plist_content())
             plist.chmod(0o600)
             value = plistlib.loads(plist.read_bytes())
-            self.assertEqual(value['BundleProgram'], 'Contents/MacOS/PadPilot')
-            self.assertEqual(value['ProgramArguments'], ['PadPilot', '--daemon'])
+            self.assertEqual(value['BundleProgram'], 'Contents/MacOS/SidecarSwitch')
+            self.assertEqual(value['ProgramArguments'], ['SidecarSwitch', '--daemon'])
             with patch.object(gui, 'ROOT', project), patch.object(gui.subprocess, 'run',
                     return_value=subprocess.CompletedProcess([], 0, stdout='OK')) as child:
                 self.assertEqual(gui.send_change('set_language', {'language': 'en', '__expected_revision__': 7}), 'OK')
@@ -52,7 +118,7 @@ class ReleaseBundleTests(unittest.TestCase):
                 self.assertEqual(json.loads(child.call_args.kwargs['input'])['__expected_revision__'], 7)
             with patch.object(autostart, 'PROJECT_ROOT', project):
                 autostart.validate_plist(plist)
-                value['ProgramArguments'][-1] = str(root / 'foreign/padpilotd')
+                value['ProgramArguments'][-1] = str(root / 'foreign/sidecarswitchd')
                 plist.write_bytes(plistlib.dumps(value))
                 with self.assertRaises(RuntimeError):
                     autostart.validate_plist(plist)
@@ -95,14 +161,14 @@ class ReleaseBundleTests(unittest.TestCase):
                     patch.object(install_release.subprocess, 'run', side_effect=lambda command, **kwargs:
                                  subprocess.CompletedProcess(command, 1 if command[0] == 'pgrep' else 0)) as process_checks:
                 home = Path(directory).resolve()
-                source = bundle(home / 'download/PadPilot.app')
-                target = bundle(home / 'Applications [test] with spaces/PadPilot.app')
+                source = bundle(home / 'download/SidecarSwitch.app')
+                target = bundle(home / 'Applications [test] with spaces/SidecarSwitch.app')
                 sentinel = target / 'previous-version'
                 sentinel.write_text('keep')
                 pref = runtime.preference_path()
                 original_pref = b'{"python":"/opt/previous/python3"}\n'
                 atomic_write(pref, original_pref)
-                plist = target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+                plist = target / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'
                 original_plist = autostart.generate_plist_content().encode()
                 atomic_write(plist, original_plist, private_parent=False)
                 state = {'registered': previous_service == 'enabled', 'running': was_running}
@@ -117,7 +183,7 @@ class ReleaseBundleTests(unittest.TestCase):
                     state['registered'] = state['running'] = action == 'register'
                     if action == 'unregister' and not sentinel.exists() and 'unregister' in failure:
                         # The native command can time out after launchd removed the job.
-                        raise subprocess.TimeoutExpired(['PadPilot', '--service', action], 30)
+                        raise subprocess.TimeoutExpired(['SidecarSwitch', '--service', action], 30)
                     return 'enabled' if state['registered'] else 'notRegistered'
                 with patch.object(install_release, 'cli', side_effect=fake_cli), \
                      patch.object(install_release, 'service_command', side_effect=service), \
@@ -131,8 +197,8 @@ class ReleaseBundleTests(unittest.TestCase):
                 self.assertEqual(plist.read_bytes(), original_plist)
                 self.assertEqual(state, {'registered': previous_service == 'enabled', 'running': was_running})
                 pattern = next(call.args[0][-1] for call in process_checks.call_args_list if call.args[0][0] == 'pgrep')
-                self.assertRegex(f'{target}/Contents/MacOS/PadPilot --daemon', pattern)
-                self.assertRegex(f'/opt/python3 -I -B {target}/Contents/Resources/PadPilot/bin/padpilot-cli exit', pattern)
+                self.assertRegex(f'{target}/Contents/MacOS/SidecarSwitch --daemon', pattern)
+                self.assertRegex(f'/opt/python3 -I -B {target}/Contents/Resources/SidecarSwitch/bin/sidecarswitch-cli exit', pattern)
                 self.assertNotRegex(f'{source}/Contents/Resources/Python/bin/python3 installer', pattern)
 
     def test_rollback_preserves_both_apps_when_replacement_shutdown_is_unverified(self):
@@ -145,8 +211,8 @@ class ReleaseBundleTests(unittest.TestCase):
                     patch.object(install_release.subprocess, 'run', side_effect=lambda command, **kwargs:
                                  subprocess.CompletedProcess(command, 2 if blocked == 'native-query' else 0)):
                 home = Path(directory).resolve()
-                source = bundle(home / 'download/PadPilot.app')
-                target = bundle(home / 'Applications/PadPilot.app')
+                source = bundle(home / 'download/SidecarSwitch.app')
+                target = bundle(home / 'Applications/SidecarSwitch.app')
                 (source / 'replacement').write_text('new')
                 (target / 'previous-version').write_text('old')
                 pref = runtime.preference_path()
@@ -166,23 +232,23 @@ class ReleaseBundleTests(unittest.TestCase):
                 self.assertTrue((target / 'replacement').exists())
                 self.assertFalse((target / 'previous-version').exists())
                 self.assertEqual(pref.read_bytes(), b'{}\n')
-                self.assertEqual(len(list((home / '.Trash').glob('*/PadPilot.app/previous-version'))), 1)
+                self.assertEqual(len(list((home / '.Trash').glob('*/SidecarSwitch.app/previous-version'))), 1)
                 self.assertNotIn('register', [call.args[0] for call in service.call_args_list])
 
     def test_daemon_pid_check_uses_target_root_and_verifies_interpreter_identity(self):
-        source = Path('/download/PadPilot.app/Contents/Resources/PadPilot')
-        target = Path('/Applications/PadPilot.app/Contents/Resources/PadPilot')
+        source = Path('/download/SidecarSwitch.app/Contents/Resources/SidecarSwitch')
+        target = Path('/Applications/SidecarSwitch.app/Contents/Resources/SidecarSwitch')
         python = '/opt/test/bin/python3'
         def run(command, **kwargs):
             if command[0] == 'pgrep':
-                self.assertEqual(command[-1], r'(^| )' + re.escape(str(target / 'bin/padpilotd')) + r'( |$)')
+                self.assertEqual(command[-1], r'(^| )' + re.escape(str(target / 'bin/sidecarswitchd')) + r'( |$)')
                 output = '12 34 56'
             elif command[-1] == 'comm=':
                 output = python
             else:
-                output = {'12': f'{python} -I -B {target}/bin/padpilotd',
-                          '34': f'{python} -I -B {source}/bin/padpilotd',
-                          '56': f'/opt/other/bin/python3 -I -B {target}/bin/padpilotd'}[command[command.index('-p') + 1]]
+                output = {'12': f'{python} -I -B {target}/bin/sidecarswitchd',
+                          '34': f'{python} -I -B {source}/bin/sidecarswitchd',
+                          '56': f'/opt/other/bin/python3 -I -B {target}/bin/sidecarswitchd'}[command[command.index('-p') + 1]]
             return subprocess.CompletedProcess(command, 0, stdout=output)
         with patch.object(autostart, 'PROJECT_ROOT', source), \
              patch.object(autostart.subprocess, 'run', side_effect=run), \
@@ -195,7 +261,7 @@ class ReleaseBundleTests(unittest.TestCase):
         for failure in (False, True):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory).resolve()
-                app = bundle(home / 'Applications/PadPilot.app')
+                app = bundle(home / 'Applications/SidecarSwitch.app')
                 events = []
                 def native(action, target):
                     self.assertEqual(action, 'unregister')

@@ -17,7 +17,7 @@ from core.config import Config
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class TestPadPilotAutostart(unittest.TestCase):
+class TestSidecarSwitchAutostart(unittest.TestCase):
     def setUp(self):
         self.cfg = Config()
         self.state = 'notRegistered'
@@ -41,8 +41,8 @@ class TestPadPilotAutostart(unittest.TestCase):
 
     def test_relative_agent_has_no_external_paths_and_normal_exit_does_not_restart(self):
         data = plistlib.loads(autostart.generate_plist_content().encode())
-        self.assertEqual(data['BundleProgram'], 'Contents/MacOS/PadPilot')
-        self.assertEqual(data['ProgramArguments'], ['PadPilot', '--daemon'])
+        self.assertEqual(data['BundleProgram'], 'Contents/MacOS/SidecarSwitch')
+        self.assertEqual(data['ProgramArguments'], ['SidecarSwitch', '--daemon'])
         self.assertEqual(data['KeepAlive'], {'SuccessfulExit': False})
         self.assertTrue(data['RunAtLoad'])
         self.assertNotIn(str(Path.home()), json.dumps(data))
@@ -100,7 +100,7 @@ class TestPadPilotAutostart(unittest.TestCase):
                     self.assertEqual(self.state, 'notRegistered')
 
     def test_cli_boot_enable_uses_service_transaction_and_validates_input(self):
-        submit = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['submit_settings']
+        submit = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))['submit_settings']
         service = MagicMock(return_value=(True, 'OK'))
         ipc = MagicMock()
         with patch.dict(submit.__globals__, set_autostart=service, send_daemon_cmd=ipc), contextlib.redirect_stdout(io.StringIO()):
@@ -169,7 +169,7 @@ class TestPadPilotAutostart(unittest.TestCase):
         self.start_standalone.assert_not_called()
 
     def test_start_only_registers_once_and_respects_system_disable(self):
-        command = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['cmd_start']
+        command = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))['cmd_start']
         for state in ('notRegistered', 'requiresApproval', 'enabled', 'unknown'):
             for initialized in (False, True):
                 with self.subTest(state=state, initialized=initialized):
@@ -196,9 +196,9 @@ class TestPadPilotAutostart(unittest.TestCase):
     def test_registered_service_rejects_a_second_app_copy(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            first, second = root / 'first/PadPilot.app', root / 'second/PadPilot.app'
+            first, second = root / 'first/SidecarSwitch.app', root / 'second/SidecarSwitch.app'
             for app in (first, second):
-                plist = app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+                plist = app / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'
                 plist.parent.mkdir(parents=True)
                 plist.write_text(autostart.generate_plist_content())
             state = {'value': 'notFound'}
@@ -206,8 +206,8 @@ class TestPadPilotAutostart(unittest.TestCase):
             def run(command, **kwargs):
                 if command[0] == 'launchctl':
                     return __import__('subprocess').CompletedProcess(command, 0,
-                        'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.padpilot.app\n'
-                        'program identifier = Contents/MacOS/PadPilot (mode: 2)\n', '')
+                        'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.sidecarswitch.app\n'
+                        'program identifier = Contents/MacOS/SidecarSwitch (mode: 2)\n', '')
                 calls.append(command[-1])
                 if command[-1] == 'register': state['value'] = 'enabled'
                 return __import__('subprocess').CompletedProcess(command, 0, state['value'], '')
@@ -216,9 +216,9 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertEqual(ORIGINAL_COMMAND('register', first), 'enabled')
                 self.assertEqual(autostart.service_owner(), first)
                 self.assertEqual(ORIGINAL_COMMAND('status', first), 'enabled')
-                self.assertTrue(autostart.job_loaded(first / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'))
+                self.assertTrue(autostart.job_loaded(first / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'))
                 with self.assertRaisesRegex(RuntimeError, 'another installation'):
-                    autostart.job_loaded(second / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
+                    autostart.job_loaded(second / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist')
                 for action in ('status', 'register', 'unregister'):
                     with self.assertRaisesRegex(RuntimeError, 'another installation'):
                         ORIGINAL_COMMAND(action, second)
@@ -227,11 +227,11 @@ class TestPadPilotAutostart(unittest.TestCase):
                 self.assertFalse((root / 'Library/LaunchAgents').exists())
                 with self.assertRaisesRegex(RuntimeError, 'removal was not confirmed'):
                     ORIGINAL_COMMAND('unregister', first)
-                moved = root / 'Applications/PadPilot.app'
+                moved = root / 'Applications/SidecarSwitch.app'
                 moved.parent.mkdir()
                 first.rename(moved)
                 self.assertEqual(ORIGINAL_COMMAND('status', moved), 'enabled')
-                self.assertTrue(autostart.job_loaded(moved / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'))
+                self.assertTrue(autostart.job_loaded(moved / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'))
                 self.assertEqual(autostart.service_owner(), first)  # Status queries remain read-only.
                 self.assertEqual(ORIGINAL_COMMAND('register', moved), 'enabled')
                 self.assertEqual(autostart.service_owner(), moved)
@@ -241,12 +241,12 @@ class TestPadPilotAutostart(unittest.TestCase):
     def test_system_app_is_discovered_only_for_the_matching_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            app = root / 'Applications/PadPilot.app'
+            app = root / 'Applications/SidecarSwitch.app'
             resources = app / 'Contents/Resources'
             resources.mkdir(parents=True)
             metadata = resources / 'runtime.json'
             metadata.write_text(json.dumps({'project_root': str(root), 'python': '/usr/bin/python3'}))
-            (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+            (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
             with patch.object(autostart, 'PROJECT_ROOT', root), \
                  patch.object(autostart, 'APP_SUPPORT_DIR', root / 'support'), \
                  patch('core.runtime.SYSTEM_APP', app), patch.object(Path, 'home', return_value=root / 'home'):
@@ -257,15 +257,15 @@ class TestPadPilotAutostart(unittest.TestCase):
     def test_menu_launcher_only_opens_matching_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            app = root / 'build/PadPilot.app/Contents/Resources'
+            app = root / 'build/SidecarSwitch.app/Contents/Resources'
             app.mkdir(parents=True)
             (app / 'runtime.json').write_text(json.dumps({'project_root': str(root), 'python': '/usr/bin/python3'}))
-            (app.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+            (app.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
             with patch.object(autostart, 'PROJECT_ROOT', root), patch.object(Path, 'home', return_value=root), \
                  patch.object(autostart.subprocess, 'run', return_value=MagicMock(returncode=0)) as run:
                 self.assertTrue(autostart.open_menu_app())
-                self.assertEqual(run.call_args.args[0], ['open', '-g', '-a', str(root / 'build/PadPilot.app'),
-                                                       'padpilot://menu', '--args', '--menu-only'])
+                self.assertEqual(run.call_args.args[0], ['open', '-g', '-a', str(root / 'build/SidecarSwitch.app'),
+                                                       'sidecarswitch://menu', '--args', '--menu-only'])
                 (app / 'runtime.json').write_text(json.dumps({'project_root': '/different/checkout'}))
                 run.reset_mock()
                 self.assertFalse(autostart.open_menu_app())

@@ -4,7 +4,7 @@ import ApplicationServices
 
 private typealias CheckObject = [String: Any]
 private func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
-    if !condition() { throw NSError(domain: "PadPilotGUIRegression", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    if !condition() { throw NSError(domain: "SidecarSwitchGUIRegression", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }
 @MainActor private func settle() async {
     try? await Task.sleep(nanoseconds: 120_000_000)
@@ -58,7 +58,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
     let pages = ["paired", "search", "settings", "displays", "virtual", "diagnostics", "about"]
     let languages = mode == "languages" ? ["zh-Hant", "en", "ja"] : ["zh-Hant"]
     let controller = SettingsWindowController(runtime: runtime)
-    guard let window = controller.window, let content = window.contentView else { throw NSError(domain: "PadPilotGUIRegression", code: 3) }
+    guard let window = controller.window, let content = window.contentView else { throw NSError(domain: "SidecarSwitchGUIRegression", code: 3) }
     defer { window.close() }
     var inspected = 0
     for language in languages {
@@ -76,7 +76,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
             try require(state["language"] as? String == language, "Language selection was lost")
             try require(state["pages"] as? [String] == pages, "The native window must expose all seven pages")
             try require(window.isVisible && !window.isMiniaturized, "Settings window is not visible")
-            try require(window.title == "PadPilot", "Window title must be PadPilot")
+            try require(window.title == "SidecarSwitch", "Window title must be SidecarSwitch")
             try require(!views(content).contains { $0 is NSSplitView }, "Sidebar must remain fixed")
             try require(abs(content.bounds.width - 840) < 2, "840px content width was not respected")
             try require(content.fittingSize.width <= content.bounds.width + 2, "Native content exceeds minimum width: \(page)")
@@ -91,9 +91,14 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                 let pressed = disclosure.press(); try require(pressed, "Native disclosure failed: \(page)")
                 await settle(); nodes = elements(content)
             }
-            let expectedKey = ["paired": "作為副螢幕", "search": "💡 搜尋與配對須知", "settings": "🛡️ 防護機制與保護參數", "displays": "Display", "virtual": "指定為備援螢幕", "diagnostics": "🩺 自動化決策與狀態機", "about": "支持 PadPilot"][page]!
+            let expectedKey = ["paired": "作為副螢幕", "search": "💡 搜尋與配對須知", "settings": "🛡️ 防護機制與保護參數", "displays": "Display", "virtual": "指定為備援螢幕", "diagnostics": "🩺 自動化決策與狀態機", "about": "支持 SidecarSwitch"][page]!
             let expectedText = strings[expectedKey] ?? expectedKey
             try require(nodes.contains { $0.label == expectedText }, "Missing native page content: \(language)/\(page)/\(expectedText)")
+            if page == "about" {
+                let purpose = strings["iPad 螢幕自動連線與切換工具"] ?? "iPad 螢幕自動連線與切換工具"
+                try require(nodes.contains { $0.label == "SidecarSwitch" } && nodes.contains { $0.label == purpose },
+                            "About must show the product name and localized purpose: \(language)")
+            }
             if page == "search" {
                 try require(nodes.contains { $0.role == "AXButton" && $0.label == strings["配對"] && $0.enabled }, "The unpaired candidate has no enabled native Pair button")
             }
@@ -114,7 +119,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                         try require(nodes.contains { $0.label == "UUID \(uuid.prefix(8))" }, "Missing UUID to distinguish displays with the same name")
                     }
                 }
-                for key in ["只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。", "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。", "無法取得螢幕識別碼，暫時不能調整。"] {
+                for key in ["只調整 SidecarSwitch 的實體螢幕判斷，不會停用這個螢幕。", "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。", "無法取得螢幕識別碼，暫時不能調整。"] {
                     try require(nodes.contains { $0.label == strings[key] }, "Missing display exclusion explanation: \(language)/\(key)")
                 }
                 for (uuid, excluded) in [(displayIDs[0], true), (displayIDs[1], false)] {
@@ -148,7 +153,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
             }
             if page == "settings" {
                 try require(nodes.contains { $0.label == strings["全域快速鍵"] }, "Missing global shortcut settings")
-                let headings = ["⚙️ 運作模式 (Operation Mode)", "🚀 登入時自動啟動 PadPilot：", "全域快速鍵"]
+                let headings = ["⚙️ 運作模式 (Operation Mode)", "🚀 登入時自動啟動 SidecarSwitch：", "全域快速鍵"]
                     .compactMap { key in nodes.first { $0.label == (strings[key] ?? key) } }
                 try require(headings.count == 3 && headings[0].frame.minY < headings[1].frame.minY
                             && headings[1].frame.minY < headings[2].frame.minY, "Login startup must immediately follow operation mode")
@@ -170,7 +175,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                         guard let sheet = window.attachedSheet, let body = sheet.contentView else {
                             throw NSError(domain: "Missing linked startup confirmation", code: 24)
                         }
-                        let detail = boot ? "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？"
+                        let detail = boot ? "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 SidecarSwitch」。是否繼續？"
                             : "停用登入時自動啟動，也會一併關閉「開機無螢幕時自動連線 iPad」。是否繼續？"
                         try require(views(body).compactMap { $0 as? NSTextField }.contains { $0.stringValue == (strings[detail] ?? detail) },
                                     "Confirmation does not explain both linked options")
@@ -264,7 +269,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
                     guard let heading = nodes.first(where: { $0.label == strings[key] }) else { throw NSError(domain: "Missing diagnostic card title: \(key)", code: 20) }
                     try require(nodes.contains { $0.role == "AXButton" && $0.label == strings["重新整理"] && $0.frame.minX > heading.frame.maxX && abs($0.frame.midY - heading.frame.midY) < 12 },
                                 "Diagnostic refresh is not beside its card title: \(language)/\(key)")
-                    let bodyKey = key == "啟動與必要設定偵測" ? "通過" : "查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。"
+                    let bodyKey = key == "啟動與必要設定偵測" ? "通過" : "查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；SidecarSwitch 不會收集或儲存密碼。只有按此區重新整理才會查詢。"
                     guard let firstBody = nodes.first(where: { $0.label == strings[bodyKey] && $0.role == "AXStaticText" }) else { throw NSError(domain: "Missing diagnostic card body: \(key)", code: 21) }
                     try require(firstBody.frame.minX >= heading.frame.minX - 2 && firstBody.frame.minX <= heading.frame.minX + 30 && firstBody.frame.minY >= heading.frame.maxY - 2 && firstBody.frame.minY < heading.frame.maxY + 32,
                                 "Diagnostic body is not aligned left immediately below its title: \(language)/\(key)")
@@ -515,7 +520,7 @@ private func mutations(_ controller: SettingsWindowController) -> [CheckObject] 
     logging["logs"] = (0..<200).map { "2026-09-11 10:00:00 [INFO] [test] line \($0)" }.joined(separator: "\n")
     controller.loadFixture(logging, page: "diagnostics"); controller.show(page: "diagnostics")
     _ = controller.checkLogFilter("all"); await settle()
-    guard let log = views(content).compactMap({ $0 as? NSTextView }).first(where: { $0.accessibilityLabel() == "PadPilot logs" }), let scroll = log.enclosingScrollView else {
+    guard let log = views(content).compactMap({ $0 as? NSTextView }).first(where: { $0.accessibilityLabel() == "SidecarSwitch logs" }), let scroll = log.enclosingScrollView else {
         throw NSError(domain: "Missing native independent log view", code: 9)
     }
     scroll.contentView.scroll(to: NSPoint(x: 0, y: 100)); scroll.reflectScrolledClipView(scroll.contentView)

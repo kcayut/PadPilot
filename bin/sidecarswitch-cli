@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PadPilot CLI (padpilot-cli) - Control, inspection, pairing, and status tool."""
+"""SidecarSwitch CLI (sidecarswitch-cli) - Control, inspection, pairing, and status tool."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ from core.models import OperationMode, pairing_key
 from core.settings import apply_change
 from core.storage import atomic_write, remove_state_file
 
-SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+SOCKET_PATH = APP_SUPPORT_DIR / "sidecarswitch.sock"
 
 MENU_HIDDEN = APP_SUPPORT_DIR / "menu-hidden"
 
@@ -100,7 +100,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     mode = status.get("mode", "unknown")
     icon = status.get("icon", "")
 
-    print(f"\n{icon}  PadPilot Display Status")
+    print(f"\n{icon}  SidecarSwitch Display Status")
     print("=" * 45)
     print(f"Mode:              {mode.upper()}")
     print(f"Physical Display:  {details.get('physical_display', 'None')}")
@@ -178,7 +178,7 @@ def cmd_action(args: argparse.Namespace) -> None:
             set_language(load_config().language)
             reason = resp.removeprefix('ERROR: ')
             if resp.startswith('Daemon is not running'):
-                reason = 'PadPilot background service is stopped. Start it from the menu, then try again.'
+                reason = 'SidecarSwitch background service is stopped. Start it from the menu, then try again.'
             raise RuntimeError(tr_message(reason))
         raise RuntimeError(resp)
     print(resp)
@@ -280,7 +280,7 @@ def choose_device(devices: list, label: str, optional: bool = False) -> dict:
 
 
 def cmd_pair(args: argparse.Namespace) -> None:
-    print("\n📱 PadPilot 配對精靈 — q 或 Ctrl+C 可取消\n")
+    print("\n📱 SidecarSwitch 配對精靈 — q 或 Ctrl+C 可取消\n")
     cfg = load_config()
     bd_cli = BetterDisplayCLI(cfg.betterdisplaycli_path)
     detector = DisplayDetector(cfg, bd_cli)
@@ -375,27 +375,27 @@ def cmd_open_betterdisplay(args: argparse.Namespace) -> None:
 def cmd_stop(args: argparse.Namespace) -> None:
     stop_daemon()
     for path in (APP_SUPPORT_DIR / "runtime" / "status.json",
-                 Path("/tmp/PadPilot/runtime/status.json"), SOCKET_PATH):
+                 Path("/tmp/SidecarSwitch/runtime/status.json"), SOCKET_PATH):
         remove_state_file(path, socket_ok=path == SOCKET_PATH)
-    print("✓ PadPilot 背景服務已停止。")
+    print("✓ SidecarSwitch 背景服務已停止。")
 
 
 def cmd_exit(args: argparse.Namespace) -> None:
     args.exiting = True
     cmd_stop(args)
     atomic_write(MENU_HIDDEN, b'')
-    print("✓ PadPilot 已離開 menu bar。重新開啟：padpilot-cli start")
+    print("✓ SidecarSwitch 已離開 menu bar。重新開啟：sidecarswitch-cli start")
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    print("Starting PadPilot daemon...")
+    print("Starting SidecarSwitch daemon...")
     remove_state_file(MENU_HIDDEN)
-    remove_state_file(Path("/tmp/PadPilot/menu-hidden"))
+    remove_state_file(Path("/tmp/SidecarSwitch/menu-hidden"))
     if daemon_pids():
         wait_for_daemon()
         if not getattr(args, "no_menu", False):
             open_menu_app()
-        print("✓ PadPilot 已在執行，已恢復選單。")
+        print("✓ SidecarSwitch 已在執行，已恢復選單。")
         return
     cfg = load_config()
     state = autostart_status()
@@ -413,14 +413,14 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     if not getattr(args, 'no_menu', False):
         open_menu_app()
-    print("✓ PadPilot daemon has been started.")
+    print("✓ SidecarSwitch daemon has been started.")
 
 
 def cmd_autostart(args: argparse.Namespace) -> None:
     action = getattr(args, "action", "status") or "status"
     if action == "status":
         state = autostart_status()
-        print(f"PadPilot Autostart: {state}")
+        print(f"SidecarSwitch Autostart: {state}")
     elif action == "enable":
         expected = getattr(args, 'expected_revision', None)
         ok, msg = enable_autostart(expected_revision=expected) if expected is not None else enable_autostart()
@@ -439,11 +439,11 @@ def cmd_autostart(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="PadPilot Display Manager CLI")
-    parser.add_argument("-v", "--version", action="version", version=f"PadPilot {__version__}")
+    parser = argparse.ArgumentParser(description="SidecarSwitch Display Manager CLI")
+    parser.add_argument("-v", "--version", action="version", version=f"SidecarSwitch {__version__}")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
-    p_runtime = subparsers.add_parser('runtime', help='Select Python for a release app; exit PadPilot before changing it')
+    p_runtime = subparsers.add_parser('runtime', help='Select Python for a release app; exit SidecarSwitch before changing it')
     p_runtime.add_argument('mode', choices=['status', 'bundled', 'external'], nargs='?', default='status')
     p_runtime.add_argument('--python', help='Absolute path to an Apple Silicon CPython 3.10+ executable')
     def runtime_command(args):
@@ -454,7 +454,7 @@ def main() -> None:
         if (args.mode == 'external') != bool(args.python):
             raise ValueError('Only external mode requires --python PATH')
         set_python(args.python)
-        print('Python selection saved. Reopen PadPilot. / Python 選擇已儲存，請重新開啟 PadPilot。')
+        print('Python selection saved. Reopen SidecarSwitch. / Python 選擇已儲存，請重新開啟 SidecarSwitch。')
     p_runtime.set_defaults(func=runtime_command)
 
     p_uninstall = subparsers.add_parser('uninstall', help='Unregister and remove this release app; preserve user data by default')
@@ -494,7 +494,7 @@ def main() -> None:
         main()
     p_menu.set_defaults(func=menu_json)
 
-    p_exit = subparsers.add_parser("exit", help="Stop daemon and hide only PadPilot from menu bar")
+    p_exit = subparsers.add_parser("exit", help="Stop daemon and hide only SidecarSwitch from menu bar")
     p_exit.set_defaults(func=cmd_exit)
 
     # stop
@@ -569,7 +569,7 @@ def main() -> None:
     p_prefs.set_defaults(func=cmd_prefs)
 
     # open-log
-    p_log = subparsers.add_parser("open-log", help="Open PadPilot status & diagnostics in GUI (or use --raw for file)")
+    p_log = subparsers.add_parser("open-log", help="Open SidecarSwitch status & diagnostics in GUI (or use --raw for file)")
     p_log.add_argument("--raw", action="store_true", help="Open raw log file in Console/TextEdit")
     p_log.set_defaults(func=cmd_open_log)
     p_bd = subparsers.add_parser("open-betterdisplay", help="Open BetterDisplay")
@@ -595,5 +595,5 @@ if __name__ == "__main__":
         # would duplicate it and use the generic "Operation Failed" subtitle.
         if not shortcut_request:
             from core.notifier import notify_error
-            notify_error(str(error), subtitle="PadPilot Operation Failed")
+            notify_error(str(error), subtitle="SidecarSwitch Operation Failed")
         sys.exit(1)

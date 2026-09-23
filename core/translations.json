@@ -207,9 +207,9 @@
     "en": "All",
     "ja": "すべて"
   },
-  "PadPilot — 螢幕與配對管理": {
-    "en": "PadPilot — Displays & Pairing",
-    "ja": "PadPilot — ディスプレイとペアリング"
+  "SidecarSwitch — 螢幕與配對管理": {
+    "en": "SidecarSwitch — Displays & Pairing",
+    "ja": "SidecarSwitch — ディスプレイとペアリング"
   },
   "智慧顯示器管理系統": {
     "en": "Smart display management",
@@ -263,9 +263,9 @@
     "en": "↗ GitHub project",
     "ja": "↗ GitHub プロジェクト"
   },
-  "管理已配對至 PadPilot 的 iPad 設備清單": {
-    "en": "Manage iPads paired with PadPilot",
-    "ja": "PadPilot とペアリングした iPad を管理"
+  "管理已配對至 SidecarSwitch 的 iPad 設備清單": {
+    "en": "Manage iPads paired with SidecarSwitch",
+    "ja": "SidecarSwitch とペアリングした iPad を管理"
   },
   "正在讀取…": {
     "en": "Loading…",
@@ -523,9 +523,9 @@
     "en": "Re-evaluate on native USB events. Debouncing and the 30-second watchdog remain; connection is not guaranteed to be instant.",
     "ja": "USB イベントで再評価します。デバウンスと 30 秒の監視は維持され、即時接続を保証するものではありません。"
   },
-  "自動偵測 iPad（免 PadPilot 配對）": {
-    "en": "Auto-detect iPad (no PadPilot pairing)",
-    "ja": "iPad を自動検出（PadPilot ペアリング不要）"
+  "自動偵測 iPad（免 SidecarSwitch 配對）": {
+    "en": "Auto-detect iPad (no SidecarSwitch pairing)",
+    "ja": "iPad を自動検出（SidecarSwitch ペアリング不要）"
   },
   "優先沿用指定配對，支援無線 Sidecar；未指定有效配對時，才以唯一 USB iPad 與 Sidecar 候選推定。": {
     "en": "Uses the designated pairing, including wireless Sidecar. Without a valid pairing, infers from one USB iPad and one Sidecar candidate.",
@@ -559,8 +559,8 @@
     "en": "Apple Sidecar account, trust, and compatibility requirements still apply. A unique candidate is still an inference.",
     "ja": "Apple Sidecar のアカウント、信頼、互換性の要件は必要です。候補が 1 台でも推定である点は変わりません。"
   },
-  "🚀 登入時自動啟動 PadPilot：": {
-    "en": "🚀 Launch PadPilot at login:",
+  "🚀 登入時自動啟動 SidecarSwitch：": {
+    "en": "🚀 Launch SidecarSwitch at login:",
     "ja": "🚀 ログイン時に起動："
   },
   "已停用": {
@@ -703,9 +703,9 @@
     "en": "Restore automatic detection",
     "ja": "自動判定に戻す"
   },
-  "只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。": {
-    "en": "Only changes how PadPilot detects physical displays. This display stays on.",
-    "ja": "PadPilot の物理ディスプレイ判定だけを変更します。この画面の表示は続きます。"
+  "只調整 SidecarSwitch 的實體螢幕判斷，不會停用這個螢幕。": {
+    "en": "Only changes how SidecarSwitch detects physical displays. This display stays on.",
+    "ja": "SidecarSwitch の物理ディスプレイ判定だけを変更します。この画面の表示は続きます。"
   },
   "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。": {
     "en": "Sidecar and virtual displays keep their roles and do not count as physical displays.",
@@ -763,9 +763,9 @@
     "en": "No BetterDisplay virtual displays detected",
     "ja": "BetterDisplay の仮想ディスプレイは未検出"
   },
-  "請先在 BetterDisplay App 中建立至少一個虛擬顯示器（建議命名為 PadPilotVirtual）。": {
-    "en": "Create a virtual display in BetterDisplay first (suggested name: PadPilotVirtual).",
-    "ja": "先に BetterDisplay で仮想ディスプレイを作成してください（推奨名：PadPilotVirtual）。"
+  "請先在 BetterDisplay App 中建立至少一個虛擬顯示器（建議命名為 SidecarSwitchVirtual）。": {
+    "en": "Create a virtual display in BetterDisplay first (suggested name: SidecarSwitchVirtual).",
+    "ja": "先に BetterDisplay で仮想ディスプレイを作成してください（推奨名：SidecarSwitchVirtual）。"
   },
   "✓ 目前指定備援": {
     "en": "✓ Current fallback",
@@ -855,17 +855,17 @@
     "en": "Startup & required settings",
     "ja": "起動と必要設定の確認"
   },
-  "查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。": {
-    "en": "macOS may ask for an administrator account and password to query login items. Enter them in the system dialog; PadPilot does not collect or store passwords. Only refreshing this section runs the query.",
-    "ja": "ログイン項目の確認には、macOS が管理者アカウントとパスワードを求める場合があります。システムの認証画面に入力してください。PadPilot はパスワードを収集・保存しません。この欄の更新時のみ確認します。"
+  "查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；SidecarSwitch 不會收集或儲存密碼。只有按此區重新整理才會查詢。": {
+    "en": "macOS may ask for an administrator account and password to query login items. Enter them in the system dialog; SidecarSwitch does not collect or store passwords. Only refreshing this section runs the query.",
+    "ja": "ログイン項目の確認には、macOS が管理者アカウントとパスワードを求める場合があります。システムの認証画面に入力してください。SidecarSwitch はパスワードを収集・保存しません。この欄の更新時のみ確認します。"
   },
   "說明 ↗": {
     "en": "Help ↗",
     "ja": "ヘルプ ↗"
   },
-  "📜 系統運行日誌 (padpilot.log)": {
-    "en": "📜 Service logs (padpilot.log)",
-    "ja": "📜 動作ログ（padpilot.log）"
+  "📜 系統運行日誌 (sidecarswitch.log)": {
+    "en": "📜 Service logs (sidecarswitch.log)",
+    "ja": "📜 動作ログ（sidecarswitch.log）"
   },
   "展開 ▼": {
     "en": "Expand ▼",
@@ -983,8 +983,8 @@
     "en": "Switched to {0}",
     "ja": "{0} に切り替えました"
   },
-  "設定為{0}後，每次開機登入 macOS 時將{1}於背景執行 PadPilot 守護程序。": {
-    "en": "Login setting: {0}. PadPilot will {1} run in the background at macOS login.",
+  "設定為{0}後，每次開機登入 macOS 時將{1}於背景執行 SidecarSwitch 守護程序。": {
+    "en": "Login setting: {0}. SidecarSwitch will {1} run in the background at macOS login.",
     "ja": "ログイン設定：{0}。macOS ログイン時のバックグラウンド実行：{1}。"
   },
   "自動": {
@@ -1099,9 +1099,9 @@
     "en": "Pairing changed or no longer exists. Reopen the list.",
     "ja": "ペアリングが変更されたか存在しません。一覧を開き直してください。"
   },
-  "裝置：{0}\n僅刪除 PadPilot 的配對紀錄，不解除 Apple 系統配對。": {
-    "en": "Device: {0}\nOnly remove the PadPilot record. Apple system pairing is retained.",
-    "ja": "デバイス：{0}\nPadPilot の記録のみを削除します。Apple のシステムペアリングは解除しません。"
+  "裝置：{0}\n僅刪除 SidecarSwitch 的配對紀錄，不解除 Apple 系統配對。": {
+    "en": "Device: {0}\nOnly remove the SidecarSwitch record. Apple system pairing is retained.",
+    "ja": "デバイス：{0}\nSidecarSwitch の記録のみを削除します。Apple のシステムペアリングは解除しません。"
   },
   "\n這是目前主力 iPad；刪除後改為僅手動模式，保留目前螢幕連線。": {
     "en": "\nThis is the primary iPad. Deleting switches to manual mode and retains current display connections.",
@@ -1243,9 +1243,9 @@
     "en": "⚠ Some queries failed; missing devices may still be online",
     "ja": "⚠ 一部の取得に失敗。未表示でも接続中の場合があります"
   },
-  "已配對至 PadPilot": {
-    "en": "Paired with PadPilot",
-    "ja": "PadPilot とペアリング済み"
+  "已配對至 SidecarSwitch": {
+    "en": "Paired with SidecarSwitch",
+    "ja": "SidecarSwitch とペアリング済み"
   },
   "自動偵測中；不會儲存推定配對": {
     "en": "Auto-detecting; inferred pairings are not saved",
@@ -1348,13 +1348,13 @@
     "en": "{0:.1f} seconds",
     "ja": "{0:.1f} 秒"
   },
-  "登入 macOS 時自動執行 PadPilot。": {
-    "en": "Run PadPilot automatically at macOS login.",
-    "ja": "macOS ログイン時に PadPilot を自動実行します。"
+  "登入 macOS 時自動執行 SidecarSwitch。": {
+    "en": "Run SidecarSwitch automatically at macOS login.",
+    "ja": "macOS ログイン時に SidecarSwitch を自動実行します。"
   },
-  "登入 macOS 時不自動執行 PadPilot。": {
-    "en": "Do not run PadPilot automatically at macOS login.",
-    "ja": "macOS ログイン時に PadPilot を自動実行しません。"
+  "登入 macOS 時不自動執行 SidecarSwitch。": {
+    "en": "Do not run SidecarSwitch automatically at macOS login.",
+    "ja": "macOS ログイン時に SidecarSwitch を自動実行しません。"
   },
   "未知（系統查詢逾時或無權限）": {
     "en": "Unknown (query timed out or permission denied)",
@@ -1400,9 +1400,9 @@
     "en": "Unknown (query unavailable)",
     "ja": "不明（確認できません）"
   },
-  "PadPilot 登入啟動": {
-    "en": "PadPilot launch at login",
-    "ja": "PadPilot のログイン時起動"
+  "SidecarSwitch 登入啟動": {
+    "en": "SidecarSwitch launch at login",
+    "ja": "SidecarSwitch のログイン時起動"
   },
   "未回應／尚未啟動": {
     "en": "Not responding / not started",
@@ -1713,21 +1713,21 @@
     "en": "Version, project links & support",
     "ja": "バージョン・プロジェクト・支援"
   },
-  "Mac 的 Sidecar 顯示器自動化工具": {
-    "en": "Sidecar display automation for Mac",
-    "ja": "Mac の Sidecar ディスプレイ自動化ツール"
+  "iPad 螢幕自動連線與切換工具": {
+    "en": "Automatic Sidecar Connection & Display Switching for Mac",
+    "ja": "iPad の画面を自動接続・切り替えする Mac 用ツール"
   },
   "在 GitHub 查看專案": {
     "en": "View project on GitHub",
     "ja": "GitHub でプロジェクトを見る"
   },
-  "支持 PadPilot": {
-    "en": "Support PadPilot",
-    "ja": "PadPilot を支援"
+  "支持 SidecarSwitch": {
+    "en": "Support SidecarSwitch",
+    "ja": "SidecarSwitch を支援"
   },
-  "PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！": {
-    "en": "All PadPilot features are currently free. If you enjoy the app, you're welcome to support its development. Thank you!",
-    "ja": "PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！"
+  "SidecarSwitch 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！": {
+    "en": "All SidecarSwitch features are currently free. If you enjoy the app, you're welcome to support its development. Thank you!",
+    "ja": "SidecarSwitch の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！"
   },
   "支持連結準備中，還是謝謝你的心意！": {
     "en": "Support links are coming soon. Thank you for thinking of us!",
@@ -1742,10 +1742,10 @@
     "zh-Hant": "無法確認已連線 Sidecar 的螢幕身分；保留目前顯示。",
     "ja": "接続済み Sidecar のディスプレイを識別できないため、現在の表示を維持します。"
   },
-  "Configuration unreadable; repair or restore the file before starting PadPilot.": {
-    "en": "Configuration unreadable; repair or restore the file before starting PadPilot.",
-    "zh-Hant": "設定無法讀取；啟動 PadPilot 前請修復或還原設定檔。",
-    "ja": "設定を読み込めません。PadPilot を起動する前に設定ファイルを修復または復元してください。"
+  "Configuration unreadable; repair or restore the file before starting SidecarSwitch.": {
+    "en": "Configuration unreadable; repair or restore the file before starting SidecarSwitch.",
+    "zh-Hant": "設定無法讀取；啟動 SidecarSwitch 前請修復或還原設定檔。",
+    "ja": "設定を読み込めません。SidecarSwitch を起動する前に設定ファイルを修復または復元してください。"
   },
   "Tkinter 不可用：設定視窗已停用": {
     "en": "Tkinter unavailable: settings window disabled",
@@ -1791,17 +1791,17 @@
     "en": "Minimize",
     "ja": "しまう"
   },
-  "設定資料回應無效，請重新安裝 PadPilot。": {
-    "en": "The settings response is invalid. Please reinstall PadPilot.",
-    "ja": "設定データの応答が無効です。PadPilot を再インストールしてください。"
+  "設定資料回應無效，請重新安裝 SidecarSwitch。": {
+    "en": "The settings response is invalid. Please reinstall SidecarSwitch.",
+    "ja": "設定データの応答が無効です。SidecarSwitch を再インストールしてください。"
   },
   "指令未完成或已逾時；請先檢查「狀態與診斷」，再決定是否重試。": {
     "en": "The command failed or timed out. Check Status & Diagnostics before retrying.",
     "ja": "コマンドが失敗したかタイムアウトしました。再試行の前に「状態と診断」を確認してください。"
   },
-  "設定視窗執行目錄無法安全使用，請重新安裝 PadPilot。": {
-    "en": "The settings runtime directory cannot be used safely. Please reinstall PadPilot.",
-    "ja": "設定ウインドウの実行ディレクトリを安全に使用できません。PadPilot を再インストールしてください。"
+  "設定視窗執行目錄無法安全使用，請重新安裝 SidecarSwitch。": {
+    "en": "The settings runtime directory cannot be used safely. Please reinstall SidecarSwitch.",
+    "ja": "設定ウインドウの実行ディレクトリを安全に使用できません。SidecarSwitch を再インストールしてください。"
   },
   "設定視窗已開啟或正在更新，請稍後重試。": {
     "en": "Settings are already open or being updated. Please try again after the operation finishes.",
@@ -1915,20 +1915,20 @@
     "zh-Hant": "尚未設定連線用的 iPad。請在「設定與配對」選擇或配對 iPad。",
     "ja": "接続先の iPad が未設定です。「設定とペアリング」で iPad を選択またはペアリングしてください。"
   },
-  "PadPilot background service is stopped. Start it from the menu, then try again.": {
-    "en": "PadPilot background service is stopped. Start it from the menu, then try again.",
-    "zh-Hant": "PadPilot 背景服務已停止。請先從選單啟動服務，再重試。",
-    "ja": "PadPilot のバックグラウンドサービスが停止しています。メニューから起動して再試行してください。"
+  "SidecarSwitch background service is stopped. Start it from the menu, then try again.": {
+    "en": "SidecarSwitch background service is stopped. Start it from the menu, then try again.",
+    "zh-Hant": "SidecarSwitch 背景服務已停止。請先從選單啟動服務，再重試。",
+    "ja": "SidecarSwitch のバックグラウンドサービスが停止しています。メニューから起動して再試行してください。"
   },
   "Daemon response timed out; the command may still be running.": {
     "en": "Daemon response timed out; the command may still be running.",
-    "zh-Hant": "PadPilot 背景服務回應逾時；連線要求可能仍在處理，請先檢查「狀態與診斷」。",
-    "ja": "PadPilot の応答がタイムアウトしました。要求は処理中の可能性があります。「状態と診断」を確認してください。"
+    "zh-Hant": "SidecarSwitch 背景服務回應逾時；連線要求可能仍在處理，請先檢查「狀態與診斷」。",
+    "ja": "SidecarSwitch の応答がタイムアウトしました。要求は処理中の可能性があります。「状態と診断」を確認してください。"
   },
   "Daemon communication failed: {0}": {
     "en": "Daemon communication failed: {0}",
-    "zh-Hant": "無法與 PadPilot 背景服務通訊：{0}",
-    "ja": "PadPilot のバックグラウンドサービスと通信できません: {0}"
+    "zh-Hant": "無法與 SidecarSwitch 背景服務通訊：{0}",
+    "ja": "SidecarSwitch のバックグラウンドサービスと通信できません: {0}"
   },
   "Selected iPad is missing from the Sidecar device list (BetterDisplay status query: {0}); no connection was started.": {
     "en": "Selected iPad is missing from the Sidecar device list (BetterDisplay status query: {0}); no connection was started.",
@@ -1980,9 +1980,9 @@
     "en": "Include Control or Command",
     "ja": "Control または Command を含めてください"
   },
-  "請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行": {
-    "en": "Allow PadPilot to run in the background in System Settings → General → Login Items.",
-    "ja": "システム設定 → 一般 → ログイン項目で PadPilot のバックグラウンド実行を許可してください。"
+  "請到系統設定 → 一般 → 登入項目允許 SidecarSwitch 背景執行": {
+    "en": "Allow SidecarSwitch to run in the background in System Settings → General → Login Items.",
+    "ja": "システム設定 → 一般 → ログイン項目で SidecarSwitch のバックグラウンド実行を許可してください。"
   },
   "開啟系統登入項目": {
     "en": "Open Login Items",
@@ -2008,9 +2008,9 @@
     "en": "Enable connection at startup?",
     "ja": "起動時の自動接続を有効にしますか？"
   },
-  "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？": {
-    "en": "Enabling “Connect iPad at startup when no monitor is connected” will also enable “Launch PadPilot at login”. Continue?",
-    "ja": "「モニターがないとき、起動時に iPad に自動接続」を有効にすると、「ログイン時に PadPilot を自動起動」も有効になります。続行しますか？"
+  "啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 SidecarSwitch」。是否繼續？": {
+    "en": "Enabling “Connect iPad at startup when no monitor is connected” will also enable “Launch SidecarSwitch at login”. Continue?",
+    "ja": "「モニターがないとき、起動時に iPad に自動接続」を有効にすると、「ログイン時に SidecarSwitch を自動起動」も有効になります。続行しますか？"
   },
   "變更登入啟動？": {
     "en": "Change launch at login?",

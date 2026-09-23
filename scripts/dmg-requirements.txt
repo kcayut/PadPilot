@@ -1,4 +1,4 @@
-# Build tools only; never bundled with PadPilot.
+# Build tools only; never bundled with SidecarSwitch.
 dmgbuild==1.6.7
 ds_store==1.3.3
 mac_alias==2.2.3

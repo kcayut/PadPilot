@@ -14,7 +14,7 @@ from core.state_engine import StateEngine
 from core.gui import MODES as GUI_MODES
 from core.menu import MODES as MENU_MODES
 
-Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilotd'))['PadPilotDaemon']
+Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
 
 
 class BootConnectionTests(unittest.TestCase):

@@ -64,7 +64,7 @@ def collect_system_checks(cfg, actual):
     startup = {
         'enabled': '已設定（登入後啟用）',
         'notRegistered': '未啟用',
-        'requiresApproval': '請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行',
+        'requiresApproval': '請到系統設定 → 一般 → 登入項目允許 SidecarSwitch 背景執行',
         'notFound': '設定異常（找不到 App 內的登入服務）',
         'unknown': '未知（無法查詢登入服務）',
     }[autostart_status()]
@@ -76,7 +76,7 @@ def collect_system_checks(cfg, actual):
     vault_state = ('已開啟；重新開機後需先解鎖磁碟' if vault and 'FileVault is On' in vault else
                    '未開啟' if vault and 'FileVault is Off' in vault else '未知（無法查詢）')
     checks = [
-        ('PadPilot 登入啟動', startup),
+        ('SidecarSwitch 登入啟動', startup),
         ('背景服務', '執行中' if is_daemon_running() else '未回應／尚未啟動'),
         ('BetterDisplay 安裝', '已安裝' if installed else '未在標準應用程式位置找到'),
         ('BetterDisplay 控制介面', '可用' if BetterDisplayCLI.resolve_cli_path(cfg.betterdisplaycli_path) else '未找到'),
@@ -96,7 +96,7 @@ DEFAULT_AUTHENTICATED_CHECKS = [
 ]
 
 DEFAULT_SYSTEM_CHECKS = [
-    ('PadPilot 登入啟動', '尚未檢查'),
+    ('SidecarSwitch 登入啟動', '尚未檢查'),
     ('背景服務', '尚未檢查'),
     ('BetterDisplay 安裝', '尚未檢查'),
     ('BetterDisplay 控制介面', '尚未檢查'),
@@ -113,7 +113,7 @@ def collect_authenticated_checks():
     """Only called by the explicit authentication-card refresh button.
 
     macOS may ask for authorization while accessing background login items.
-    Credentials are handled by macOS, never collected by PadPilot.
+    Credentials are handled by macOS, never collected by SidecarSwitch.
     """
     output = command(['/usr/bin/sfltool', 'dumpbtm'], timeout=120)
     return [('BetterDisplay 登入啟動', betterdisplay_login_status(output, os.getuid()))]

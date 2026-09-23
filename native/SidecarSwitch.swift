@@ -4,7 +4,7 @@ import Darwin
 import ServiceManagement
 
 enum LoginService {
-    static let plistName = "com.padpilot.daemon.plist"
+    static let plistName = "com.sidecarswitch.daemon.plist"
     static var service: SMAppService { .agent(plistName: plistName) }
 
     static var isInTrash: Bool {
@@ -17,8 +17,8 @@ enum LoginService {
         guard FileManager.default.fileExists(atPath: url.path),
               !url.path.hasPrefix("/Volumes/"), !url.path.contains("/AppTranslocation/"),
               !isInTrash else {
-            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                "Open PadPilot from Applications, outside the disk image or Trash. / 請從應用程式開啟 PadPilot，不要從磁碟映像或垃圾桶執行。"])
+            throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Open SidecarSwitch from Applications, outside the disk image or Trash. / 請從應用程式開啟 SidecarSwitch，不要從磁碟映像或垃圾桶執行。"])
         }
     }
 
@@ -34,7 +34,7 @@ enum LoginService {
         case "unregister":
             if item.status != .notRegistered && item.status != .notFound { try item.unregister() }
         case "settings": SMAppService.openSystemSettingsLoginItems()
-        default: throw NSError(domain: "PadPilot", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unknown login service command"])
+        default: throw NSError(domain: "SidecarSwitch", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unknown login service command"])
         }
         let status: String
         switch item.status {
@@ -62,7 +62,7 @@ enum LoginService {
         let child = Process()
         child.executableURL = URL(fileURLWithPath: runtime.python)
         child.arguments = (runtime.bundled == true ? ["-I", "-B"] : ["-B"])
-            + [runtime.project_root + "/bin/padpilotd"]
+            + [runtime.project_root + "/bin/sidecarswitchd"]
         child.terminationHandler = { process in
             // Normal Exit stops display automation but keeps the removal watch.
             // A crash restarts the service through launchd's existing KeepAlive.
@@ -88,7 +88,7 @@ enum LoginService {
                     if item.status == .enabled || item.status == .requiresApproval { try item.unregister() }
                     kill(getpid(), SIGTERM)
                 } catch {
-                    FileHandle.standardError.write(Data(("PadPilot unregister: \(error)\n").utf8))
+                    FileHandle.standardError.write(Data(("SidecarSwitch unregister: \(error)\n").utf8))
                 }
             }
         }
@@ -118,16 +118,16 @@ struct Runtime: Decodable {
         let resources = bundle.appendingPathComponent("Contents/Resources")
         let metadata = try JSONDecoder().decode(Runtime.self, from: Data(contentsOf: resources.appendingPathComponent("runtime.json")))
         if metadata.bundled != true { return metadata }
-        guard metadata.python == "Python/bin/python3", metadata.project_root == "PadPilot" else {
-            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid bundled runtime"])
+        guard metadata.python == "Python/bin/python3", metadata.project_root == "SidecarSwitch" else {
+            throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid bundled runtime"])
         }
         var python = resources.appendingPathComponent(metadata.python).standardizedFileURL.path
         if !useBundled {
-            let support = padpilotHomeDirectory().appendingPathComponent("Library/Application Support/PadPilot")
+            let support = sidecarswitchHomeDirectory().appendingPathComponent("Library/Application Support/SidecarSwitch")
             var directory = stat()
             if lstat(support.path, &directory) == 0 {
                 guard (directory.st_mode & S_IFMT) == S_IFDIR, directory.st_uid == getuid() else {
-                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference directory"])
+                    throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference directory"])
                 }
             } else if errno != ENOENT { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
             let path = support.appendingPathComponent("python-runtime.json")
@@ -138,24 +138,24 @@ struct Runtime: Decodable {
                 var info = stat()
                 guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
                       info.st_uid == getuid(), info.st_nlink == 1, info.st_size < 16384 else {
-                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference file"])
+                    throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsafe Python preference file"])
                 }
                 guard let value = try JSONSerialization.jsonObject(with: handle.readDataToEndOfFile()) as? [String: String],
                       Set(value.keys).isSubset(of: ["python"]), value["python"] == nil || value["python"]!.hasPrefix("/") else {
-                    throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid Python preference"])
+                    throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid Python preference"])
                 }
                 if let selected = value["python"] { python = selected }
             } else if errno != ENOENT { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
         }
         guard FileManager.default.isExecutableFile(atPath: python) else {
-            throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                "Selected Python is unavailable. Exit PadPilot and run the app's Contents/Resources/padpilot-cli --bundled-cli runtime bundled. / 選定的 Python 已不存在；請離開 PadPilot，使用內建 CLI 切回封裝版本。"])
+            throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Selected Python is unavailable. Exit SidecarSwitch and run the app's Contents/Resources/sidecarswitch-cli --bundled-cli runtime bundled. / 選定的 Python 已不存在；請離開 SidecarSwitch，使用內建 CLI 切回封裝版本。"])
         }
-        return Runtime(python: python, project_root: resources.appendingPathComponent("PadPilot").path, bundled: true)
+        return Runtime(python: python, project_root: resources.appendingPathComponent("SidecarSwitch").path, bundled: true)
     }
 
     var cliArguments: [String] {
-        (bundled == true ? ["-I", "-B"] : []) + [project_root + "/bin/padpilot-cli"]
+        (bundled == true ? ["-I", "-B"] : []) + [project_root + "/bin/sidecarswitch-cli"]
     }
 }
 
@@ -165,7 +165,7 @@ struct SettingsRequest {
     var select: String?
 
     init?(url: URL) {
-        guard url.scheme == "padpilot", url.host == "settings",
+        guard url.scheme == "sidecarswitch", url.host == "settings",
               let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
         var values: [String: String] = [:]
         for item in parts.queryItems ?? [] {
@@ -200,7 +200,7 @@ func menuIcon(_ name: String) -> NSImage? {
     let name = allowed.contains(name) ? name : "warning"
     let url = Bundle.main.resourceURL?.appendingPathComponent("menu-icons/\(name).png")
     let image = url.flatMap { NSImage(contentsOf: $0) }
-        ?? NSImage(systemSymbolName: "display", accessibilityDescription: "PadPilot")
+        ?? NSImage(systemSymbolName: "display", accessibilityDescription: "SidecarSwitch")
     image?.isTemplate = true
     image?.size = NSSize(width: 18, height: 18)
     return image
@@ -288,24 +288,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pendingSettings: [SettingsRequest] = []
     private var ready = false
     private var awaitingSettingsRequest = false
-    private let support = padpilotHomeDirectory()
-        .appendingPathComponent("Library/Application Support/PadPilot")
+    private let support = sidecarswitchHomeDirectory()
+        .appendingPathComponent("Library/Application Support/SidecarSwitch")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        if let iconURL = Bundle.main.url(forResource: "PadPilot", withExtension: "icns"),
+        if let iconURL = Bundle.main.url(forResource: "SidecarSwitch", withExtension: "icns"),
            let icon = NSImage(contentsOf: iconURL) { NSApp.applicationIconImage = icon }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.toolTip = "PadPilot"
-        statusItem.button?.setAccessibilityLabel("PadPilot")
+        statusItem.button?.toolTip = "SidecarSwitch"
+        statusItem.button?.setAccessibilityLabel("SidecarSwitch")
         setIcon("working")
         do {
             try LoginService.checkLocation()
             runtime = try Runtime.load()
             guard FileManager.default.isExecutableFile(atPath: runtime.python),
-                  FileManager.default.fileExists(atPath: runtime.project_root + "/bin/padpilot-cli") else {
-                throw NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                    "Python or PadPilot source folder is missing. Rebuild/reinstall PadPilot from its current location."])
+                  FileManager.default.fileExists(atPath: runtime.project_root + "/bin/sidecarswitch-cli") else {
+                throw NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                    "Python or SidecarSwitch source folder is missing. Rebuild/reinstall SidecarSwitch from its current location."])
             }
             for directory in [support, support.appendingPathComponent("runtime")] {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
@@ -313,7 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
                 guard attributes[.type] as? FileAttributeType == .typeDirectory,
                       (attributes[.ownerAccountID] as? NSNumber)?.uint32Value == getuid() else {
-                    throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime directory"])
+                    throw NSError(domain: "SidecarSwitch", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime directory"])
                 }
                 try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
             }
@@ -322,13 +322,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             var info = stat()
             guard fstat(lockFD, &info) == 0, info.st_uid == getuid(), info.st_nlink == 1,
                   (info.st_mode & S_IFMT) == S_IFREG else {
-                throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime lock"])
+                throw NSError(domain: "SidecarSwitch", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsafe runtime lock"])
             }
             guard fchmod(lockFD, 0o600) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
             guard flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
                 // Launch Services normally reuses the running bundle. Also bring
                 // it forward if another owned build already holds the app lock.
-                if let existing = NSRunningApplication.runningApplications(withBundleIdentifier: "com.padpilot.app")
+                if let existing = NSRunningApplication.runningApplications(withBundleIdentifier: "com.sidecarswitch.app")
                     .first(where: { application in
                         guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier,
                               let bundle = application.bundleURL,
@@ -339,11 +339,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     let requests = pendingSettings
                     if !requests.isEmpty || !CommandLine.arguments.contains("--menu-only") {
                         guard Bundle(url: bundle)?.object(forInfoDictionaryKey: "CFBundleURLTypes") != nil else {
-                            showError("Close the previous PadPilot app, then reopen Settings. / 請先關閉舊版 PadPilot，再重新開啟設定。")
+                            showError("Close the previous SidecarSwitch app, then reopen Settings. / 請先關閉舊版 SidecarSwitch，再重新開啟設定。")
                             NSApp.terminate(nil); return
                         }
-                        let urls = requests.isEmpty ? [URL(string: "padpilot://settings")!] : requests.map { request -> URL in
-                            var parts = URLComponents(string: "padpilot://settings")!
+                        let urls = requests.isEmpty ? [URL(string: "sidecarswitch://settings")!] : requests.map { request -> URL in
+                            var parts = URLComponents(string: "sidecarswitch://settings")!
                             parts.queryItems = [URLQueryItem(name: "page", value: request.page)]
                             if let key = request.delete { parts.queryItems?.append(URLQueryItem(name: "delete", value: key)) }
                             if let key = request.select { parts.queryItems?.append(URLQueryItem(name: "select", value: key)) }
@@ -357,7 +357,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         return
                     }
                 } else if !CommandLine.arguments.contains("--menu-only") || !pendingSettings.isEmpty {
-                    showError("Another PadPilot checkout is running. Close it before opening these settings. / 請先關閉另一份 PadPilot，再開啟這份設定。")
+                    showError("Another SidecarSwitch checkout is running. Close it before opening these settings. / 請先關閉另一份 SidecarSwitch，再開啟這份設定。")
                 }
                 NSApp.terminate(nil); return
             }
@@ -429,7 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func signature() -> String {
-        let fallback = URL(fileURLWithPath: "/tmp/PadPilot")
+        let fallback = URL(fileURLWithPath: "/tmp/SidecarSwitch")
         let files = [support.appendingPathComponent("config.json"), support.appendingPathComponent("runtime/status.json"),
                      support.appendingPathComponent("menu-hidden"), fallback.appendingPathComponent("config.json"),
                      fallback.appendingPathComponent("runtime/status.json"), fallback.appendingPathComponent("menu-hidden")]
@@ -455,8 +455,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do {
                 let data = try result.get()
                 let model = try JSONDecoder().decode(MenuSnapshot.self, from: data)
-                guard model.schema_version == 1 else { throw NSError(domain: "PadPilot", code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: "Unsupported menu schema. Rebuild PadPilot.app."]) }
+                guard model.schema_version == 1 else { throw NSError(domain: "SidecarSwitch", code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: "Unsupported menu schema. Rebuild SidecarSwitch.app."]) }
                 self.statusItem.isVisible = !model.hidden
                 if ConnectionHotKey.shared.configure(model.hidden ? "" : model.connection_hotkey ?? ""),
                    ConnectionHotKey.shared.errorCode != noErr {
@@ -490,7 +490,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
     }
 
-    private func recoveryMenu(_ message: String = "PadPilot is not ready") {
+    private func recoveryMenu(_ message: String = "SidecarSwitch is not ready") {
         let menu = NSMenu()
         menu.autoenablesItems = false
         let info = NSMenuItem(title: message, action: nil, keyEquivalent: "")
@@ -536,8 +536,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Connection errors never use showError's modal NSAlert.
         statusItem.button?.toolTip = message
         let notification = NSUserNotification()
-        notification.identifier = "padpilot-connection-shortcut"
-        notification.title = "PadPilot"
+        notification.identifier = "sidecarswitch-connection-shortcut"
+        notification.title = "SidecarSwitch"
         notification.informativeText = message
         NSUserNotificationCenter.default.deliver(notification)
     }
@@ -589,7 +589,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if checkRunCLI != nil { checkErrors.append(message); return }
         #endif
         let alert = NSAlert()
-        alert.messageText = "PadPilot"
+        alert.messageText = "SidecarSwitch"
         alert.informativeText = message
         alert.alertStyle = .warning
         NSApp.activate(ignoringOtherApps: true)
@@ -632,7 +632,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if process.terminationStatus == 0 { result = .success(data) }
                 else {
                     let message = String(data: data, encoding: .utf8) ?? ""
-                    result = .failure(NSError(domain: "PadPilot", code: Int(process.terminationStatus), userInfo:
+                    result = .failure(NSError(domain: "SidecarSwitch", code: Int(process.terminationStatus), userInfo:
                         [NSLocalizedDescriptionKey: message.isEmpty ? "Command failed or timed out. Its result is unknown; check Status & Diagnostics before retrying." : message]))
                 }
                 DispatchQueue.main.async { completion(result) }
@@ -649,7 +649,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
 #if !MENU_TESTING
 @main
-struct PadPilot {
+struct SidecarSwitch {
     static func main() {
         let arguments = Array(CommandLine.arguments.dropFirst())
         if arguments.first == "--service" || arguments.first == "--daemon" {
@@ -659,7 +659,7 @@ struct PadPilot {
                 else { exit(2) }
                 return
             } catch {
-                FileHandle.standardError.write(Data(("PadPilot: \(error.localizedDescription)\n").utf8))
+                FileHandle.standardError.write(Data(("SidecarSwitch: \(error.localizedDescription)\n").utf8))
                 // Missing runtime / removed app is a permanent failure, not a crash loop.
                 exit(arguments.first == "--daemon" ? 0 : 1)
             }
@@ -686,7 +686,7 @@ struct PadPilot {
                 process.standardError = FileHandle.standardError
                 try process.run(); process.waitUntilExit(); exit(process.terminationStatus)
             } catch {
-                FileHandle.standardError.write(Data(("PadPilot: \(error.localizedDescription)\n").utf8)); exit(1)
+                FileHandle.standardError.write(Data(("SidecarSwitch: \(error.localizedDescription)\n").utf8)); exit(1)
             }
         }
         let app = NSApplication.shared

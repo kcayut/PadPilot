@@ -25,7 +25,7 @@ from core.i18n import set_language
 class NativeAppTests(unittest.TestCase):
     def setUp(self):
         # Never discover or remove the developer's installed system App.
-        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-padpilot-test/PadPilot.app'))
+        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-sidecarswitch-test/SidecarSwitch.app'))
         system.start()
         self.addCleanup(system.stop)
 
@@ -53,20 +53,20 @@ class NativeAppTests(unittest.TestCase):
                     patch.object(subprocess, 'run', side_effect=run), contextlib.redirect_stdout(io.StringIO()),
                 ): stack.enter_context(context)
                 manage_app.manage()
-            app = home / 'Applications/PadPilot.app'
-            plist = app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+            app = home / 'Applications/SidecarSwitch.app'
+            plist = app / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'
             self.assertEqual(plistlib.loads(plist.read_bytes()), plistlib.loads(autostart.generate_plist_content().encode()))
             self.assertFalse((home / 'Library/LaunchAgents').exists())
             self.assertFalse(any(command[0] == 'launchctl' for command in commands))
-            self.assertIn([sys.executable, str(source / 'bin/padpilot-cli'), 'start'], commands)
-            self.assertEqual((home / 'bin/padpilot-cli').resolve(), app / 'Contents/Resources/padpilot-cli')
+            self.assertIn([sys.executable, str(source / 'bin/sidecarswitch-cli'), 'start'], commands)
+            self.assertEqual((home / 'bin/sidecarswitch-cli').resolve(), app / 'Contents/Resources/sidecarswitch-cli')
 
     def test_install_failure_restores_app_and_previous_service_state(self):
         for registered, running in ((True, True), (True, False), (False, True), (False, False)):
             with self.subTest(registered=registered, running=running), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
                 source = home / 'source'
-                built, app = source / 'build/PadPilot.app', home / 'Applications/PadPilot.app'
+                built, app = source / 'build/SidecarSwitch.app', home / 'Applications/SidecarSwitch.app'
                 for path, version in ((built, 'new'), (app, 'old')):
                     path.mkdir(parents=True)
                     (path / 'version').write_text(version)
@@ -99,7 +99,7 @@ class NativeAppTests(unittest.TestCase):
                         manage_app.manage()
                 self.assertEqual((state['service'], state['running']), (original, running))
                 self.assertEqual((app / 'version').read_text(), 'old')
-                self.assertTrue(any(p.read_text() == 'new' for p in (home / '.Trash').glob('*/PadPilot.app/version')))
+                self.assertTrue(any(p.read_text() == 'new' for p in (home / '.Trash').glob('*/SidecarSwitch.app/version')))
 
     def test_purge_trashes_primary_and_fallback_and_rejects_foreign_fallback(self):
         for unsafe in (False, True):
@@ -134,7 +134,7 @@ class NativeAppTests(unittest.TestCase):
             binary = Path(directory) / 'native-menu-test'
             subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
                             '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'), str(ROOT / 'tests/native_menu.swift'),
+                            str(ROOT / 'native/SidecarSwitch.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'), str(ROOT / 'tests/native_menu.swift'),
                             '-o', str(binary)], check=True, capture_output=True)
             fixture = Path(directory) / 'menu.json'
             device = {'name': 'Test | --exit " iPad', 'sidecar_uuid': '11111111-1111-4111-8111-111111111111'}
@@ -159,12 +159,12 @@ class NativeAppTests(unittest.TestCase):
             (contents / 'Resources').mkdir()
             (root / 'bin').mkdir()
             (contents / 'Info.plist').write_bytes(plistlib.dumps({
-                'CFBundleIdentifier': 'com.padpilot.launch-checks', 'CFBundleExecutable': 'LaunchChecks',
+                'CFBundleIdentifier': 'com.sidecarswitch.launch-checks', 'CFBundleExecutable': 'LaunchChecks',
                 'CFBundlePackageType': 'APPL', 'LSUIElement': True,
             }))
             (contents / 'Resources/runtime.json').write_text(json.dumps({'python': sys.executable, 'project_root': str(root)}))
             (root / 'gui.json').write_text(json.dumps(fixtures()['zh-Hant']))
-            (root / 'bin/padpilot-cli').write_text('''import json, sys
+            (root / 'bin/sidecarswitch-cli').write_text('''import json, sys
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 with (Path.home() / "commands.jsonl").open("a") as log:
@@ -177,7 +177,7 @@ else: sys.exit(1)
             binary = contents / 'MacOS/LaunchChecks'
             subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-D', 'MENU_TESTING',
                             '-module-cache-path', str(ROOT / 'build/swift-cache'),
-                            str(ROOT / 'native/PadPilot.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'),
+                            str(ROOT / 'native/SidecarSwitch.swift'), str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'),
                             str(ROOT / 'tests/native_launch.swift'), '-o', str(binary)], check=True, capture_output=True)
             for arguments in ([], ['--menu-only']):
                 home = root / ('background' if arguments else 'foreground')
@@ -191,10 +191,10 @@ else: sys.exit(1)
 
     def test_app_ownership_requires_matching_bundle_and_source(self):
         with tempfile.TemporaryDirectory() as directory:
-            app = Path(directory) / 'PadPilot.app'
+            app = Path(directory) / 'SidecarSwitch.app'
             contents = app / 'Contents'
             (contents / 'Resources').mkdir(parents=True)
-            (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+            (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
             runtime = contents / 'Resources/runtime.json'
             runtime.write_text(json.dumps({'project_root': str(ROOT), 'python': sys.executable}))
             self.assertTrue(manage_app.owned_app(app))
@@ -205,13 +205,13 @@ else: sys.exit(1)
         for target in ('installed', 'source', 'foreign'):
             with tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
-                shortcut = home / 'bin/padpilot-cli'
+                shortcut = home / 'bin/sidecarswitch-cli'
                 shortcut.parent.mkdir()
-                launcher = home / 'Applications/PadPilot.app/Contents/Resources/padpilot-cli'
-                shortcut.symlink_to({'installed': launcher, 'source': ROOT / 'bin/padpilot-cli',
+                launcher = home / 'Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli'
+                shortcut.symlink_to({'installed': launcher, 'source': ROOT / 'bin/sidecarswitch-cli',
                                      'foreign': home / 'another-cli'}[target])
                 own_link = target == 'installed'
-                user_data = home / 'Library/Application Support/PadPilot'
+                user_data = home / 'Library/Application Support/SidecarSwitch'
                 user_data.mkdir(parents=True)
                 (user_data / 'config.json').write_text('keep')
                 with patch('pathlib.Path.home', return_value=home), \

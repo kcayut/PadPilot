@@ -1,4 +1,4 @@
-"""BetterDisplay CLI integration and Capability Probing for PadPilot."""
+"""BetterDisplay CLI integration and Capability Probing for SidecarSwitch."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
 # Resolving CLI paths is also used by the read-only installer check.
-logger = logging.getLogger("PadPilot.BetterDisplay")
+logger = logging.getLogger("SidecarSwitch.BetterDisplay")
 
 
 @dataclass
@@ -83,7 +83,7 @@ class BetterDisplayCLI:
             app = find_app()
             if app is None:
                 return None
-            helper = app / 'Contents/MacOS/PadPilot'
+            helper = app / 'Contents/MacOS/SidecarSwitch'
             metadata = json.loads((app / 'Contents/Resources/runtime.json').read_text())
             if helper.is_file() and metadata.get('locator') == 1:
                 result = subprocess.run([str(helper), '--locate-betterdisplay'], capture_output=True,

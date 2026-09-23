@@ -1,5 +1,5 @@
 name: 💡 功能建議 (Feature Request)
-description: 為 PadPilot 提出新功能或改進構想
+description: 為 SidecarSwitch 提出新功能或改進構想
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -18,7 +18,7 @@ body:
     id: proposal
     attributes:
       label: 建議的解決方案 (Proposed Solution)
-      description: 您希望 PadPilot 如何運作？
+      description: 您希望 SidecarSwitch 如何運作？
     validations:
       required: true
   - type: textarea

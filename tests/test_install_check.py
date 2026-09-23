@@ -42,7 +42,7 @@ class InstallCheckTests(unittest.TestCase):
     def test_read_only_check_rejects_symlink_config_without_executing_its_cli(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            root = home / 'Library/Application Support/PadPilot'
+            root = home / 'Library/Application Support/SidecarSwitch'
             root.mkdir(parents=True)
             outside = home / 'outside.json'
             outside.write_text('{"betterdisplaycli_path":"/untrusted/cli"}')
@@ -60,7 +60,7 @@ class InstallCheckTests(unittest.TestCase):
     def test_invalid_cli_value_is_reported_without_passing_it_to_resolver(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            path = home / 'Library/Application Support/PadPilot/config.json'
+            path = home / 'Library/Application Support/SidecarSwitch/config.json'
             path.parent.mkdir(parents=True)
             path.write_text('{"betterdisplaycli_path": ["invalid"]}')
             with patch('pathlib.Path.home', return_value=home), \
@@ -83,31 +83,31 @@ class InstallCheckTests(unittest.TestCase):
             commands = {
                 'uname': 'echo Darwin',
                 'sw_vers': 'echo 14.7',
-                'xcrun': 'exit "${PADPILOT_TEST_CLT:-0}"',
-                'xcode-select': 'echo "xcode-select $*" >> "$PADPILOT_TEST_RECORD"; exit "${PADPILOT_TEST_CLT_SELECT:-0}"',
-                'plutil': 'case "$*" in *CFBundleIdentifier*) echo com.padpilot.app ;; *project_root*) echo "$PADPILOT_TEST_ROOT" ;; *python*) echo "$PADPILOT_TEST_RUNTIME_PYTHON" ;; esac',
+                'xcrun': 'exit "${SIDECARSWITCH_TEST_CLT:-0}"',
+                'xcode-select': 'echo "xcode-select $*" >> "$SIDECARSWITCH_TEST_RECORD"; exit "${SIDECARSWITCH_TEST_CLT_SELECT:-0}"',
+                'plutil': 'case "$*" in *CFBundleIdentifier*) echo com.sidecarswitch.app ;; *project_root*) echo "$SIDECARSWITCH_TEST_ROOT" ;; *python*) echo "$SIDECARSWITCH_TEST_RUNTIME_PYTHON" ;; esac',
                 'python3': r'''for last do :; done
-printf 'python %s\n' "$*" >> "$PADPILOT_TEST_RECORD"
+printf 'python %s\n' "$*" >> "$SIDECARSWITCH_TEST_RECORD"
 case "$*" in
     *'import sys; sys.exit'*)
-        case "$0" in */python3.14) [ ! -f "$PADPILOT_TEST_STATE/python@3.14" ] || exit 0 ;; esac
-        exit "${PADPILOT_TEST_PYTHON:-0}" ;;
+        case "$0" in */python3.14) [ ! -f "$SIDECARSWITCH_TEST_STATE/python@3.14" ] || exit 0 ;; esac
+        exit "${SIDECARSWITCH_TEST_PYTHON:-0}" ;;
     *resolve_betterdisplay_path*)
-        if [ -n "$last" ]; then printf '%s\n' "$last"; else printf '%s\n' "${PADPILOT_TEST_BD:-}"; fi ;;
-    *check_install.py*) exit "${PADPILOT_TEST_CHECK:-0}" ;;
+        if [ -n "$last" ]; then printf '%s\n' "$last"; else printf '%s\n' "${SIDECARSWITCH_TEST_BD:-}"; fi ;;
+    *check_install.py*) exit "${SIDECARSWITCH_TEST_CHECK:-0}" ;;
 esac
 exit 0''',
                 'brew': r'''for last do :; done
-printf 'brew %s\n' "$*" >> "$PADPILOT_TEST_RECORD"
+printf 'brew %s\n' "$*" >> "$SIDECARSWITCH_TEST_RECORD"
 case "$1" in
-    list) [ -f "$PADPILOT_TEST_STATE/$last" ] || exit 1; echo "$last 3.14" ;;
+    list) [ -f "$SIDECARSWITCH_TEST_STATE/$last" ] || exit 1; echo "$last 3.14" ;;
     install)
-        if [ "${PADPILOT_TEST_BREW_FAIL:-}" = "$last" ]; then
-            if [ "${PADPILOT_TEST_BREW_PARTIAL:-0}" = 1 ]; then touch "$PADPILOT_TEST_STATE/$last"; fi
+        if [ "${SIDECARSWITCH_TEST_BREW_FAIL:-}" = "$last" ]; then
+            if [ "${SIDECARSWITCH_TEST_BREW_PARTIAL:-0}" = 1 ]; then touch "$SIDECARSWITCH_TEST_STATE/$last"; fi
             exit 9
         fi
-        touch "$PADPILOT_TEST_STATE/$last" ;;
-    --prefix) printf '%s\n' "$PADPILOT_TEST_PREFIX" ;;
+        touch "$SIDECARSWITCH_TEST_STATE/$last" ;;
+    --prefix) printf '%s\n' "$SIDECARSWITCH_TEST_PREFIX" ;;
 esac''',
             }
             for name, body in commands.items():
@@ -119,9 +119,9 @@ esac''',
             (prefix / 'bin/python3.14').symlink_to(fake_bin / 'python3')
             (fake_bin / 'saved-python').symlink_to(fake_bin / 'python3')
             env = dict(os.environ, PATH=str(fake_bin) + ':/usr/bin:/bin', HOME=str(root / 'user'),
-                       PADPILOT_TEST_RECORD=str(record), PADPILOT_TEST_STATE=str(state),
-                       PADPILOT_TEST_PREFIX=str(prefix), PADPILOT_TEST_BD='/custom/BetterDisplay.app',
-                       PADPILOT_TEST_ROOT=str(ROOT), PADPILOT_TEST_RUNTIME_PYTHON=str(fake_bin / 'saved-python'))
+                       SIDECARSWITCH_TEST_RECORD=str(record), SIDECARSWITCH_TEST_STATE=str(state),
+                       SIDECARSWITCH_TEST_PREFIX=str(prefix), SIDECARSWITCH_TEST_BD='/custom/BetterDisplay.app',
+                       SIDECARSWITCH_TEST_ROOT=str(ROOT), SIDECARSWITCH_TEST_RUNTIME_PYTHON=str(fake_bin / 'saved-python'))
             env.update(overrides)
             def run(*args, answer=None, use_saved=False):
                 record.unlink(missing_ok=True)
@@ -133,7 +133,7 @@ esac''',
             yield root, state, run
 
     def test_shell_check_never_installs_or_starts_and_failure_stops_install(self):
-        with self.shell_setup(PADPILOT_TEST_CHECK='7') as (root, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_CHECK='7') as (root, _, run):
             for flag in ('--check', '--yes'):
                 result, calls = run(flag)
                 self.assertEqual(result.returncode, 7, result.stderr)
@@ -144,7 +144,7 @@ esac''',
                 self.assertFalse((root / 'user').exists())
 
     def test_missing_betterdisplay_refusal_and_brew_failure_never_succeed(self):
-        with self.shell_setup(PADPILOT_TEST_BD='', PADPILOT_TEST_BREW_FAIL='betterdisplay') as (root, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_BD='', SIDECARSWITCH_TEST_BREW_FAIL='betterdisplay') as (root, _, run):
             result, calls = run('--yes')
             self.assertNotEqual(result.returncode, 0)
             self.assertNotIn('brew ', calls)
@@ -166,7 +166,7 @@ esac''',
             self.assertNotIn('brew ', calls)
 
     def test_interactive_manual_path_and_confirmation(self):
-        with self.shell_setup(PADPILOT_TEST_BD='') as (_, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_BD='') as (_, _, run):
             result, calls = run(answer='\nm\n/custom/My BetterDisplay.app\n\n\n')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('manage_app.py --betterdisplay-path /custom/My BetterDisplay.app', calls)
@@ -174,7 +174,7 @@ esac''',
 
     def test_reinstall_prefers_the_installed_apps_python(self):
         with self.shell_setup() as (root, _, run):
-            runtime = root / 'user/Applications/PadPilot.app/Contents/Resources/runtime.json'
+            runtime = root / 'user/Applications/SidecarSwitch.app/Contents/Resources/runtime.json'
             runtime.parent.mkdir(parents=True)
             runtime.write_text('{}')  # plutil is stubbed with this checkout's runtime values.
             result, _ = run('--yes', use_saved=True)
@@ -190,8 +190,8 @@ esac''',
                 self.assertEqual(calls, '')
 
     def test_new_python_is_recorded_before_failed_betterdisplay_install(self):
-        with self.shell_setup(PADPILOT_TEST_PYTHON='1', PADPILOT_TEST_BD='',
-                              PADPILOT_TEST_BREW_FAIL='betterdisplay') as (_, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_PYTHON='1', SIDECARSWITCH_TEST_BD='',
+                              SIDECARSWITCH_TEST_BREW_FAIL='betterdisplay') as (_, _, run):
             result, calls = run('--yes', '--install-deps')
             self.assertNotEqual(result.returncode, 0)
             recorded = 'setup_state.py --record-dependency formula python@3.14'
@@ -201,7 +201,7 @@ esac''',
             self.assertNotIn('manage_app.py', calls)
 
     def test_missing_python_installs_and_records_python(self):
-        with self.shell_setup(PADPILOT_TEST_PYTHON='1') as (_, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_PYTHON='1') as (_, _, run):
             result, calls = run('--yes', '--install-deps')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('setup_state.py --record-dependency formula python@3.14', calls)
@@ -217,15 +217,15 @@ esac''',
             self.assertIn('manage_app.py', calls)
 
     def test_partly_successful_brew_failure_records_installed_dependency(self):
-        with self.shell_setup(PADPILOT_TEST_BD='', PADPILOT_TEST_BREW_FAIL='betterdisplay',
-                              PADPILOT_TEST_BREW_PARTIAL='1') as (_, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_BD='', SIDECARSWITCH_TEST_BREW_FAIL='betterdisplay',
+                              SIDECARSWITCH_TEST_BREW_PARTIAL='1') as (_, _, run):
             result, calls = run('--yes', '--install-deps')
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('setup_state.py --record-dependency cask betterdisplay', calls)
             self.assertNotIn('manage_app.py', calls)
 
     def test_missing_clt_requires_opt_in_and_waits_for_apple_install(self):
-        with self.shell_setup(PADPILOT_TEST_CLT='1') as (_, _, run):
+        with self.shell_setup(SIDECARSWITCH_TEST_CLT='1') as (_, _, run):
             result, calls = run('--yes')
             self.assertNotEqual(result.returncode, 0)
             self.assertNotIn('xcode-select --install', calls)
@@ -248,10 +248,10 @@ esac''',
             result = setup_state.read_receipt(root)
             self.assertTrue(result['managed_source'])
             self.assertEqual(len(result['dependencies']), 1)
-            self.assertEqual((root / '.padpilot-install.json').stat().st_mode & 0o777, 0o600)
+            self.assertEqual((root / '.sidecarswitch-install.json').stat().st_mode & 0o777, 0o600)
             outside = root / 'outside.json'
-            (root / '.padpilot-install.json').rename(outside)
-            (root / '.padpilot-install.json').symlink_to(outside)
+            (root / '.sidecarswitch-install.json').rename(outside)
+            (root / '.sidecarswitch-install.json').symlink_to(outside)
             with self.assertRaises(RuntimeError):
                 setup_state.read_receipt(root)
             self.assertEqual(len(json.loads(outside.read_text())['dependencies']), 1)

@@ -44,13 +44,13 @@ def fixtures():
                                            {'name': 'iPad', 'uuid': 'DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD',
                                             'width': 1920, 'height': 1080, 'is_sidecar': True,
                                             'excluded_from_physical_detection': True},
-                                           {'name': 'PadPilotVirtual', 'uuid': 'EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE',
+                                           {'name': 'SidecarSwitchVirtual', 'uuid': 'EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE',
                                             'width': 1920, 'height': 1080, 'is_virtual': True,
                                             'excluded_from_physical_detection': True},
                                            {'name': 'Unidentified display', 'width': 1920, 'height': 1080,
                                             'excluded_from_physical_detection': False}],
                        'discovery_errors': {}},
-            'identifiers': [{'name': 'PadPilotVirtual', 'deviceType': 'VirtualScreen', 'displayID': '7'}],
+            'identifiers': [{'name': 'SidecarSwitchVirtual', 'deviceType': 'VirtualScreen', 'displayID': '7'}],
             'status': {'runtime': {'transition_state': 'IDLE'},
                        'desired': {'target_display_role': 'IPAD_SECONDARY', 'reason': 'User Override active: Use iPad as Secondary (Topology Gen 0).'}}}
     result = {}
@@ -78,7 +78,7 @@ def fixtures():
 def run_check(mode='layout', output=None):
     if sys.platform != 'darwin':
         raise RuntimeError('Native GUI checks require a macOS desktop session.')
-    with tempfile.TemporaryDirectory(prefix='padpilot-native-gui-') as directory:
+    with tempfile.TemporaryDirectory(prefix='sidecarswitch-native-gui-') as directory:
         root = Path(directory)
         fixture_path = root / 'fixtures.json'
         fixture_path.write_text(json.dumps(fixtures(), ensure_ascii=False), encoding='utf-8')
@@ -89,7 +89,7 @@ def run_check(mode='layout', output=None):
 import Foundation
 struct Runtime: Decodable {
     let python: String; let project_root: String
-    var cliArguments: [String] { [project_root + "/bin/padpilot-cli"] }
+    var cliArguments: [String] { [project_root + "/bin/sidecarswitch-cli"] }
 }
 let application = NSApplication.shared
 application.setActivationPolicy(.regular)
@@ -109,9 +109,9 @@ application.run()
 ''', encoding='utf-8')
         contents = root / 'SettingsChecks.app/Contents'
         (contents / 'MacOS').mkdir(parents=True)
-        (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.settings-checks', 'CFBundleName': 'PadPilot Settings Checks', 'CFBundleExecutable': 'SettingsChecks', 'CFBundlePackageType': 'APPL', 'LSMinimumSystemVersion': '14.0', 'NSHighResolutionCapable': True}))
+        (contents / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.settings-checks', 'CFBundleName': 'SidecarSwitch Settings Checks', 'CFBundleExecutable': 'SettingsChecks', 'CFBundlePackageType': 'APPL', 'LSMinimumSystemVersion': '14.0', 'NSHighResolutionCapable': True}))
         executable = contents / 'MacOS/SettingsChecks'
-        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-D', 'PADPILOT_GUI_CHECKS',
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-D', 'SIDECARSWITCH_GUI_CHECKS',
                         '-target', f'{platform.machine()}-apple-macosx14.0',
                         '-module-cache-path', str(ROOT / 'build/swift-cache'),
                         str(ROOT / 'native/Settings.swift'), str(ROOT / 'native/ConnectionHotKey.swift'), str(ROOT / 'native/SettingsChecks.swift'),

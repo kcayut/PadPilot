@@ -21,7 +21,7 @@ from core.autostart import daemon_pids, job_loaded, service_command
 
 
 def cli(app, *args, capture=False):
-    return subprocess.run([str(app / 'Contents/Resources/padpilot-cli'), *args],
+    return subprocess.run([str(app / 'Contents/Resources/sidecarswitch-cli'), *args],
                           check=True, text=True, capture_output=capture, timeout=90)
 
 
@@ -30,13 +30,13 @@ def install(source, target, python=None):
     source_root, _ = app_runtime(source)
     if bundled_app(source_root) != source:
         raise ValueError('Installer requires a self-contained release app')
-    if target.name != 'PadPilot.app' or source == target:
-        raise ValueError('Choose a different destination ending in PadPilot.app')
+    if target.name != 'SidecarSwitch.app' or source == target:
+        raise ValueError('Choose a different destination ending in SidecarSwitch.app')
     if target.is_symlink() or target.parent.is_symlink():
         raise ValueError('Installation paths must not be symbolic links')
     target.parent.mkdir(parents=True, exist_ok=True)
     if not os.access(target.parent, os.W_OK):
-        raise ValueError('Destination is not writable; use --target "$HOME/Applications/PadPilot.app"')
+        raise ValueError('Destination is not writable; use --target "$HOME/Applications/SidecarSwitch.app"')
     previous_root = app_runtime(target)[0] if target.exists() else None
     if target.exists() and target.stat().st_uid != os.getuid():
         raise ValueError('Existing app must be owned by you')
@@ -53,8 +53,8 @@ def install(source, target, python=None):
     was_running = False
     if previous_root:
         was_running = json.loads(cli(target, 'status', '--json', capture=True).stdout)['daemon_responding']
-    with tempfile.TemporaryDirectory(prefix='padpilot-release-', dir=target.parent) as directory:
-        staged = Path(directory) / 'PadPilot.app'
+    with tempfile.TemporaryDirectory(prefix='sidecarswitch-release-', dir=target.parent) as directory:
+        staged = Path(directory) / 'SidecarSwitch.app'
         shutil.copytree(source, Path(directory) / 'payload', symlinks=True)
         (Path(directory) / 'payload').rename(staged)
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(staged)], check=True)
@@ -91,7 +91,7 @@ def install(source, target, python=None):
                     stop_menu_apps([target])
                     # The failed app's CLI may be unusable. Verify shutdown from
                     # this installer before replacing any files or preferences.
-                    if (job_loaded(target / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
+                    if (job_loaded(target / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist')
                             or daemon_pids(app_runtime(target)[0])):
                         detail = '; '.join(stop_errors) or 'replacement service or daemon is still active'
                         raise RuntimeError(f'Cannot confirm replacement stopped; app and backup preserved: {detail}')
@@ -116,8 +116,8 @@ def install(source, target, python=None):
             except Exception as restore_error:
                 raise RuntimeError(f'Installation failed: {error}. Rollback incomplete: {restore_error}') from error
             raise
-    shortcut = Path.home() / 'bin/padpilot-cli'
-    launcher = target / 'Contents/Resources/padpilot-cli'
+    shortcut = Path.home() / 'bin/sidecarswitch-cli'
+    launcher = target / 'Contents/Resources/sidecarswitch-cli'
     try:
         shortcut.parent.mkdir(exist_ok=True)
         if not (shortcut.exists() or shortcut.is_symlink()):
@@ -125,7 +125,7 @@ def install(source, target, python=None):
     except OSError as error:
         print(f'Optional shortcut unavailable: {error}')
     print(f'Installed: {target}\nPython: {python or "bundled"}\nCLI: {launcher}')
-    print('Open the installed PadPilot app to start. / 開啟安裝好的 PadPilot 即可啟動。')
+    print('Open the installed SidecarSwitch app to start. / 開啟安裝好的 SidecarSwitch 即可啟動。')
 
 
 if __name__ == '__main__':

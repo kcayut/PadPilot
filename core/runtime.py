@@ -11,12 +11,12 @@ from pathlib import Path
 from core.storage import atomic_write, latest_state_path, private_file
 
 ROOT = Path(__file__).resolve().parents[1]
-SYSTEM_APP = Path('/Applications/PadPilot.app')
+SYSTEM_APP = Path('/Applications/SidecarSwitch.app')
 
 
 def bundled_app(root=ROOT):
     root = Path(root).resolve()
-    if root.name == 'PadPilot' and root.parent.name == 'Resources' and root.parent.parent.name == 'Contents':
+    if root.name == 'SidecarSwitch' and root.parent.name == 'Resources' and root.parent.parent.name == 'Contents':
         app = root.parent.parent.parent
         if app.suffix == '.app':
             return app
@@ -28,13 +28,13 @@ def app_runtime(app):
     resources = app / 'Contents/Resources'
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     value = json.loads((resources / 'runtime.json').read_text())
-    if info.get('CFBundleIdentifier') != 'com.padpilot.app' or not isinstance(value, dict):
-        raise ValueError('Not a PadPilot app')
+    if info.get('CFBundleIdentifier') != 'com.sidecarswitch.app' or not isinstance(value, dict):
+        raise ValueError('Not a SidecarSwitch app')
     if value.get('bundled') is True:
         # Release paths are fixed, never a build-machine absolute path.
-        if value.get('project_root') != 'PadPilot' or value.get('python') != 'Python/bin/python3':
+        if value.get('project_root') != 'SidecarSwitch' or value.get('python') != 'Python/bin/python3':
             raise ValueError('Invalid bundled runtime layout')
-        return (resources / 'PadPilot').resolve(), (resources / value['python']).resolve()
+        return (resources / 'SidecarSwitch').resolve(), (resources / value['python']).resolve()
     root, python = Path(value['project_root']), Path(value['python'])
     if not root.is_absolute() or not python.is_absolute():
         raise ValueError('Invalid source runtime paths')
@@ -42,7 +42,7 @@ def app_runtime(app):
 
 
 def login_service_owner(support_dir=None):
-    support = support_dir or Path.home() / 'Library/Application Support/PadPilot'
+    support = support_dir or Path.home() / 'Library/Application Support/SidecarSwitch'
     path = latest_state_path(support / 'login-service.json')
     try:
         with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), encoding='utf-8') as stream:
@@ -62,7 +62,7 @@ def find_app(root=None, *, include_build=True, settings=False, support_dir=None)
     if current:
         return current
     owner = login_service_owner(support_dir)
-    build = root / 'build/PadPilot.app'
+    build = root / 'build/SidecarSwitch.app'
 
     def matches(app):
         try:
@@ -70,7 +70,7 @@ def find_app(root=None, *, include_build=True, settings=False, support_dir=None)
                 return False
             if settings:
                 info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-                return any('padpilot' in item.get('CFBundleURLSchemes', [])
+                return any('sidecarswitch' in item.get('CFBundleURLSchemes', [])
                            for item in info.get('CFBundleURLTypes', []))
             return True
         except (OSError, ValueError, KeyError, TypeError):
@@ -78,17 +78,17 @@ def find_app(root=None, *, include_build=True, settings=False, support_dir=None)
 
     if owner and not owner.resolve().is_relative_to(root / 'build') and matches(owner):
         return owner
-    installed = [app for app in dict.fromkeys((SYSTEM_APP, Path.home() / 'Applications/PadPilot.app'))
+    installed = [app for app in dict.fromkeys((SYSTEM_APP, Path.home() / 'Applications/SidecarSwitch.app'))
                  if matches(app)]
     if len(installed) > 1:
-        raise RuntimeError('Multiple PadPilot installations match this source; keep one installed copy before continuing')
+        raise RuntimeError('Multiple SidecarSwitch installations match this source; keep one installed copy before continuing')
     if installed:
         return installed[0]
     return build if include_build and matches(build) else None
 
 
 def preference_path():
-    return Path.home() / 'Library/Application Support/PadPilot/python-runtime.json'
+    return Path.home() / 'Library/Application Support/SidecarSwitch/python-runtime.json'
 
 
 def read_preference():
@@ -122,8 +122,8 @@ def check_python(python):
                 info = plistlib.loads((parent / 'Contents/Info.plist').read_bytes())
             except (OSError, ValueError):
                 continue
-            if info.get('CFBundleIdentifier') == 'com.padpilot.app':
-                raise ValueError('Use bundled mode instead of selecting Python inside another PadPilot.app')
+            if info.get('CFBundleIdentifier') == 'com.sidecarswitch.app':
+                raise ValueError('Use bundled mode instead of selecting Python inside another SidecarSwitch.app')
     probe = ('import sys,platform,json,socket,threading,fcntl,ctypes,ctypes.util,ssl; '
              'assert sys.version_info >= (3,10), "Python 3.10+ required"; '
              'assert sys.platform == "darwin" and platform.machine() == "arm64", "Apple Silicon Python required"; '
@@ -141,7 +141,7 @@ def set_python(python=None):
     from core.autostart import daemon_pids, service_command
     service_command()
     if daemon_pids():
-        raise RuntimeError('Exit PadPilot before changing Python / 請先離開 PadPilot 再切換 Python')
+        raise RuntimeError('Exit SidecarSwitch before changing Python / 請先離開 SidecarSwitch 再切換 Python')
     lock = preference_path().parent / 'runtime/menu-app.lock'
     if lock.parent.exists() or lock.parent.is_symlink():
         info = lock.parent.lstat()
@@ -153,7 +153,7 @@ def set_python(python=None):
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
-                raise RuntimeError('Close PadPilot before changing Python / 請先關閉 PadPilot') from error
+                raise RuntimeError('Close SidecarSwitch before changing Python / 請先關閉 SidecarSwitch') from error
     value = {'python': check_python(python)[0]} if python else {}
     # atomic_write checks directory ownership and rejects links even when resetting damaged JSON.
     path = preference_path()

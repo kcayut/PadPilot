@@ -157,7 +157,7 @@ class DisplayExclusionTests(unittest.TestCase):
         self.assertEqual(self.cfg.display_exclusions, {})
 
     def test_daemon_and_offline_cli_share_validation_and_revision_updates(self):
-        daemon_cls = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon_cls = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
         daemon = daemon_cls.__new__(daemon_cls)
         daemon.config, daemon.bd_cli = self.cfg, self.bd
         daemon.detector, daemon.engine = MagicMock(), MagicMock()
@@ -178,7 +178,7 @@ class DisplayExclusionTests(unittest.TestCase):
                 self.assertTrue(json.loads(daemon.handle_client_cmd(json.dumps(request)))['ok'])
                 self.assertEqual(namespace['save_config'].call_count, 1)
 
-            submit = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['submit_settings']
+            submit = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))['submit_settings']
             offline = Config(revision=8)
             save = MagicMock()
             with patch.dict(submit.__globals__, send_daemon_cmd=MagicMock(return_value='Daemon is not running.'),

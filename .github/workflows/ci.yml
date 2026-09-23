@@ -1,4 +1,4 @@
-name: PadPilot CI
+name: SidecarSwitch CI
 
 "on":
   push:

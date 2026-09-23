@@ -32,10 +32,10 @@ def owned_app(app, root=None):
 
 
 def trash(path):
-    """Recoverable removal, only called for explicit validated PadPilot targets."""
+    """Recoverable removal, only called for explicit validated SidecarSwitch targets."""
     location = Path.home() / '.Trash'
     location.mkdir(exist_ok=True)
-    folder = Path(tempfile.mkdtemp(prefix='PadPilot-', dir=location))
+    folder = Path(tempfile.mkdtemp(prefix='SidecarSwitch-', dir=location))
     destination = folder / path.name
     shutil.move(str(path), str(destination))
     print(f'Moved to Trash: {destination}')
@@ -51,14 +51,14 @@ def stop_menu_apps(apps=None):
         if not owned_app(app, app_runtime(app)[0] if explicit else ROOT):
             continue
         # CLI wrappers may be running this very installer/uninstaller.
-        executable = str(app / 'Contents/MacOS/PadPilot')
+        executable = str(app / 'Contents/MacOS/SidecarSwitch')
         pattern = '^' + re.escape(executable) + r'( |$)'
         for attempt in range(30):
             result = subprocess.run(['pgrep', '-f', pattern], capture_output=True, text=True, check=False)
             if result.returncode == 1:
                 break
             if result.returncode != 0:
-                raise RuntimeError('Unable to verify running PadPilot app')
+                raise RuntimeError('Unable to verify running SidecarSwitch app')
             menu_pids = []
             for pid in map(int, result.stdout.split()):
                 command = subprocess.run(['ps', '-ww', '-p', str(pid), '-o', 'args='],
@@ -78,19 +78,19 @@ def stop_menu_apps(apps=None):
                     pass
             time.sleep(0.1)
         else:
-            raise RuntimeError('PadPilot app is still running; close it and retry.')
+            raise RuntimeError('SidecarSwitch app is still running; close it and retry.')
 
 
 def ensure_settings_closed():
     # Closing the native window does not cancel an already submitted CLI write.
-    pattern = (r'(^| )' + re.escape(str(ROOT / 'bin/padpilot-cli'))
+    pattern = (r'(^| )' + re.escape(str(ROOT / 'bin/sidecarswitch-cli'))
                + r' (gui|open-log|change-settings|set-mode|set-language|autostart|action|pair|set-ipad|select-ipad)( |$)')
     result = subprocess.run(['pgrep', '-f', pattern], capture_output=True, text=True, timeout=5)
     if result.returncode == 0:
-        raise RuntimeError('請等待 PadPilot 操作完成、儲存並關閉設定／診斷視窗，再重試。 / Wait for PadPilot operations to finish, then close settings windows and retry.')
+        raise RuntimeError('請等待 SidecarSwitch 操作完成、儲存並關閉設定／診斷視窗，再重試。 / Wait for SidecarSwitch operations to finish, then close settings windows and retry.')
     if result.returncode != 1:
         raise RuntimeError('Cannot check open settings windows; no installation changes made.')
-    for support in (Path.home() / 'Library/Application Support/PadPilot', FALLBACK_CONFIG_FILE.parent):
+    for support in (Path.home() / 'Library/Application Support/SidecarSwitch', FALLBACK_CONFIG_FILE.parent):
         path = support / 'runtime/settings-window.lock'
         try:
             for directory in (support, path.parent):
@@ -109,24 +109,24 @@ def ensure_settings_closed():
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
-                raise RuntimeError('請先儲存並關閉 PadPilot 設定／診斷視窗，再重試。 / Close PadPilot settings windows and retry.') from error
+                raise RuntimeError('請先儲存並關閉 SidecarSwitch 設定／診斷視窗，再重試。 / Close SidecarSwitch settings windows and retry.') from error
         finally:
             os.close(fd)
 
 
 def installation_service(app):
     """Inspect before stopping anything; this pre-release has no legacy migration."""
-    legacy = Path.home() / 'Library/LaunchAgents/com.padpilot.daemon.plist'
+    legacy = Path.home() / 'Library/LaunchAgents/com.sidecarswitch.daemon.plist'
     if legacy.exists() or legacy.is_symlink():
         raise RuntimeError(f'Remove the old development LaunchAgent manually first: {legacy}')
-    job_loaded(app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist')
+    job_loaded(app / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist')
     return service_command(app=app) if app.exists() else 'notRegistered'
 
 
 def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=False, betterdisplay_path=None):
     remove_config = remove_config or purge
     remove_logs = remove_logs or purge
-    app = bundled_app() or find_app(ROOT, include_build=False) or Path.home() / 'Applications/PadPilot.app'
+    app = bundled_app() or find_app(ROOT, include_build=False) or Path.home() / 'Applications/SidecarSwitch.app'
     if bundled_app() and not uninstall:
         raise RuntimeError('Use install_release.sh to update a bundled app')
     if (app.exists() or app.is_symlink()) and (app.is_symlink() or not owned_app(app)):
@@ -138,18 +138,18 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
         if betterdisplay_path is not None:
             candidate = copy.deepcopy(cfg)
             apply_change(candidate, 'set_betterdisplaycli_path', {'path': betterdisplay_path})
-        build(ROOT / 'build/PadPilot.app')
+        build(ROOT / 'build/SidecarSwitch.app')
         was_running = bool(daemon_pids())
     if remove_config:
         # Validate before any removal, including a fallback left by an earlier run.
         fallback_exists = state_file_exists(FALLBACK_CONFIG_FILE)
         if APP_SUPPORT_DIR.exists() or APP_SUPPORT_DIR.is_symlink():
             private_directory(APP_SUPPORT_DIR)
-    log_dir = Path.home() / 'Library/Logs/PadPilot'
+    log_dir = Path.home() / 'Library/Logs/SidecarSwitch'
     if remove_logs and (log_dir.exists() or log_dir.is_symlink()):
         private_directory(log_dir)
-    shortcut = Path.home() / 'bin/padpilot-cli'
-    launcher = app / 'Contents/Resources/padpilot-cli'
+    shortcut = Path.home() / 'bin/sidecarswitch-cli'
+    launcher = app / 'Contents/Resources/sidecarswitch-cli'
     if not uninstall:
         app.parent.mkdir(parents=True, exist_ok=True)
         previous_app = None
@@ -159,18 +159,18 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
         runtime = app / 'Contents/Resources/runtime.json'
         if runtime.is_file():
             previous_python = json.loads(runtime.read_text()).get('python', sys.executable)
-        with tempfile.TemporaryDirectory(prefix='padpilot-install-', dir=app.parent) as directory:
-            staging = Path(directory) / 'PadPilot.app'
-            shutil.copytree(ROOT / 'build/PadPilot.app', staging)
+        with tempfile.TemporaryDirectory(prefix='sidecarswitch-install-', dir=app.parent) as directory:
+            staging = Path(directory) / 'SidecarSwitch.app'
+            shutil.copytree(ROOT / 'build/SidecarSwitch.app', staging)
             try:
-                subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                subprocess.run([sys.executable, str(ROOT / 'bin/sidecarswitch-cli'), 'exit'], check=True)
                 stop_menu_apps([app])
                 if app.exists():
                     service_command('unregister', app)
                 if betterdisplay_path is not None:
                     # Use the same validated offline settings transaction as the GUI/CLI.
                     path_changed = True
-                    subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'),
+                    subprocess.run([sys.executable, str(ROOT / 'bin/sidecarswitch-cli'),
                                     'change-settings', 'set_betterdisplaycli_path'],
                                    input=json.dumps({'path': betterdisplay_path}), text=True, check=True)
                 if app.exists():
@@ -179,12 +179,12 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
                 replaced = True
                 if previous_service == 'enabled':
                     service_command('register', app)
-                subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
+                subprocess.run([sys.executable, str(ROOT / 'bin/sidecarswitch-cli'), 'start'], check=True)
             except Exception as error:
                 try:
                     if replaced:
                         service_command('unregister', app)
-                        subprocess.run([sys.executable, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                        subprocess.run([sys.executable, str(ROOT / 'bin/sidecarswitch-cli'), 'exit'], check=True)
                         stop_menu_apps([app])
                         trash(app)
                     if previous_app is not None:
@@ -194,9 +194,9 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
                     if previous_service == 'enabled':
                         service_command('register', app)
                     if was_running:
-                        subprocess.run([previous_python, str(ROOT / 'bin/padpilot-cli'), 'start'], check=True)
+                        subprocess.run([previous_python, str(ROOT / 'bin/sidecarswitch-cli'), 'start'], check=True)
                     elif previous_service == 'enabled':
-                        subprocess.run([previous_python, str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                        subprocess.run([previous_python, str(ROOT / 'bin/sidecarswitch-cli'), 'exit'], check=True)
                 except Exception as restore_error:
                     raise RuntimeError(f'Installation failed: {error}. Rollback incomplete: {restore_error}') from error
                 raise RuntimeError(f'Installation failed: {error}. Previous app and service state restored.') from error
@@ -216,7 +216,7 @@ def manage(uninstall=False, purge=False, *, remove_config=False, remove_logs=Fal
         return
     # Shared CLI verifies launchd and exact daemon PIDs before removing snapshots.
     subprocess.run([sys.executable] + (['-I', '-B'] if bundled_app() else [])
-                   + [str(ROOT / 'bin/padpilot-cli'), 'exit'], check=True)
+                   + [str(ROOT / 'bin/sidecarswitch-cli'), 'exit'], check=True)
     stop_menu_apps([app])
     if uninstall:
         if app.exists():

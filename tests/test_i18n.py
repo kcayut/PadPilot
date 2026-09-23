@@ -28,7 +28,7 @@ class LanguageTests(unittest.TestCase):
     def test_language_keeps_hardware_snapshot_and_menu_controls(self):
         from core.models import ActualState, DisplayInfo, IpadConfig
         from core.state_engine import StateEngine
-        daemon_type = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon_type = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
         daemon = daemon_type.__new__(daemon_type)
         daemon.config = Config(auto_detect_ipad=False, ipad=IpadConfig(
             name='iPad', sidecar_uuid='11111111-1111-4111-8111-111111111111'))
@@ -72,7 +72,7 @@ class LanguageTests(unittest.TestCase):
         for payload in ({}, {'language': 'fr'}, {'language': None}, {'language': []}, {'language': 'en', 'extra': True}):
             with self.assertRaises(ValueError):
                 apply_change(cfg, 'set_language', payload)
-        daemon_type = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon_type = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
         daemon = daemon_type.__new__(daemon_type)
         daemon.config = Config()
         daemon.engine = MagicMock()
@@ -86,7 +86,7 @@ class LanguageTests(unittest.TestCase):
         daemon.engine.reset_automation.assert_not_called()
         daemon.engine.evaluate.assert_not_called()
         self.assertEqual(daemon.config.revision, 2)
-        cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['submit_settings']
+        cli = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))['submit_settings']
         stored = []
         with patch.dict(cli.__globals__, send_daemon_cmd=lambda *a, **k: 'Daemon is not running',
                         load_config=lambda: Config(), save_config=stored.append):
@@ -196,7 +196,7 @@ class LanguageTests(unittest.TestCase):
                 self.assertEqual(reloaded.language, 'ja')
 
     def test_ipc_and_offline_revision_ownership(self):
-        cli_mod = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
+        cli_mod = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
         cmd_set_lang = cli_mod['cmd_set_language']
 
         # Case 1: Daemon running. Sends IPC, daemon mutates revision + 1, CLI does NOT save config.

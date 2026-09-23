@@ -25,22 +25,22 @@ from core.storage import atomic_write
 logger = get_logger("Autostart")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PLIST_FILENAME = "com.padpilot.daemon.plist"
-SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+PLIST_FILENAME = "com.sidecarswitch.daemon.plist"
+SOCKET_PATH = APP_SUPPORT_DIR / "sidecarswitch.sock"
 
 
 def get_launch_agent_plist_path() -> Path:
     app = find_menu_app()
     if app is None:
-        raise RuntimeError("Build/install PadPilot.app before managing login startup")
+        raise RuntimeError("Build/install SidecarSwitch.app before managing login startup")
     return app / "Contents/Library/LaunchAgents" / PLIST_FILENAME
 
 
 def generate_plist_content() -> str:
     return plistlib.dumps({
-        "Label": "com.padpilot.daemon",
-        "BundleProgram": "Contents/MacOS/PadPilot",
-        "ProgramArguments": ["PadPilot", "--daemon"],
+        "Label": "com.sidecarswitch.daemon",
+        "BundleProgram": "Contents/MacOS/SidecarSwitch",
+        "ProgramArguments": ["SidecarSwitch", "--daemon"],
         "RunAtLoad": True,
         # Normal Exit stops this session; crashes restart, next login still launches.
         "KeepAlive": {"SuccessfulExit": False}, "Umask": 0o077,
@@ -61,20 +61,20 @@ def service_owner_matches(app: Path) -> bool:
 def service_command(action="status", app=None) -> str:
     app = app or find_menu_app()
     if app is None:
-        raise RuntimeError("Build/install PadPilot.app before managing login startup")
+        raise RuntimeError("Build/install SidecarSwitch.app before managing login startup")
     plist = app / "Contents/Library/LaunchAgents" / PLIST_FILENAME
     if not plist.is_file():
         raise RuntimeError("App has no bundled login service; rebuild/install the new version")
     validate_plist(plist)
 
     def invoke(command):
-        result = subprocess.run([str(app / "Contents/MacOS/PadPilot"), "--service", command],
+        result = subprocess.run([str(app / "Contents/MacOS/SidecarSwitch"), "--service", command],
                                 capture_output=True, text=True, timeout=30)
         if result.returncode:
-            raise RuntimeError(result.stderr.strip() or "Cannot manage PadPilot login service")
+            raise RuntimeError(result.stderr.strip() or "Cannot manage SidecarSwitch login service")
         state = result.stdout.strip()
         if state not in {"enabled", "notRegistered", "requiresApproval", "notFound"}:
-            raise RuntimeError("Unknown PadPilot login service status")
+            raise RuntimeError("Unknown SidecarSwitch login service status")
         return state
 
     state = invoke("status")
@@ -101,7 +101,7 @@ def autostart_status() -> str:
 
 def daemon_pids(project_root: Optional[Path] = None) -> list[int]:
     # pgrep only selects candidates; verify the executable and script position.
-    script = str((project_root or PROJECT_ROOT) / "bin" / "padpilotd")
+    script = str((project_root or PROJECT_ROOT) / "bin" / "sidecarswitchd")
     pattern = r"(^| )" + re.escape(script) + r"( |$)"
     result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=2)
     if result.returncode not in (0, 1):
@@ -146,17 +146,17 @@ def wait_for_daemon(timeout: float = 30) -> None:
     deadline = time.monotonic() + timeout
     while not is_daemon_running():
         if time.monotonic() >= deadline:
-            raise RuntimeError("Daemon handshake failed; check PadPilot logs. Startup was not verified.")
+            raise RuntimeError("Daemon handshake failed; check SidecarSwitch logs. Startup was not verified.")
         time.sleep(0.2)
 
 
 def validate_plist(path: Path) -> None:
     if path.is_symlink() or plistlib.loads(path.read_bytes()) != plistlib.loads(generate_plist_content().encode()):
-        raise RuntimeError(f"Not a PadPilot bundled LaunchAgent: {path}")
+        raise RuntimeError(f"Not a SidecarSwitch bundled LaunchAgent: {path}")
 
 
 def job_loaded(path: Optional[Path] = None) -> bool:
-    result = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.padpilot.daemon"],
+    result = subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/com.sidecarswitch.daemon"],
                             capture_output=True, text=True, timeout=5)
     if result.returncode == 113:
         return False
@@ -166,8 +166,8 @@ def job_loaded(path: Optional[Path] = None) -> bool:
     validate_plist(path)
     app = path.parents[3].resolve()
     managed = re.search(r"(?m)^\s*managed_by = com\.apple\.xpc\.ServiceManagement$", result.stdout)
-    parent = re.search(r"(?m)^\s*parent bundle identifier = com\.padpilot\.app$", result.stdout)
-    program = re.search(r"(?m)^\s*program identifier = Contents/MacOS/PadPilot \(mode: 2\)$", result.stdout)
+    parent = re.search(r"(?m)^\s*parent bundle identifier = com\.sidecarswitch\.app$", result.stdout)
+    program = re.search(r"(?m)^\s*program identifier = Contents/MacOS/SidecarSwitch \(mode: 2\)$", result.stdout)
     if not (managed and parent and program) or not service_owner_matches(app):
         raise RuntimeError("Loaded LaunchAgent belongs to another installation; remove that installation first")
     return True
@@ -192,12 +192,12 @@ def start_registered() -> None:
     if not job_loaded():
         raise RuntimeError("Login service is not loaded; check System Settings > General > Login Items")
     if service_command("register") != "enabled":
-        raise RuntimeError("Allow PadPilot in System Settings > General > Login Items")
+        raise RuntimeError("Allow SidecarSwitch in System Settings > General > Login Items")
     wait_for_daemon()
 
 
 def start_standalone() -> None:
-    process = subprocess.Popen([sys.executable] + (['-I', '-B'] if bundled_app(PROJECT_ROOT) else []) + [str(PROJECT_ROOT / "bin/padpilotd")],
+    process = subprocess.Popen([sys.executable] + (['-I', '-B'] if bundled_app(PROJECT_ROOT) else []) + [str(PROJECT_ROOT / "bin/sidecarswitchd")],
                                start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         wait_for_daemon()
@@ -249,7 +249,7 @@ def set_autostart(enabled: bool, expected_revision: Optional[int] = None, *, con
         changed = True
         state = service_command("register" if enabled else "unregister")
         if connect_on_boot and state != "enabled":
-            raise RuntimeError('請先到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行，再啟用開機連線。')
+            raise RuntimeError('請先到系統設定 → 一般 → 登入項目允許 SidecarSwitch 背景執行，再啟用開機連線。')
         if enabled and state not in {"enabled", "requiresApproval"}:
             raise RuntimeError("Login service registration was not confirmed")
         if not enabled and state not in {"notRegistered", "notFound"}:
@@ -259,8 +259,8 @@ def set_autostart(enabled: bool, expected_revision: Optional[int] = None, *, con
         elif was_running or enabled:
             start_standalone()
         if state == "requiresApproval":
-            return True, "PadPilot: 請到系統設定 → 一般 → 登入項目允許背景執行。 / Allow PadPilot in System Settings > General > Login Items. / システム設定 → 一般 → ログイン項目で PadPilot を許可してください。"
-        return True, "✓ PadPilot login startup " + ("enabled." if enabled else "disabled; current session preserved.")
+            return True, "SidecarSwitch: 請到系統設定 → 一般 → 登入項目允許背景執行。 / Allow SidecarSwitch in System Settings > General > Login Items. / システム設定 → 一般 → ログイン項目で SidecarSwitch を許可してください。"
+        return True, "✓ SidecarSwitch login startup " + ("enabled." if enabled else "disabled; current session preserved.")
     except Exception as error:
         rollback = ""
         if stopped:
@@ -312,7 +312,7 @@ def open_menu_app() -> bool:
         return False
     try:
         # A URL delivery avoids the foreground reopen event if the app is already running.
-        return subprocess.run(["open", "-g", "-a", str(app), "padpilot://menu", "--args", "--menu-only"],
+        return subprocess.run(["open", "-g", "-a", str(app), "sidecarswitch://menu", "--args", "--menu-only"],
                               capture_output=True, timeout=5).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False

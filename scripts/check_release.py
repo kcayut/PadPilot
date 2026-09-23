@@ -83,14 +83,14 @@ def check_versions():
     assert f'## [{__version__}]' in (ROOT / 'CHANGELOG.md').read_text(), 'CHANGELOG version mismatch'
     from core.autostart import generate_plist_content
     expected = plistlib.loads(generate_plist_content().encode())
-    assert expected['BundleProgram'] == 'Contents/MacOS/PadPilot'
+    assert expected['BundleProgram'] == 'Contents/MacOS/SidecarSwitch'
     assert expected['KeepAlive'] == {'SuccessfulExit': False}
     assert 'Program' not in expected and 'StandardErrorPath' not in expected
-    installed_build = ROOT / 'build/PadPilot.app/Contents/Info.plist'
+    installed_build = ROOT / 'build/SidecarSwitch.app/Contents/Info.plist'
     if installed_build.exists():
         info = plistlib.loads(installed_build.read_bytes())
         assert info['CFBundleShortVersionString'] == __version__, 'App version mismatch; rebuild first'
-        assert info.get('CFBundleIconFile') == 'PadPilot.icns', 'App icon is not configured; rebuild first'
+        assert info.get('CFBundleIconFile') == 'SidecarSwitch.icns', 'App icon is not configured; rebuild first'
         icon = installed_build.parent / 'Resources' / info['CFBundleIconFile']
         assert icon.read_bytes().startswith(b'icns'), 'App icon is missing or invalid'
 

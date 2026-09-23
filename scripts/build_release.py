@@ -41,20 +41,20 @@ def python_distribution():
 
 def smoke_check(app):
     """Exercise the distributed CLI from a different path and an empty user home."""
-    with tempfile.TemporaryDirectory(prefix='padpilot-relocation-') as directory:
+    with tempfile.TemporaryDirectory(prefix='sidecarswitch-relocation-') as directory:
         root = Path(directory)
-        moved = root / 'Applications with spaces/PadPilot.app'
+        moved = root / 'Applications with spaces/SidecarSwitch.app'
         moved.parent.mkdir()
         shutil.copytree(app, root / 'payload', symlinks=True)
         (root / 'payload').rename(moved)
         home = root / 'clean-home'
         home.mkdir()
         environment = dict(os.environ, HOME=str(home), PYTHONPATH='/nonexistent', PYTHONHOME='/nonexistent')
-        native = moved / 'Contents/MacOS/PadPilot'
+        native = moved / 'Contents/MacOS/SidecarSwitch'
         info = subprocess.check_output([str(native), '--runtime-info'], env=environment, text=True)
         runtime = json.loads(info)
         assert runtime['bundled'] and str(moved) in runtime['python'] and str(moved) in runtime['project_root']
-        cli = moved / 'Contents/Resources/padpilot-cli'
+        cli = moved / 'Contents/Resources/sidecarswitch-cli'
         for arguments in (['--version'], ['--help'], ['runtime', 'status'], ['menu-json'], ['gui-data']):
             result = subprocess.run([str(cli), *arguments], env=environment, capture_output=True, text=True, timeout=30)
             if result.returncode:
@@ -100,8 +100,8 @@ def main():
     archive, pin = python_distribution()
     destination = ROOT / 'dist' / args.tag
     destination.mkdir(parents=True, exist_ok=True)
-    app = destination / 'PadPilot.app'
-    with tempfile.TemporaryDirectory(prefix='padpilot-python-') as directory:
+    app = destination / 'SidecarSwitch.app'
+    with tempfile.TemporaryDirectory(prefix='sidecarswitch-python-') as directory:
         with tarfile.open(archive) as source:
             source.extractall(directory, filter='data')
         python = Path(directory) / 'python'
@@ -109,7 +109,7 @@ def main():
                         'import platform; assert platform.machine() == "arm64"'], check=True)
         build(app, python_home=python, version=version, revision=revision)
     smoke_check(app)
-    stem = f'PadPilot-{version}-macos-arm64'
+    stem = f'SidecarSwitch-{version}-macos-arm64'
     zipped = destination / (stem + '.zip')
     subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(app), str(zipped)], check=True)
     assets = [zipped]

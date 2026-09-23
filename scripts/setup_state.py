@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small, private receipt for dependencies installed by PadPilot setup."""
+"""Small, private receipt for dependencies installed by SidecarSwitch setup."""
 import argparse
 import json
 import os
@@ -16,19 +16,19 @@ def validate_receipt(data):
     if (not isinstance(data, dict) or data.get('schema') != 1
             or not isinstance(data.get('managed_source'), bool)
             or not isinstance(data.get('dependencies'), list)):
-        raise ValueError('Invalid PadPilot installation receipt')
+        raise ValueError('Invalid SidecarSwitch installation receipt')
     for item in data['dependencies']:
         if (not isinstance(item, dict) or item.get('kind') not in ('formula', 'cask')
                 or not isinstance(item.get('name'), str)
                 or not re.fullmatch(r'[a-z0-9][a-z0-9@+._-]*', item['name'])
                 or not isinstance(item.get('brew'), str)
                 or not Path(item['brew']).is_absolute()):
-            raise ValueError('Invalid dependency in PadPilot installation receipt')
+            raise ValueError('Invalid dependency in SidecarSwitch installation receipt')
     return data
 
 
 def read_receipt(root=ROOT):
-    path = Path(root) / '.padpilot-install.json'
+    path = Path(root) / '.sidecarswitch-install.json'
     private_file(path, harden=False)
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -40,7 +40,7 @@ def read_receipt(root=ROOT):
 
 def write_receipt(root, data):
     content = json.dumps(validate_receipt(data), ensure_ascii=False, indent=2) + '\n'
-    atomic_write(Path(root) / '.padpilot-install.json', content.encode('utf-8'), private_parent=False)
+    atomic_write(Path(root) / '.sidecarswitch-install.json', content.encode('utf-8'), private_parent=False)
 
 
 def record_dependency(root, kind, name, brew):

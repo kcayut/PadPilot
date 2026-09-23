@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Correct website language URLs and add canonical URLs and a three-page sitemap.
+
+### Fixed
+- Package standard macOS icon sizes directly in the ICNS container when the system icon encoder cannot rebuild even its own decoded icons.
+- Select only published releases containing a matching SidecarSwitch DMG; report when no prebuilt download is available.
+
 ## [0.1.0-dev.2] - 2026-09-20
 
 Second public development prerelease. Includes the following changes since `v0.1.0-dev.1`.
@@ -20,7 +27,7 @@ Second public development prerelease. Includes the following changes since `v0.1
 - Switching to Manual only can cancel a blocked connection round without waiting for hardware discovery or a connection command to return. Stop subsequent retries and main-display changes, discard older queued controls and UI callbacks, and keep explicit new connection requests usable. Commands already sent to macOS may still finish.
 - Keep status and Manual only requests responsive during slow IPC operations; preserve connection-request coalescing and prevent cancelled boot work from restarting.
 - Recover from release-update failure even when the replacement CLI cannot run, after independently confirming the replacement service and processes have stopped. Preserve the app and backup if shutdown cannot be verified.
-- Align BetterDisplay requirements across the three languages: current PadPilot features work without Pro or a trial; BetterDisplay's own license terms still apply.
+- Align BetterDisplay requirements across the three languages: current SidecarSwitch features work without Pro or a trial; BetterDisplay's own license terms still apply.
 - Make troubleshooting commands usable from a DMG installation without a source checkout or separate Python installation; distinguish source-only repair steps.
 - Remove obsolete private-testing and repository-access wording, clarify how to request a security contact without publishing vulnerability details, and document the published development release below.
 
@@ -78,7 +85,7 @@ Historical internal development record retained from the original changelog; thi
   - Native Tkinter Card UI for pairing, multi-device management, diagnostics, and settings.
   - Comprehensive health checks (FileVault, automatic login, BetterDisplay permissions, LaunchAgent autostart).
 - **CLI Management**:
-  - Full-featured `padpilot-cli` for service lifecycle, pairing wizards, mode switching, status query, and inspection.
+  - Full-featured `sidecarswitch-cli` for service lifecycle, pairing wizards, mode switching, status query, and inspection.
 - **Open Source Preparation**:
   - Standard MIT License.
   - Restructured documentation, troubleshooting guide, and installation guides.

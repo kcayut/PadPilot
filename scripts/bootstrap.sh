@@ -2,14 +2,14 @@
 # Download an official source archive, then run the same installer as a checkout.
 set -euo pipefail
 
-SOURCE_ROOT="$HOME/Applications/PadPilot-source"
+SOURCE_ROOT="$HOME/Applications/SidecarSwitch-source"
 ARCHIVE_URL="https://codeload.github.com/kcayut/PadPilot/tar.gz/refs/heads/main"
-die() { printf 'PadPilot: %s\n' "$*" >&2; exit 1; }
+die() { printf 'SidecarSwitch: %s\n' "$*" >&2; exit 1; }
 
 case "${1:-}" in
     --help|-h)
         echo "Usage: bash bootstrap.sh [installer options]"
-        echo "Installs source in ~/Applications/PadPilot-source, then runs scripts/install.sh."
+        echo "Installs source in ~/Applications/SidecarSwitch-source, then runs scripts/install.sh."
         echo "Existing managed source is reused, never updated or overwritten."
         echo "Options: --yes --install-deps --check --python PATH --betterdisplay-path PATH"
         exit 0 ;;
@@ -31,12 +31,12 @@ if [[ -e "$HOME/Applications" ]]; then
     [[ -d "$HOME/Applications" && -O "$HOME/Applications" ]] || die "~/Applications must be a directory owned by you."
 fi
 if [[ -e "$SOURCE_ROOT" || -L "$SOURCE_ROOT" ]]; then
-    RECEIPT="$SOURCE_ROOT/.padpilot-install.json"
+    RECEIPT="$SOURCE_ROOT/.sidecarswitch-install.json"
     [[ -d "$SOURCE_ROOT" && ! -L "$SOURCE_ROOT" && -O "$SOURCE_ROOT" &&
        -f "$RECEIPT" && ! -L "$RECEIPT" && -O "$RECEIPT" &&
        -f "$SOURCE_ROOT/scripts/install.sh" && ! -L "$SOURCE_ROOT/scripts/install.sh" &&
        ! -L "$SOURCE_ROOT/scripts" && -O "$SOURCE_ROOT/scripts/install.sh" ]] ||
-        die "Existing path is not a managed PadPilot source folder: $SOURCE_ROOT. Nothing was overwritten."
+        die "Existing path is not a managed SidecarSwitch source folder: $SOURCE_ROOT. Nothing was overwritten."
     grep -Eq '"schema"[[:space:]]*:[[:space:]]*1([[:space:]]*[,}])' "$RECEIPT" &&
         grep -Eq '"managed_source"[[:space:]]*:[[:space:]]*true([[:space:]]*[,}])' "$RECEIPT" ||
         die "Existing source has no valid managed-install receipt. Nothing was overwritten."
@@ -48,9 +48,9 @@ for ARG in ${ARGS[@]+"${ARGS[@]}"}; do
 done
 
 umask 077
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/padpilot-download.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sidecarswitch-download.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
-echo "Downloading PadPilot source from the official GitHub repository..."
+echo "Downloading SidecarSwitch source from the official GitHub repository..."
 curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 --retry 2 \
     "$ARCHIVE_URL" --output "$WORK_DIR/source.tar.gz" ||
     die "Download failed. The repository and main branch must be public; a private/unpublished repository may return 404. No installer was run."
@@ -74,13 +74,13 @@ LC_ALL=C awk 'substr($0, 1, 1) != "-" && substr($0, 1, 1) != "d" { exit 1 }' "$W
 mkdir "$WORK_DIR/extracted"
 tar -xzf "$WORK_DIR/source.tar.gz" --no-same-owner --no-same-permissions -C "$WORK_DIR/extracted"
 [[ -f "$WORK_DIR/extracted/PadPilot-main/scripts/install.sh" &&
-   -f "$WORK_DIR/extracted/PadPilot-main/scripts/uninstall.sh" ]] || die "Archive is missing the PadPilot installer."
-cat > "$WORK_DIR/extracted/PadPilot-main/.padpilot-install.json" <<'EOF'
+   -f "$WORK_DIR/extracted/PadPilot-main/scripts/uninstall.sh" ]] || die "Archive is missing the SidecarSwitch installer."
+cat > "$WORK_DIR/extracted/PadPilot-main/.sidecarswitch-install.json" <<'EOF'
 {"schema": 1, "managed_source": true, "dependencies": []}
 EOF
 mkdir -p "$HOME/Applications"
 [[ ! -e "$SOURCE_ROOT" && ! -L "$SOURCE_ROOT" ]] || die "Source destination appeared during download. Nothing was overwritten."
 mv "$WORK_DIR/extracted/PadPilot-main" "$SOURCE_ROOT"
 echo "Source saved in: $SOURCE_ROOT"
-echo 'Keep this folder while PadPilot is installed. Rerun this command to resume installation.'
+echo 'Keep this folder while SidecarSwitch is installed. Rerun this command to resume installation.'
 /bin/bash "$SOURCE_ROOT/scripts/install.sh" ${ARGS[@]+"${ARGS[@]}"}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in macOS integration check using an isolated app ID; never runs PadPilot core."""
+"""Opt-in macOS integration check using an isolated app ID; never runs SidecarSwitch core."""
 import argparse
 import json
 import os
@@ -16,16 +16,16 @@ from pathlib import Path
 
 def check(app_source, trash=False):
     source = app_source.resolve()
-    if not (source / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist').is_file():
+    if not (source / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist').is_file():
         raise ValueError('Build the SMAppService app first')
-    base = Path(tempfile.mkdtemp(prefix='padpilot-service-check-', dir='/private/tmp'))
-    app = base / 'PadPilot.app'
-    label = 'com.padpilot.test.' + uuid.uuid4().hex
+    base = Path(tempfile.mkdtemp(prefix='sidecarswitch-service-check-', dir='/private/tmp'))
+    app = base / 'SidecarSwitch.app'
+    label = 'com.sidecarswitch.test.' + uuid.uuid4().hex
     target = f'gui/{os.getuid()}/{label}'
     print(f'Isolated fixture: {base}', flush=True)
 
     def native(action):
-        return subprocess.check_output([str(app / 'Contents/MacOS/PadPilot'), '--service', action],
+        return subprocess.check_output([str(app / 'Contents/MacOS/SidecarSwitch'), '--service', action],
                                        text=True, stderr=subprocess.PIPE, timeout=30, env={**os.environ, 'HOME': str(base)}).strip()
 
     def starts():
@@ -45,7 +45,7 @@ def check(app_source, trash=False):
         value = plistlib.loads(info.read_bytes())
         value['CFBundleIdentifier'] = label
         info.write_bytes(plistlib.dumps(value))
-        plist = app / 'Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+        plist = app / 'Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'
         value = plistlib.loads(plist.read_bytes())
         value['Label'] = label
         value['EnvironmentVariables']['HOME'] = str(base)
@@ -53,9 +53,9 @@ def check(app_source, trash=False):
         metadata_path = app / 'Contents/Resources/runtime.json'
         metadata = json.loads(metadata_path.read_text())
         if metadata.get('bundled'):
-            daemon = app / 'Contents/Resources/PadPilot/bin/padpilotd'
+            daemon = app / 'Contents/Resources/SidecarSwitch/bin/sidecarswitchd'
         else:
-            daemon = base / 'bin/padpilotd'
+            daemon = base / 'bin/sidecarswitchd'
             daemon.parent.mkdir()
             metadata_path.write_text(json.dumps({'python': sys.executable, 'project_root': str(base)}))
         daemon.write_text(f"""import os, signal, time
@@ -74,7 +74,7 @@ while True: time.sleep(.1)
         wait_for(1)
         output = subprocess.check_output(['launchctl', 'print', target], text=True)
         assert 'managed_by = com.apple.xpc.ServiceManagement' in output
-        assert 'program identifier = Contents/MacOS/PadPilot (mode: 2)' in output
+        assert 'program identifier = Contents/MacOS/SidecarSwitch (mode: 2)' in output
         os.kill(int((base / 'pid').read_text()), signal.SIGTERM)
         time.sleep(2)
         assert starts() == 1, 'Normal Exit must not restart'
@@ -122,7 +122,7 @@ while True: time.sleep(.1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--app', type=Path, required=True, help='Already built PadPilot.app; source is copied, never changed')
+    parser.add_argument('--app', type=Path, required=True, help='Already built SidecarSwitch.app; source is copied, never changed')
     parser.add_argument('--trash', action='store_true', help='Also move the isolated fixture to the real macOS Trash')
     args = parser.parse_args()
     check(args.app, args.trash)

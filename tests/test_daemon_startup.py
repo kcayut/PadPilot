@@ -12,7 +12,7 @@ from core.betterdisplay import BetterDisplayCLI, BetterDisplayCapabilities
 from core.config import Config
 
 
-Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilotd'))['PadPilotDaemon']
+Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
 
 
 class DaemonStartupTests(unittest.TestCase):

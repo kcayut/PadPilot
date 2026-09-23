@@ -4,9 +4,9 @@ set -euo pipefail
 TAG=""
 PYTHON_BIN=""
 RUNTIME=""
-TARGET="/Applications/PadPilot.app"
+TARGET="/Applications/SidecarSwitch.app"
 YES=0
-die() { printf 'PadPilot: %s\n' "$*" >&2; exit 1; }
+die() { printf 'SidecarSwitch: %s\n' "$*" >&2; exit 1; }
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --tag|--python|--target)
@@ -20,8 +20,8 @@ while [[ $# -gt 0 ]]; do
         --bundled) [[ -z "$PYTHON_BIN" ]] || die 'Choose --bundled or --python'; RUNTIME=bundled; shift ;;
         --yes|-y) YES=1; shift ;;
         --help|-h)
-            echo 'Usage: bash install_release.sh [--tag vX.Y.Z-dev.N] [--bundled | --python /path/to/python3] [--target /path/PadPilot.app] [--yes]'
-            echo 'Default: newest published release including prereleases. No compiler, Homebrew or system Python required.'
+            echo 'Usage: bash install_release.sh [--tag vX.Y.Z-dev.N] [--bundled | --python /path/to/python3] [--target /path/SidecarSwitch.app] [--yes]'
+            echo 'Default: newest published SidecarSwitch DMG including prereleases. No compiler, Homebrew or system Python required.'
             exit 0 ;;
         *) die "Unknown option: $1" ;;
     esac
@@ -40,7 +40,7 @@ if [[ -z "$RUNTIME" && "$YES" == 0 ]]; then
 fi
 [[ -n "$TAG" ]] && [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(dev|alpha|beta|rc)\.[0-9]+)?$ ]] || [[ -z "$TAG" ]] || die 'Invalid release tag.'
 umask 077
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/padpilot-release.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sidecarswitch-release.XXXXXX")"
 MOUNT="$WORK_DIR/mounted"
 cleanup() { [[ ! -d "$MOUNT" ]] || hdiutil detach "$MOUNT" -quiet || true; rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
@@ -51,12 +51,19 @@ if [[ -z "$TAG" ]]; then
     while plutil -extract "$INDEX.tag_name" raw -o - "$WORK_DIR/releases.json" > "$WORK_DIR/tag" 2>/dev/null; do
         DRAFT="$(plutil -extract "$INDEX.draft" raw -o - "$WORK_DIR/releases.json")"
         CANDIDATE="$(cat "$WORK_DIR/tag")"
-        if [[ "$DRAFT" == false && "$CANDIDATE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(dev|alpha|beta|rc)\.[0-9]+)?$ ]]; then TAG="$CANDIDATE"; break; fi
+        if [[ "$DRAFT" == false && "$CANDIDATE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(dev|alpha|beta|rc)\.[0-9]+)?$ ]]; then
+            ASSET_INDEX=0
+            while NAME="$(plutil -extract "$INDEX.assets.$ASSET_INDEX.name" raw -o - "$WORK_DIR/releases.json" 2>/dev/null)"; do
+                if [[ "$NAME" == "SidecarSwitch-${CANDIDATE#v}-macos-arm64.dmg" ]]; then TAG="$CANDIDATE"; break; fi
+                ASSET_INDEX=$((ASSET_INDEX + 1))
+            done
+            [[ -z "$TAG" ]] || break
+        fi
         INDEX=$((INDEX + 1))
     done
-    [[ -n "$TAG" ]] || die 'No published PadPilot release found yet. Use the source installer until the first tag is published.'
+    [[ -n "$TAG" ]] || die 'No published SidecarSwitch release found yet. Use the source installer until the first tag is published.'
 fi
-ASSET="PadPilot-${TAG#v}-macos-arm64.dmg"
+ASSET="SidecarSwitch-${TAG#v}-macos-arm64.dmg"
 BASE="https://github.com/kcayut/PadPilot/releases/download/$TAG"
 echo "Downloading $TAG..."
 download "$BASE/$ASSET" "$WORK_DIR/$ASSET" || die 'Release download failed; nothing installed.'
@@ -66,9 +73,9 @@ EXPECTED="$(awk -v asset="$ASSET" '$2 == asset { print $1 }' "$WORK_DIR/SHA256SU
 ACTUAL="$(shasum -a 256 "$WORK_DIR/$ASSET")"
 [[ "${ACTUAL%% *}" == "$EXPECTED" ]] || die 'SHA-256 mismatch; nothing installed.'
 hdiutil attach "$WORK_DIR/$ASSET" -readonly -nobrowse -mountpoint "$MOUNT" -quiet
-APP="$MOUNT/PadPilot.app"
+APP="$MOUNT/SidecarSwitch.app"
 codesign --verify --deep --strict "$APP"
 ARGS=(--source "$APP" --target "$TARGET")
 [[ -z "$PYTHON_BIN" ]] || ARGS+=(--python "$PYTHON_BIN")
 "$APP/Contents/Resources/Python/bin/python3" -I -B \
-    "$APP/Contents/Resources/PadPilot/scripts/install_release.py" "${ARGS[@]}"
+    "$APP/Contents/Resources/SidecarSwitch/scripts/install_release.py" "${ARGS[@]}"

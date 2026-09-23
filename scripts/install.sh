@@ -19,7 +19,7 @@ usage() {
 Usage: bash scripts/install.sh [options]
   --release [options]      下載已編譯版本 / use the prebuilt release installer
   --check                 唯讀檢查 / read-only dependency check
-  --yes, -y               沿用現有依賴並安裝 PadPilot / accept existing dependencies
+  --yes, -y               沿用現有依賴並安裝 SidecarSwitch / accept existing dependencies
   --install-deps          同意安裝缺少的依賴 / allow missing dependency installation
   --python PATH           指定 Python 3.10+ 執行檔 / Python executable
   --betterdisplay-path PATH  指定 BetterDisplay.app 或 CLI / app or executable
@@ -41,9 +41,9 @@ while [[ $# -gt 0 ]]; do
         *) usage >&2; fail "未知參數 / unknown option: $1" ;;
     esac
 done
-[[ "$(uname -s)" == Darwin ]] || fail 'PadPilot 需要 macOS 14+ / requires macOS 14 or later.'
+[[ "$(uname -s)" == Darwin ]] || fail 'SidecarSwitch 需要 macOS 14+ / requires macOS 14 or later.'
 MAC_VERSION="$(sw_vers -productVersion)"
-[[ "${MAC_VERSION%%.*}" =~ ^[0-9]+$ && "${MAC_VERSION%%.*}" -ge 14 ]] || fail 'PadPilot 需要 macOS 14+ / requires macOS 14 or later.'
+[[ "${MAC_VERSION%%.*}" =~ ^[0-9]+$ && "${MAC_VERSION%%.*}" -ge 14 ]] || fail 'SidecarSwitch 需要 macOS 14+ / requires macOS 14 or later.'
 
 # A saved bootstrap script can still read the terminal when its stdin is a pipe.
 exec 3<&0
@@ -97,10 +97,10 @@ if [[ "$CHECK_ONLY" == 1 ]]; then
 fi
 
 [[ "$EUID" -ne 0 ]] || fail '請以一般使用者執行，不要使用 sudo；安裝器會在需要時提示管理員密碼。 / Run as your normal user, without sudo.'
-RECEIPT="$PROJECT_ROOT/.padpilot-install.json"
+RECEIPT="$PROJECT_ROOT/.sidecarswitch-install.json"
 [[ -w "$SCRIPT_DIR/.." && ! -L "$RECEIPT" ]] || fail '原始碼目錄不可寫入或安裝紀錄是連結；請移至你擁有的目錄後重試。'
 [[ ! -e "$RECEIPT" || ( -f "$RECEIPT" && -w "$RECEIPT" ) ]] || fail '無法安全更新安裝紀錄；尚未安裝依賴。'
-printf '\nPadPilot 安裝精靈 / Setup\n先偵測依賴，再由你選擇沿用、指定路徑或安裝。\n'
+printf '\nSidecarSwitch 安裝精靈 / Setup\n先偵測依賴，再由你選擇沿用、指定路徑或安裝。\n'
 CLT_REQUESTED=0
 while ! have_clt; do
     if [[ "$INSTALL_DEPS" == 1 && "$CLT_REQUESTED" == 0 ]]; then REPLY=i
@@ -139,7 +139,7 @@ ensure_brew() {
         case "$REPLY" in
             i|I)
                 printf '將執行 Homebrew 官方安裝程式，可能要求管理員密碼。 / Installing Homebrew; an administrator password may be required.\n'
-                installer="$(mktemp -t padpilot-homebrew)"
+                installer="$(mktemp -t sidecarswitch-homebrew)"
                 if ! curl --fail --show-error --location --proto '=https' --tlsv1.2 \
                     https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"; then
                     rm -f "$installer"; fail '無法下載 Homebrew 安裝程式。 / Homebrew download failed.'
@@ -232,10 +232,10 @@ done
 BETTERDISPLAY_PATH="$BETTERDISPLAY_FOUND"
 check_args
 "$PYTHON_BIN" -B "${CHECK_ARGS[@]}"
-APP_TARGET="$("$PYTHON_BIN" -B -c 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from core.runtime import find_app; print(find_app(include_build=False) or Path.home() / "Applications/PadPilot.app")' "$PROJECT_ROOT")" || fail '無法確認 App 安裝位置；未更新 App。 / Cannot determine the app location; app unchanged.'
+APP_TARGET="$("$PYTHON_BIN" -B -c 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from core.runtime import find_app; print(find_app(include_build=False) or Path.home() / "Applications/SidecarSwitch.app")' "$PROJECT_ROOT")" || fail '無法確認 App 安裝位置；未更新 App。 / Cannot determine the app location; app unchanged.'
 printf '\n將安裝 / Install: %s\nPython: %s\nBetterDisplay: %s\n' "$APP_TARGET" "$PYTHON_BIN" "$BETTERDISPLAY_PATH"
 if [[ "$ASSUME_YES" == 0 ]]; then
-    ask '繼續安裝 PadPilot？ / Install PadPilot? [Y/n]:'
-    case "$REPLY" in ''|y|Y|yes|YES) ;; *) fail '已取消 PadPilot 安裝；已安裝的依賴保留並已記錄。' ;; esac
+    ask '繼續安裝 SidecarSwitch？ / Install SidecarSwitch? [Y/n]:'
+    case "$REPLY" in ''|y|Y|yes|YES) ;; *) fail '已取消 SidecarSwitch 安裝；已安裝的依賴保留並已記錄。' ;; esac
 fi
 exec "$PYTHON_BIN" -B "$SCRIPT_DIR/manage_app.py" --betterdisplay-path "$BETTERDISPLAY_PATH"

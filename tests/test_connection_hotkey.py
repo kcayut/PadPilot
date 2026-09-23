@@ -24,7 +24,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
                           ipad=IpadConfig('iPad', 'TARGET'), retry_interval=0)
         self.bd = MagicMock()
         self.detector = MagicMock()
-        self.fallback = DisplayInfo(99, 'PadPilotVirtual', is_main=True, is_virtual=True)
+        self.fallback = DisplayInfo(99, 'SidecarSwitchVirtual', is_main=True, is_virtual=True)
         self.ipad = DisplayInfo(2, 'iPad', is_main=True, is_sidecar=True)
         self.actual = ActualState(main_display=self.fallback, virtual_display_connected=True,
                                   sidecar_available=True, resolved_ipad=self.cfg.ipad)
@@ -117,7 +117,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
         for bad in (None, 34, True, 'i', 'alt+i', 'ctrl+ctrl+i', 'ctrl+cmd+unknown', 'ctrl+cmd+I', 'ctrl+cmd+i;exit'):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 Config.from_dict({'connection_hotkey': bad})
-        daemon_type = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon_type = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
         daemon = daemon_type.__new__(daemon_type)
         daemon.config, daemon.engine, daemon.detector = self.cfg, self.engine, self.detector
         daemon.config_lock = threading.RLock()
@@ -132,7 +132,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
         self.bd.connect_sidecar.assert_not_called()
 
     def test_hotkey_does_not_restart_stopped_automatic_service(self):
-        action = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilot-cli'))['cmd_action']
+        action = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitch-cli'))['cmd_action']
         start = MagicMock()
         with patch.dict(action.__globals__, send_daemon_cmd=lambda *a, **kw: 'Daemon is not running',
                         cmd_start=start, load_config=lambda: self.cfg):
@@ -141,7 +141,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
         start.assert_not_called()
 
     def test_failure_details_survive_engine_ipc_cli_without_duplicate_notification(self):
-        daemon_type = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilotd'))['PadPilotDaemon']
+        daemon_type = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
         daemon = daemon_type.__new__(daemon_type)
         daemon.engine, daemon.config = self.engine, self.cfg
         for key in ('sidecar_connection', 'sidecar_identity', 'sidecar', 'usb', 'displays', 'identifiers'):
@@ -155,7 +155,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
         self.assertIn('missing from the Sidecar device list', response)
         self.assertEqual(response, 'ERROR: ' + self.engine.runtime.last_error)
         self.bd.connect_sidecar.assert_not_called()
-        cli = str(Path(__file__).resolve().parents[1] / 'bin/padpilot-cli')
+        cli = str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitch-cli')
         try:
             for language, expected in [('zh-Hant', '尚未發起連線'), ('en', 'no connection was started'), ('ja', '接続は開始していません')]:
                 self.cfg.language = language
@@ -164,7 +164,7 @@ class ConnectionHotkeyTests(unittest.TestCase):
                      patch('core.config.load_config', return_value=self.cfg), \
                      patch('core.notifier.notify_error') as notify, patch('socket.socket') as socket, \
                      patch.object(sys, 'argv', [cli, 'action', 'connect_ipad']):
-                    (Path(directory) / 'padpilot.sock').touch()
+                    (Path(directory) / 'sidecarswitch.sock').touch()
                     socket.return_value.__enter__.return_value.recv.return_value = response.encode()
                     with self.assertRaises(SystemExit) as stopped:
                         runpy.run_path(cli, run_name='__main__')

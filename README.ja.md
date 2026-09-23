@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/padpilot-icon.png" width="96" height="96" alt="PadPilot アイコン：タブレット内のナビゲーション矢印">
+  <img src="assets/sidecarswitch-icon.png" width="96" height="96" alt="SidecarSwitch アイコン：タブレット内のナビゲーション矢印">
 </p>
 
-<h1 align="center">PadPilot</h1>
+<h1 align="center">SidecarSwitch</h1>
 
 <p align="center">
-  <b>Sidecar display automation for Mac</b><br>
+  <b>iPad ディスプレイの自動接続・切り替えツール</b><br>
   iPad を、Mac の画面に。
 </p>
 
@@ -17,7 +17,7 @@
   🌐 <a href="https://kcayut.github.io/PadPilot/">紹介サイト</a>
 </p>
 
-PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
+SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使う**ためのツールです。主に Mac mini を想定し、Apple Sidecar と BetterDisplay を使って手動接続やメイン／サブ画面の切り替えができます。設定に応じて、物理モニターがないときに iPad へ自動で切り替えることもできます。
 
 **グローバルショートカットで、複数の Mac も手軽に操作。**
 複数の Mac mini をサーバーとして使う場合は、キーボードの接続先を操作したい Mac に切り替えます。その Mac にログインしてロックを解除し、iPad が接続可能な状態でショートカットを押すと、その Mac の画面を iPad に表示できます。
@@ -26,9 +26,9 @@ PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**�
 
 [![実機デモ：物理モニターなしで Mac mini を起動し、ログイン後に iPad をメイン画面として自動接続](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
 
-初期設定済みの実機で撮影。起動の待ち時間は8倍速、最後の画面は1秒長く表示しています。[高画質の MP4 を見る](docs/videos/headless-boot-demo.mp4)。
+初期設定済みの実機で撮影した開発版のデモです。バージョンや機器の組み合わせごとに検証が必要です。起動の待ち時間は8倍速、最後の画面は1秒長く表示しています。[高画質の MP4 を見る](docs/videos/headless-boot-demo.mp4)。
 
-**[macOS 版をダウンロード（.dmg）](https://github.com/kcayut/PadPilot/releases)**
+**[リリースを見る](https://github.com/kcayut/PadPilot/releases)**
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -41,21 +41,23 @@ PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**�
 
 > [!IMPORTANT]
 > **現在は初期プレビュー版です。** 初回設定では、物理モニターか使えるリモート接続を残しておいてください。
-> PadPilot は macOS へのログイン後に動作します。**FileVault の解除画面やログイン前の画面は表示できません。** インストールのために FileVault を無効にする必要はありません。
+> SidecarSwitch は macOS へのログイン後に動作します。**FileVault の解除画面やログイン前の画面は表示できません。** インストールのために FileVault を無効にする必要はありません。
 
 - **Apple Silicon Mac（macOS 14 以降）と Sidecar 対応 iPad。** Intel Mac には対応していません。
 - **macOS から手動で Sidecar に接続できる状態。** 同じ Apple Account と2ファクタ認証を使います。初回はデータ通信対応の USB ケーブルでつなぎ、iPad で Mac を信頼してください。無線では Wi-Fi、Bluetooth、Handoff も必要です。[Apple の条件を確認](https://support.apple.com/en-us/102597)。
-- **[BetterDisplay](https://github.com/waydabber/BetterDisplay) を別途インストールして起動。** 現在の PadPilot の機能は無料版で利用でき、機能上 Pro や有効な試用期間は必要ありません。単体 CLI だけでは動きません。App があれば、内蔵 CLI を使えます。
+- **[BetterDisplay](https://github.com/waydabber/BetterDisplay) を別途インストールして起動。** 現在の SidecarSwitch の機能は無料版で利用でき、機能上 Pro や有効な試用期間は必要ありません。単体 CLI だけでは動きません。App があれば、内蔵 CLI を使えます。
 
-複数の Mac で使う場合は、各 Mac で PadPilot のペアリングとグローバルショートカットの設定を済ませてください。
+複数の Mac で使う場合は、各 Mac で SidecarSwitch のペアリングとグローバルショートカットの設定を済ませてください。
+
+SidecarSwitch のビルド済みインストーラーは準備中です。現在は[ソース版の導入手順](docs/INSTALLATION.ja.md#source-installation)でインストールできます。
 
 ## 画面を見ながら始めよう
 
-画像は、現在のネイティブ画面に**プロジェクトのサンプル機器データ**を表示して撮影したものです。実機接続の検証結果ではありません。機器名や状態は環境によって異なります。画像をクリックすると拡大できます。
+画像はネイティブ画面の操作例です。**プロジェクトのサンプル機器データ**を表示して撮影したものです。実機接続の検証結果ではありません。機器名や状態は環境によって異なります。画像をクリックすると拡大できます。
 
 ### 1. インストールして開く
 
-[GitHub Releases](https://github.com/kcayut/PadPilot/releases) から `.dmg` をダウンロードし、**PadPilot.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
+[GitHub Releases](https://github.com/kcayut/PadPilot/releases) から `.dmg` をダウンロードし、**SidecarSwitch.app を Applications にドラッグ**して開きます。Python は同梱済みで、Homebrew やコンパイラーは不要です。
 
 起動すると設定画面が開きます。画面を閉じてもメニューバーは残ります。もう一度開くには、メニューの **「設定とペアリング」**を選ぶか、App をダブルクリックします。
 
@@ -67,7 +69,7 @@ PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**�
 
 [![デバイスを検索：iPad と対応する USB を確認してペアリング](docs/images/quick-start/ja-search.png)](docs/images/quick-start/ja-search.png)
 
-ペアリングは PadPilot に機器を覚えさせる操作です。Apple のアカウントや信頼設定の代わりにはなりません。複数台を保存できますが、主管理対象は一度に1台です。複数の iPad がある場合は、自動検出だけに頼らず対象を指定してください。
+ペアリングは SidecarSwitch に機器を覚えさせる操作です。Apple のアカウントや信頼設定の代わりにはなりません。複数台を保存できますが、主管理対象は一度に1台です。複数の iPad がある場合は、自動検出だけに頼らず対象を指定してください。
 
 ### 3. 使い方に合わせてボタンを押す
 
@@ -107,15 +109,15 @@ PadPilot は **iPad を Mac のメイン画面やサブ画面として使う**�
 
 ### 5. 物理モニターがないなら、代替画面を用意
 
-通常は自分で作成する必要はありません。BetterDisplay をインストールしてから PadPilot を初めて開くと、バックグラウンドサービスの起動時に BetterDisplay を通じて `PadPilotVirtual` の自動作成を試みます。同名の仮想ディスプレイがあれば、そのまま使います。これは既定の代替画面なので、作成に成功すれば改めて指定する必要はありません。DMG から「アプリケーション」にドラッグするだけでは作成されません。
+通常は自分で作成する必要はありません。BetterDisplay をインストールしてから SidecarSwitch を初めて開くと、バックグラウンドサービスの起動時に BetterDisplay を通じて `SidecarSwitchVirtual` の自動作成を試みます。同名の仮想ディスプレイがあれば、そのまま使います。これは既定の代替画面なので、作成に成功すれば改めて指定する必要はありません。DMG から「アプリケーション」にドラッグするだけでは作成されません。
 
 自動作成されなかった場合や、別の仮想ディスプレイを使いたい場合は、BetterDisplay で作成してください。その後、**「仮想ディスプレイ」**で一覧を更新し、対象を選んで **「予備に指定」**を押します。
 
-一覧の更新では作成を再試行しません。PadPilot を開いた後に BetterDisplay をインストールした場合は、PadPilot のメニューから「終了」を選んで開き直すと、バックグラウンドサービスが再び作成を試みます。
+一覧の更新では作成を再試行しません。SidecarSwitch を開いた後に BetterDisplay をインストールした場合は、SidecarSwitch のメニューから「終了」を選んで開き直すと、バックグラウンドサービスが再び作成を試みます。
 
 [![仮想ディスプレイ：BetterDisplay の仮想画面を選んで代替に指定](docs/images/quick-start/ja-virtual.png)](docs/images/quick-start/ja-virtual.png)
 
-iPad の準備ができていない間もデスクトップを維持し、切り替え後も残ります。リモート復旧が必要なら、Screen Sharing／VNC または SSH を事前に設定してください。PadPilot がリモートアクセスを有効にすることはありません。
+iPad の準備ができていない間もデスクトップを維持し、切り替え後も残ります。リモート復旧が必要なら、Screen Sharing／VNC または SSH を事前に設定してください。SidecarSwitch がリモートアクセスを有効にすることはありません。
 
 ## 困ったら、まずここを確認
 
@@ -148,42 +150,42 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 <details>
 <summary>詳細：ターミナルのコマンドとソース版の更新</summary>
 
-どのフォルダーからでも実行できます。`~/bin` が PATH にあれば `padpilot-cli` だけでも実行できます。導入・更新・開発用スクリプトはソースフォルダーで実行してください。
+どのフォルダーからでも実行できます。`~/bin` が PATH にあれば `sidecarswitch-cli` だけでも実行できます。導入・更新・開発用スクリプトはソースフォルダーで実行してください。
 
 ```bash
 # 状態と設定
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status --json
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-language ja        # zh-Hant または en も使用可能
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" status --json
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" gui
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-language ja        # zh-Hant または en も使用可能
 
 # 動作モード：いずれかを選択
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode automatic
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode manual_only
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode prefer_ipad
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode automatic
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode manual_only
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode prefer_ipad
 
 # 手動操作：必要に応じて実行
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_secondary
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_main
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action disconnect_ipad
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reconnect_sidecar
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action refresh
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reset           # 一時指定とクールダウンを解除
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action use_ipad_secondary
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action use_ipad_main
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action disconnect_ipad
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action reconnect_sidecar
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action refresh
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action reset           # 一時指定とクールダウンを解除
 
 # サービスとログイン時起動
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" stop
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" start
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" exit                  # サービスを停止し、メニューを閉じる
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart status
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart toggle
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" stop
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" start
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" exit                  # サービスを停止し、メニューを閉じる
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" autostart status
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" autostart toggle
 
 # バージョンとヘルプ
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --version
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --help
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" --version
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" --help
 ```
 
-リリースの更新：PadPilot を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
+リリースの更新：SidecarSwitch を終了し、同じ場所のアプリを新版に置き換えるか、リリース用スクリプトを再実行します。設定を保持し、スクリプトでは Python を選択します。場所を変更する場合は旧版を先に削除して設定を残します。以下の再ビルド手順はソース版のみが対象です。
 
-更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（インストール時に選んだ Python を使用）を再実行し、アプリも再ビルドします。更新時は既存アプリの場所を維持し、ソースからの新規インストールは `~/Applications/PadPilot.app` が既定です。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi、歐付寶、綠界科技の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
+更新前に旧ソースをバックアップし、設定を保存して画面を閉じます。更新後は `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/sidecarswitch-cli status`（インストール時に選んだ Python を使用）を再実行し、アプリも再ビルドします。更新時は既存アプリの場所を維持し、ソースからの新規インストールは `~/Applications/SidecarSwitch.app` が既定です。GUI の「このアプリについて」、CLI `--version`、アプリは同じバージョン定義を使います。同ページには GitHub、PayPal、Ko-fi、歐付寶、綠界科技の支援リンクもあります。設定は保持され、旧アプリはゴミ箱にありますが、アプリだけを戻しても参照するソースは戻りません。
 
 </details>
 
@@ -191,7 +193,7 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 
 更新・削除前に設定を保存して画面を閉じてください。リリース版は同じ場所の App を新版に置き換えれば、設定とペアリングを引き継ぎます。場所の変更やソース版からの移行では、旧版を先に削除して設定を残してください。
 
-**リリース版を削除するには、メニューの「終了」を選び、Applications の PadPilot.app をゴミ箱へ移します。** ログインサービスはアプリ内にあり、macOS が管理します。ゴミ箱内のアプリはバックグラウンド Python を起動しません。設定・ペアリング・ログは保持され、ログイン項目の名前が消えるまで時間がかかる場合があります。
+**リリース版を削除するには、メニューの「終了」を選び、Applications の SidecarSwitch.app をゴミ箱へ移します。** ログインサービスはアプリ内にあり、macOS が管理します。ゴミ箱内のアプリはバックグラウンド Python を起動しません。設定・ペアリング・ログは保持され、ログイン項目の名前が消えるまで時間がかかる場合があります。
 
 [インストール・更新・アンインストール](docs/INSTALLATION.ja.md) · [ドキュメント一覧](docs/README.ja.md)
 
@@ -208,9 +210,9 @@ Sidecar UUID を持つ指定済みペアリングを優先し、なければ単�
 
 README と `docs/` 内のユーザー向けガイドは繁体字中国語、英語、日本語で読めます。開発記録は繁体字中国語のみで管理します。問題報告、翻訳改善、互換性情報、Pull Request を歓迎します。コード変更後は `python3 -m unittest discover -s tests -v` を実行し、GUI 変更時は貢献ガイドのレイアウト確認も行ってください。自動テストは実際のコールドブートや抜き差し検証の代わりにはなりません。
 
-## PadPilot を支援
+## SidecarSwitch を支援
 
-PadPilot の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！
+SidecarSwitch の全機能は現在無料で利用できます。気に入っていただけたら、開発を応援していただけるとうれしいです。ありがとうございます！
 
 <!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay and ECPay logos supplied by the project owner -->
 <table>
@@ -253,6 +255,6 @@ PadPilot の全機能は現在無料で利用できます。気に入ってい�
 
 ソースを入手できる非商用ライセンスであり、OSI の定義によるオープンソースライセンスではありません。本ライセンスは、このライセンス文書が同梱された版に適用されます。以前に MIT ライセンスで取得した版の権利には影響しません。
 
-画面制御機能を提供する [BetterDisplay](https://github.com/waydabber/BetterDisplay) に感謝します。PadPilot は独立したプロジェクトであり、Apple や BetterDisplay との提携・公式サポートを示すものではありません。
+画面制御機能を提供する [BetterDisplay](https://github.com/waydabber/BetterDisplay) に感謝します。SidecarSwitch は独立したプロジェクトであり、Apple や BetterDisplay との提携・公式サポートを示すものではありません。
 
-BetterDisplay は別途インストールするもので、PadPilot には同梱していません。現在の PadPilot の機能に BetterDisplay Pro や試用資格は必要ありません。BetterDisplay 自身の[ライセンス条件](https://github.com/waydabber/BetterDisplay/discussions/739)は引き続き適用されます。
+BetterDisplay は別途インストールするもので、SidecarSwitch には同梱していません。現在の SidecarSwitch の機能に BetterDisplay Pro や試用資格は必要ありません。BetterDisplay 自身の[ライセンス条件](https://github.com/waydabber/BetterDisplay/discussions/739)は引き続き適用されます。

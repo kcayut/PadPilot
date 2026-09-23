@@ -1,4 +1,4 @@
-"""Configuration and runtime state persistence for PadPilot."""
+"""Configuration and runtime state persistence for SidecarSwitch."""
 
 from __future__ import annotations
 
@@ -51,17 +51,17 @@ def validate_connection_hotkey(value: str) -> str:
         raise ValueError('Invalid connection hotkey')
     return '+'.join([item for item in order if item in modifiers] + [parts[-1]])
 
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "PadPilot"
+APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "SidecarSwitch"
 CONFIG_FILE = APP_SUPPORT_DIR / "config.json"
 RUNTIME_DIR = APP_SUPPORT_DIR / "runtime"
 STATUS_FILE = RUNTIME_DIR / "status.json"
-FALLBACK_DIR = Path("/tmp/PadPilot")
+FALLBACK_DIR = Path("/tmp/SidecarSwitch")
 FALLBACK_CONFIG_FILE = FALLBACK_DIR / "config.json"
 
 try:
     private_directory(APP_SUPPORT_DIR)
 except (PermissionError, OSError):
-    APP_SUPPORT_DIR = Path("/tmp/PadPilot")
+    APP_SUPPORT_DIR = Path("/tmp/SidecarSwitch")
     CONFIG_FILE = APP_SUPPORT_DIR / "config.json"
     RUNTIME_DIR = APP_SUPPORT_DIR / "runtime"
     STATUS_FILE = RUNTIME_DIR / "status.json"
@@ -289,7 +289,7 @@ def detect_system_language() -> str:
 
 
 def load_config() -> Config:
-    """Load config from ~/Library/Application Support/PadPilot/config.json with /tmp fallback."""
+    """Load config from ~/Library/Application Support/SidecarSwitch/config.json with /tmp fallback."""
     target_file = get_config_file_path()
     if not target_file.exists():
         cfg = Config(language=detect_system_language())
@@ -301,11 +301,11 @@ def load_config() -> Config:
         return Config.from_dict(data)
     except (OSError, ValueError, TypeError, KeyError) as e:
         raise ValueError(f'Cannot load configuration: {target_file}. '
-                         'Repair or restore this file before starting PadPilot; no defaults were applied.') from e
+                         'Repair or restore this file before starting SidecarSwitch; no defaults were applied.') from e
 
 
 def save_config(cfg: Config) -> None:
-    """Atomically save config to ~/Library/Application Support/PadPilot/config.json."""
+    """Atomically save config to ~/Library/Application Support/SidecarSwitch/config.json."""
     content = json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False).encode("utf-8")
     try:
         atomic_write(CONFIG_FILE, content)

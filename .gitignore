@@ -60,12 +60,11 @@ menu-hidden
 # Environment variables
 .env
 .env.*
-.padpilot-install.json
+.sidecarswitch-install.json
 
 # Generated LaunchAgent plist (only .plist.in is tracked in repository)
-launchd/com.padpilot.daemon.plist
+launchd/com.sidecarswitch.daemon.plist
 
 # Local Agent instructions
 AGENTS.md
 AGENT.md
-

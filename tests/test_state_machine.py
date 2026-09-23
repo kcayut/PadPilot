@@ -1,4 +1,4 @@
-"""Comprehensive unit tests for PadPilot StateEngine covering all 10 scenarios."""
+"""Comprehensive unit tests for SidecarSwitch StateEngine covering all 10 scenarios."""
 
 import time
 import unittest
@@ -20,7 +20,7 @@ from core.models import (
 from core.state_engine import StateEngine
 
 
-class TestPadPilotStateMachine(unittest.TestCase):
+class TestSidecarSwitchStateMachine(unittest.TestCase):
     def setUp(self) -> None:
         export = patch.object(StateEngine, "_export_status")
         export.start()
@@ -131,7 +131,7 @@ class TestPadPilotStateMachine(unittest.TestCase):
         """Scenario 5: No physical monitor + No iPad
         Result: Fallback to BetterDisplay Virtual Display.
         """
-        v_disp = DisplayInfo(display_id=99, name="PadPilotVirtual", is_main=True, is_virtual=True)
+        v_disp = DisplayInfo(display_id=99, name="SidecarSwitchVirtual", is_main=True, is_virtual=True)
         actual = ActualState(
             physical_displays=[],
             main_display=v_disp,
@@ -287,13 +287,13 @@ class TestPadPilotStateMachine(unittest.TestCase):
         )
         with patch.object(self.engine, "_wait"):
             self.engine._run_transition()
-        self.mock_bd_cli.connect_virtual_display.assert_called_with("PadPilotVirtual")
-        self.mock_bd_cli.set_main_display.assert_called_with("PadPilotVirtual")
+        self.mock_bd_cli.connect_virtual_display.assert_called_with("SidecarSwitchVirtual")
+        self.mock_bd_cli.set_main_display.assert_called_with("SidecarSwitchVirtual")
 
         # 2. Transition from Virtual to iPad
         actual_virtual_online = ActualState(
             physical_displays=[],
-            main_display=DisplayInfo(display_id=99, name="PadPilotVirtual", is_main=True, is_virtual=True),
+            main_display=DisplayInfo(display_id=99, name="SidecarSwitchVirtual", is_main=True, is_virtual=True),
             virtual_display_exists=True,
             virtual_display_connected=True,
             sidecar_connected=True,

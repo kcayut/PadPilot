@@ -60,8 +60,8 @@ class BootstrapTests(unittest.TestCase):
             home = root / "valid"
             result = run(home, "--python", "/a path/python3", "--yes")
             self.assertEqual(result.returncode, 0, result.stderr)
-            source = home / "Applications" / "PadPilot-source"
-            receipt = source / ".padpilot-install.json"
+            source = home / "Applications" / "SidecarSwitch-source"
+            receipt = source / ".sidecarswitch-install.json"
             data = json.loads(receipt.read_text())
             self.assertEqual(data, {"schema": 1, "managed_source": True, "dependencies": []})
             data["dependencies"] = ["keep-existing-record"]
@@ -105,7 +105,7 @@ class BootstrapTests(unittest.TestCase):
             self.assertEqual(len(calls.read_text().splitlines()), 4)
 
             unmanaged = root / "unmanaged"
-            existing = unmanaged / "Applications" / "PadPilot-source"
+            existing = unmanaged / "Applications" / "SidecarSwitch-source"
             existing.mkdir(parents=True)
             result = run(unmanaged)
             self.assertNotEqual(result.returncode, 0)

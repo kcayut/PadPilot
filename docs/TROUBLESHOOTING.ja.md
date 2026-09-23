@@ -1,4 +1,4 @@
-# PadPilot トラブルシューティング・FAQ
+# SidecarSwitch トラブルシューティング・FAQ
 
 [繁體中文](TROUBLESHOOTING.md) | [English](TROUBLESHOOTING.en.md) | **日本語** · [ドキュメント](README.ja.md)
 
@@ -6,16 +6,16 @@
 
 macOS 上での状態警告、デバイス認識、接続エラーと対処方法をまとめています。
 
-## インストール済みの PadPilot を選ぶ
+## インストール済みの SidecarSwitch を選ぶ
 
 DMG 版ではソースのダウンロードや Python の追加インストールは不要です。「ターミナル」でアプリ内の CLI の場所を設定し、以降のコマンドも同じウインドウで実行してください。
 
 ```bash
-PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
-"$PADPILOT_CLI" --version
+SIDECARSWITCH_CLI="/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli"
+"$SIDECARSWITCH_CLI" --version
 ```
 
-個人の「アプリケーション」にある場合、最初の行を `PADPILOT_CLI="$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"` に変更します。別の場所なら実際のパスを指定してください。ソース版ではプロジェクトフォルダーに移動し、インストール時の Python 環境を有効にしてから `PADPILOT_CLI="$PWD/bin/padpilot-cli"` と設定します。「ソース版のみ」の手順は DMG 版には不要です。
+個人の「アプリケーション」にある場合、最初の行を `SIDECARSWITCH_CLI="$HOME/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli"` に変更します。別の場所なら実際のパスを指定してください。ソース版ではプロジェクトフォルダーに移動し、インストール時の Python 環境を有効にしてから `SIDECARSWITCH_CLI="$PWD/bin/sidecarswitch-cli"` と設定します。「ソース版のみ」の手順は DMG 版には不要です。
 
 ## 目次
 
@@ -32,16 +32,16 @@ PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
 ## 1. FileVault とモニターなしのコールドブート
 
 > [!WARNING]
-> PadPilot は FileVault のロック解除画面やログイン前の画面を iPad に表示できません。
+> SidecarSwitch は FileVault のロック解除画面やログイン前の画面を iPad に表示できません。
 
 **症状：** Mac の電源投入・再起動後、iPad が真っ暗でログイン画面が表示されません。
 
-**原因：** PadPilot の LaunchAgent はユーザーのログイン後に起動し、そのセッション内の Sidecar を使用します。FileVault の解除とログイン前の画面は対象外です。ログイン時起動を有効にしても、この制限は変わりません。
+**原因：** SidecarSwitch の LaunchAgent はユーザーのログイン後に起動し、そのセッション内の Sidecar を使用します。FileVault の解除とログイン前の画面は対象外です。ログイン時起動を有効にしても、この制限は変わりません。
 
 **対処方法：**
 
 1. 物理モニターでロック解除とログインを行い、Sidecar の手動接続を確認します。
-2. ログイン後に `"$PADPILOT_CLI" status` でサービスの応答を確認してから、iPad への切り替えを試します。
+2. ログイン後に `"$SIDECARSWITCH_CLI" status` でサービスの応答を確認してから、iPad への切り替えを試します。
 3. モニターなしで使う前に、自分の環境でコールドブートと復旧手順を検証してください。ハードウェアの組み合わせごとに確認が必要です。
 
 **インストールのために FileVault を無効化したり、自動ログインを有効化したりする必要はありません。** これらはデータとアカウントの安全性に関わる設定であり、Sidecar が数秒で接続する保証にもなりません。検査を通すためにシステムの安全性を下げないでください。
@@ -65,11 +65,11 @@ PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
 
 **症状：** 診断で BetterDisplay の制御インターフェースが利用できない、または `betterdisplaycli` が見つからないと表示されます。
 
-PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御します。CLI と必要な権限が利用できなければ制御できません。
+SidecarSwitch は CLI を使って画面の役割と仮想ディスプレイを制御します。CLI と必要な権限が利用できなければ制御できません。
 
 1. BetterDisplay.app を開きます。
 2. インストール済みバージョンの [BetterDisplay CLI ガイド](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI)を確認します。設定名や場所はバージョンによって異なります。
-3. 現在の PadPilot の機能は BetterDisplay の無料版で利用でき、Pro や試用資格は必要ありません。BetterDisplay が起動しており、PadPilot の App／CLI パスが正しいことを確認します。
+3. 現在の SidecarSwitch の機能は BetterDisplay の無料版で利用でき、Pro や試用資格は必要ありません。BetterDisplay が起動しており、SidecarSwitch の App／CLI パスが正しいことを確認します。
 4. BetterDisplay 内蔵の CLI を確認します。単体の `betterdisplaycli` は不要です。以下は `/Applications` にある場合の例なので、別の場所なら実際の App パスに置き換えてください。
 
    ```bash
@@ -77,20 +77,20 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
    ```
 
    正常終了し、想定するデバイスが取得できることを確認します。CLI の応答だけでは、Sidecar のペアリングや画面表示の検証にはなりません。
-5. macOS がアクセシビリティや画面収録の許可を求めたら、要求元のアプリが BetterDisplay などの想定したものか確認してください。Terminal や他のアプリへ一律に許可しないでください。PadPilot のメニューはスナップショットの読み取りと CLI 呼び出しを行います。
+5. macOS がアクセシビリティや画面収録の許可を求めたら、要求元のアプリが BetterDisplay などの想定したものか確認してください。Terminal や他のアプリへ一律に許可しないでください。SidecarSwitch のメニューはスナップショットの読み取りと CLI 呼び出しを行います。
 
 <a id="generic-display"></a>
 ## 4. Generic Display のプレースホルダー
 
 **症状：** 物理モニターがないのにあると判定される、または実物の `Generic Display`／`Generic` モニターが数えられず、自動モードが想定と違う判断をします。
 
-一部の Mac はモニターなしで起動すると `Generic`／`Generic Display` の仮の画面を表示するため、PadPilot はこの二つの名前との完全一致を既定で除外します。これは観測に基づく判定で、同名の画面がすべて仮の画面とは限りません。
+一部の Mac はモニターなしで起動すると `Generic`／`Generic Display` の仮の画面を表示するため、SidecarSwitch はこの二つの名前との完全一致を既定で除外します。これは観測に基づく判定で、同名の画面がすべて仮の画面とは限りません。
 
 1. **「接続中のディスプレイ」**を開き、対象のカードを探します。除外された画面も一覧に残ります。
 2. **「物理ディスプレイ判定から除外」**をオンにすると、物理モニターとして数えなくなります。実物の Generic モニターならチェックを外して数えるようにできます。**「自動判定に戻す」**でこの画面の個別設定を解除し、既定の規則に戻します。
 3. 設定は画面の UUID ごとに保存するため、同名の画面には影響しません。安定した UUID が取得できない場合は変更できません。一覧を更新し、BetterDisplay が起動して画面を識別できることを確認してください。
 
-この設定は物理モニターの有無の判定だけに影響し、画面を消したり PadPilot の制御を止めたりしません。**すべての物理モニターを除外すると、自動モードはモニターがないものとして iPad への切り替えを試みる場合があります。** Sidecar と識別済みの仮想予備画面は元から物理モニターとして数えず、その用途と制御は変わりません。
+この設定は物理モニターの有無の判定だけに影響し、画面を消したり SidecarSwitch の制御を止めたりしません。**すべての物理モニターを除外すると、自動モードはモニターがないものとして iPad への切り替えを試みる場合があります。** Sidecar と識別済みの仮想予備画面は元から物理モニターとして数えず、その用途と制御は変わりません。
 
 <a id="cooldown"></a>
 ## 5. 切断・再試行・クールダウン
@@ -106,7 +106,7 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 3. 原因を解消し、一時的な手動指定とクールダウンを解除したい場合に実行します。
 
    ```bash
-   "$PADPILOT_CLI" action reset
+   "$SIDECARSWITCH_CLI" action reset
    ```
 
 サービスが状態を再評価します。手動で接続する場合は「再接続」を選びます。コマンドの受付成功は接続完了を意味しません。
@@ -119,17 +119,17 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 1. 起動設定とサービスの状態を確認します。
 
    ```bash
-   "$PADPILOT_CLI" autostart status
-   "$PADPILOT_CLI" status
+   "$SIDECARSWITCH_CLI" autostart status
+   "$SIDECARSWITCH_CLI" status
    ```
 
 2. 必要ならログイン時起動を有効にします。
 
    ```bash
-   "$PADPILOT_CLI" autostart enable
+   "$SIDECARSWITCH_CLI" autostart enable
    ```
 
-3. plist は `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist` に同梱され、`~/Library/LaunchAgents` には作成されません。`requiresApproval` の場合は「システム設定 → 一般 → ログイン項目」で PadPilot を許可してください。開発版の古い LaunchAgent は手動で停止・削除してください。この版では移行しません。
+3. plist は `SidecarSwitch.app/Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist` に同梱され、`~/Library/LaunchAgents` には作成されません。`requiresApproval` の場合は「システム設定 → 一般 → ログイン項目」で SidecarSwitch を許可してください。
 
 <a id="logs"></a>
 ## 7. ログの収集
@@ -138,11 +138,11 @@ PadPilot は CLI を使って画面の役割と仮想ディスプレイを制御
 
 ```bash
 # 状態と診断画面を開く
-"$PADPILOT_CLI" open-log
+"$SIDECARSWITCH_CLI" open-log
 
 # ログファイルを読む
-tail -n 50 ~/Library/Logs/PadPilot/padpilot.log
-cat ~/Library/Logs/PadPilot/launchd.stderr.log
+tail -n 50 ~/Library/Logs/SidecarSwitch/sidecarswitch.log
+cat ~/Library/Logs/SidecarSwitch/launchd.stderr.log
 ```
 
 共有前に個人のパスや機密情報を確認し、伏せてください。
@@ -150,11 +150,11 @@ cat ~/Library/Logs/PadPilot/launchd.stderr.log
 <a id="safe-startup"></a>
 ## 8. 事前確認・危険なパス・応答確認の失敗
 
-- `FAIL: BetterDisplay CLI`：アプリのインストールだけでは CLI の動作は保証されません。CLI 機能と保存された実行パスを確認し、`"$PADPILOT_CLI" gui diagnostics` で診断を開き、BetterDisplay のカードを更新します。ソース版のみ、プロジェクト内で `./scripts/install.sh --check` を実行します。help 成功だけでは Sidecar や実際の表示は確認できません。
+- `FAIL: BetterDisplay CLI`：アプリのインストールだけでは CLI の動作は保証されません。CLI 機能と保存された実行パスを確認し、`"$SIDECARSWITCH_CLI" gui diagnostics` で診断を開き、BetterDisplay のカードを更新します。ソース版のみ、プロジェクト内で `./scripts/install.sh --check` を実行します。help 成功だけでは Sidecar や実際の表示は確認できません。
 - 設定画面が開かない：DMG 版は[インストールガイド](INSTALLATION.ja.md)の Python 復旧手順を確認するか、リリースを再ダウンロードしてインストールします。ソース版のみ、ソース更新後に `./scripts/install.sh` を再実行してアプリをビルドしてください。
 - `Refusing unsafe state directory/file`：操作を止め、指定パスの所有者、シンボリックリンク、ハードリンクを確認します。`/tmp` や他人のディレクトリを再帰的に権限変更・削除・取得しないでください。自分のデータだと確認したうえでバックアップし、所有者が整理します。
-- `Login service belongs to another ...`：同名アプリ・サービスが別のチェックアウトに属しています。元のソースの場所でアンインストーラーを使い、名前に padpilot を含む全プロセスを一括終了しないでください。
-- `Daemon handshake failed`：このプロジェクトのサービス応答を確認できておらず、インストール成功ではありません。`~/Library/Logs/PadPilot/launchd.stderr.log` と `padpilot.log` を確認し、パス・権限・BetterDisplay の問題を解消して再試行します。`Rollback incomplete` もある場合は以前の状態の復元も未確認です。記録を保存し、連続した再インストールは避けてください。
+- `Login service belongs to another ...`：同名アプリ・サービスが別のチェックアウトに属しています。元のソースの場所でアンインストーラーを使い、名前に sidecarswitch を含む全プロセスを一括終了しないでください。
+- `Daemon handshake failed`：このプロジェクトのサービス応答を確認できておらず、インストール成功ではありません。`~/Library/Logs/SidecarSwitch/launchd.stderr.log` と `sidecarswitch.log` を確認し、パス・権限・BetterDisplay の問題を解消して再試行します。`Rollback incomplete` もある場合は以前の状態の復元も未確認です。記録を保存し、連続した再インストールは避けてください。
 - リリース版の更新失敗：新版の CLI が実行できなくても、インストーラーは新版アプリとバックグラウンドサービスの停止を確認してから旧版を復元します。停止を確認できない場合は現在のアプリとバックアップを保持し、`Rollback incomplete` を報告します。それらとエラーの記録を残し、繰り返し上書きインストールしないでください。
 
 IPC ログにはコマンド名のみを記録しますが、過去のログ、診断、実際のエラーにはデバイス情報が含まれることがあります。共有前にシリアル番号、UUID、アカウント、個人のパスを伏せてください。

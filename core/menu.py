@@ -15,9 +15,9 @@ from core.config import Config
 from core.models import OperationMode, pairing_key
 from core.storage import latest_state_path, read_private_json, state_file_exists, UnsafePathError
 
-APP_SUPPORT = Path.home() / "Library" / "Application Support" / "PadPilot"
+APP_SUPPORT = Path.home() / "Library" / "Application Support" / "SidecarSwitch"
 STATUS_FILE_PRIMARY = APP_SUPPORT / "runtime" / "status.json"
-STATUS_FILE_FALLBACK = Path("/tmp/PadPilot/runtime/status.json")
+STATUS_FILE_FALLBACK = Path("/tmp/SidecarSwitch/runtime/status.json")
 MODES = {"manual_only": "僅手動", "automatic": "自動", "prefer_ipad": "偏好 iPad"}
 
 
@@ -110,7 +110,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     if service_running is not False and icon_name != 'warning' and (is_applying or runtime.get('transition_state', 'IDLE') != 'IDLE'):
         icon_name = 'working'
     separator()
-    item('PadPilot')
+    item('SidecarSwitch')
     items[-1]['icon'] = icon_name
     item(tr('主螢幕：{0}', main.get('name') or tr('未偵測到')) + ('' if fresh else tr('（尚無最新狀態）')))
     if is_out_of_sync:
@@ -162,7 +162,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
         if not visible and not sidecars:
             item(tr('未偵測到可用螢幕'), 1)
     separator(1)
-    item(tr('已配對至 PadPilot'), 1)
+    item(tr('已配對至 SidecarSwitch'), 1)
     if not paired:
         item(tr('自動偵測中；不會儲存推定配對') if auto_detect else tr('尚未配對；請使用配對精靈'), 1)
     for p in paired:
@@ -189,7 +189,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
     virtual_state = (tr('狀態未知') if not fresh or errors.get('identifiers') else
                      tr('已連接') if actual.get('virtual_display_connected') else
                      tr('已配置') if actual.get('virtual_display_exists') else tr('未配置'))
-    item(f"◻️ {config.get('virtual_display_name') or details.get('virtual_display_name', 'PadPilotVirtual')} — {virtual_state}", 1)
+    item(f"◻️ {config.get('virtual_display_name') or details.get('virtual_display_name', 'SidecarSwitchVirtual')} — {virtual_state}", 1)
 
     item(tr('iPad 控制'))
     item((tr('自動偵測目標：') if auto_detect else tr('目前目標：')) + (target.get('name') or tr('尚無目標')), 1)
@@ -237,7 +237,7 @@ def render(status: dict, config: dict, autostart: bool, now: float | None = None
 
 
 def read_menu() -> dict:
-    for marker in (APP_SUPPORT / 'menu-hidden', Path('/tmp/PadPilot/menu-hidden')):
+    for marker in (APP_SUPPORT / 'menu-hidden', Path('/tmp/SidecarSwitch/menu-hidden')):
         try:
             if state_file_exists(marker):
                 return {'schema_version': 1, 'hidden': True, 'icon': 'paused', 'items': []}
@@ -245,7 +245,7 @@ def read_menu() -> dict:
             continue  # Untrusted fallback markers cannot hide the native app.
     config_error = False
     try:
-        config = Config.from_dict(load_json(APP_SUPPORT / 'config.json', Path('/tmp/PadPilot/config.json'), strict=True)).to_dict()
+        config = Config.from_dict(load_json(APP_SUPPORT / 'config.json', Path('/tmp/SidecarSwitch/config.json'), strict=True)).to_dict()
     except (OSError, ValueError, UnsafePathError):
         config = Config(mode=OperationMode.MANUAL_ONLY, auto_detect_ipad=False, autostart_on_login=False).to_dict()
         config_error = True
@@ -256,7 +256,7 @@ def read_menu() -> dict:
     status = load_status()
     if config_error:
         status = dict(status, actual=dict(status.get('actual') or {}, discovery_errors={
-            'config': 'Configuration unreadable; repair or restore the file before starting PadPilot.'}))
+            'config': 'Configuration unreadable; repair or restore the file before starting SidecarSwitch.'}))
     login_status = autostart_status()
     return render(status, config, login_status == 'enabled', service_running=service_running,
                   login_service_status=login_status)

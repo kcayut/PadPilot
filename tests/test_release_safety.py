@@ -19,7 +19,7 @@ from core.storage import (UnsafePathError, atomic_write, private_directory, read
                           remove_state_file, state_file_exists)
 
 ROOT = Path(__file__).resolve().parents[1]
-DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
+DAEMON = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))
 
 
 class ReleaseSafetyTests(unittest.TestCase):
@@ -116,7 +116,7 @@ class ReleaseSafetyTests(unittest.TestCase):
                     config.load_config()
 
     def test_ipc_payloads_and_unknown_commands_never_enter_logs(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         daemon = cls.__new__(cls)
         daemon.config = config.Config()
         daemon.engine = MagicMock(status_revision=1)
@@ -129,7 +129,7 @@ class ReleaseSafetyTests(unittest.TestCase):
                     json.dumps({'command': 'status\n' + secret}),
                     '{broken:' + secret + '}',
                     '{"command":"\\u0073ave_pairing","params":{"name":"' + secret + '"}}']
-        with self.assertLogs('PadPilot.Daemon', level='INFO') as logs:
+        with self.assertLogs('SidecarSwitch.Daemon', level='INFO') as logs:
             responses = [daemon.handle_client_cmd(value) for value in payloads]
         self.assertNotIn(secret, '\n'.join(logs.output))
         self.assertEqual(daemon.apply_config_change.call_count, 3)
@@ -139,7 +139,7 @@ class ReleaseSafetyTests(unittest.TestCase):
     def test_socket_permissions_and_active_endpoint_not_replaced(self):
         # Unix socket names must fit macOS sockaddr_un; keep the temp prefix short.
         with tempfile.TemporaryDirectory(dir='/tmp', prefix='pps-') as directory:
-            path = Path(directory) / 'padpilot.sock'
+            path = Path(directory) / 'sidecarswitch.sock'
             server = DAEMON['create_ipc_socket'](path)
             try:
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
@@ -160,9 +160,9 @@ class ReleaseSafetyTests(unittest.TestCase):
             self.assertEqual(path.read_text(), 'keep')
 
     def test_daemon_candidate_must_be_python_running_our_script(self):
-        output = ['11\n12\n13\n', '/usr/bin/vim', f'/usr/bin/vim {ROOT}/bin/padpilotd',
-                  '/usr/bin/python3', f'/usr/bin/python3 {ROOT}/bin/padpilotd',
-                  '/usr/bin/python3', f'/usr/bin/python3 unrelated.py {ROOT}/bin/padpilotd']
+        output = ['11\n12\n13\n', '/usr/bin/vim', f'/usr/bin/vim {ROOT}/bin/sidecarswitchd',
+                  '/usr/bin/python3', f'/usr/bin/python3 {ROOT}/bin/sidecarswitchd',
+                  '/usr/bin/python3', f'/usr/bin/python3 unrelated.py {ROOT}/bin/sidecarswitchd']
         with patch('core.autostart.subprocess.run', side_effect=[
                 subprocess.CompletedProcess([], 0, value, '') for value in output]):
             self.assertEqual(autostart.daemon_pids(), [12])
@@ -177,14 +177,14 @@ class ReleaseSafetyTests(unittest.TestCase):
 
     def test_loaded_job_must_match_bundled_plist_and_executable(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist'
+            path = Path(directory) / 'SidecarSwitch.app/Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist'
             path.parent.mkdir(parents=True)
             path.write_text(autostart.generate_plist_content())
-            executable = path.parents[2] / 'MacOS/PadPilot'
-            output = 'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.padpilot.app\nprogram identifier = Contents/MacOS/PadPilot (mode: 2)\n'
+            executable = path.parents[2] / 'MacOS/SidecarSwitch'
+            output = 'managed_by = com.apple.xpc.ServiceManagement\nparent bundle identifier = com.sidecarswitch.app\nprogram identifier = Contents/MacOS/SidecarSwitch (mode: 2)\n'
             with patch.object(autostart, 'service_owner', return_value=path.parents[3].resolve()), patch.object(autostart.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')):
                 self.assertTrue(autostart.job_loaded(path))
-            for foreign in (output.replace('com.padpilot.app', 'another.app'), output.replace('Contents/MacOS/PadPilot', '/other/PadPilot')):
+            for foreign in (output.replace('com.sidecarswitch.app', 'another.app'), output.replace('Contents/MacOS/SidecarSwitch', '/other/SidecarSwitch')):
                 with patch.object(autostart.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, foreign, '')):
                     with self.assertRaises(RuntimeError):
                         autostart.job_loaded(path)
@@ -202,7 +202,7 @@ class ReleaseSafetyTests(unittest.TestCase):
 
     def test_cli_status_labels_stale_snapshot_and_empty_json(self):
         import argparse
-        command = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))['cmd_status']
+        command = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))['cmd_status']
         for snapshot in ({}, {'mode': 'automatic'}):
             with patch.dict(command.__globals__, read_status=lambda: snapshot, is_daemon_running=lambda: False), \
                  contextlib.redirect_stdout(io.StringIO()) as output:

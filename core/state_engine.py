@@ -1,4 +1,4 @@
-"""Display State Engine for PadPilot.
+"""Display State Engine for SidecarSwitch.
 
 Implements the core decision cycle:
     observe() -> ActualState
@@ -896,7 +896,7 @@ class StateEngine:
             runtime=self.runtime.to_dict(),
             configured_ipad=self.config.ipad.to_dict(),
             paired_ipads=[ipad.to_dict() for ipad in self.config.paired_ipads],
-            summary_text=f"{icon} PadPilot | {self.runtime.mode.value.title()}",
+            summary_text=f"{icon} SidecarSwitch | {self.runtime.mode.value.title()}",
             status_details=status_details,
             config_revision=self.config.revision,
             status_revision=self.status_revision,

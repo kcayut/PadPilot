@@ -18,8 +18,8 @@ from core.state_engine import StateEngine
 from core.usb_events import USBEventMonitor
 
 ROOT = Path(__file__).resolve().parents[1]
-DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
-CLI = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
+DAEMON = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))
+CLI = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
 MENU = runpy.run_path(str(ROOT / 'core/menu.py'))
 UUID = '11111111-1111-4111-8111-111111111111'
 USB = {'vendor_id': 1452, 'product_name': 'iPad', 'serial': 'usb1'}
@@ -185,13 +185,13 @@ class EventSettingsTests(unittest.TestCase):
             handler = CLI['main']
             submit = MagicMock()
             with patch.dict(handler.__globals__, submit_settings=submit), \
-                 patch.object(sys, 'argv', ['padpilot-cli', 'change-settings', action]), \
+                 patch.object(sys, 'argv', ['sidecarswitch-cli', 'change-settings', action]), \
                  patch('sys.stdin', io.StringIO(json.dumps({'enabled': value}))):
                 handler()
             self.assertEqual(submit.call_args.args[:2], (action, {'enabled': value}))
 
     def test_daemon_usb_toggle_does_not_reset_manual_override(self):
-        daemon = DAEMON['PadPilotDaemon'].__new__(DAEMON['PadPilotDaemon'])
+        daemon = DAEMON['SidecarSwitchDaemon'].__new__(DAEMON['SidecarSwitchDaemon'])
         daemon.config = Config()
         daemon.engine = MagicMock()
         daemon.engine.run_control.side_effect = lambda action: action()
@@ -211,7 +211,7 @@ class EventSettingsTests(unittest.TestCase):
         daemon.engine.reset_automation.assert_not_called()
 
     def test_event_wakes_existing_loop_and_stop_cleans_monitor(self):
-        daemon = DAEMON['PadPilotDaemon'].__new__(DAEMON['PadPilotDaemon'])
+        daemon = DAEMON['SidecarSwitchDaemon'].__new__(DAEMON['SidecarSwitchDaemon'])
         daemon.claim_boot_connection = MagicMock(return_value=False)
         daemon.running = True
         daemon.config = Config()

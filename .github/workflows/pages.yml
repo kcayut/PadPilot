@@ -7,7 +7,7 @@ name: GitHub Pages
       - '.github/workflows/pages.yml'
       - 'website/**'
       - 'scripts/build_website.py'
-      - 'assets/padpilot-icon.png'
+      - 'assets/sidecarswitch-icon.png'
       - 'docs/images/**'
       - 'docs/videos/**'
   workflow_dispatch:

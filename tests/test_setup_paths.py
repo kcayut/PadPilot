@@ -24,7 +24,7 @@ from core.config import Config
 class SetupPathsTests(unittest.TestCase):
     def setUp(self):
         # Never discover or remove the developer's installed system App.
-        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-padpilot-test/PadPilot.app'))
+        system = patch('core.runtime.SYSTEM_APP', Path('/nonexistent-sidecarswitch-test/SidecarSwitch.app'))
         system.start()
         self.addCleanup(system.stop)
 
@@ -47,14 +47,14 @@ class SetupPathsTests(unittest.TestCase):
             with patch('pathlib.Path.home', return_value=home), \
                  patch.object(manage_app, 'FALLBACK_CONFIG_FILE', fallback), \
                  patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)):
-                for support in (home / 'Library/Application Support/PadPilot', fallback.parent):
+                for support in (home / 'Library/Application Support/SidecarSwitch', fallback.parent):
                     path = support / 'runtime/settings-window.lock'
                     path.parent.mkdir(parents=True)
                     path.write_text('unchanged')
                     path.chmod(0o644)
                     with path.open() as window:
                         fcntl.flock(window, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        with self.assertRaisesRegex(RuntimeError, 'Close PadPilot settings windows'):
+                        with self.assertRaisesRegex(RuntimeError, 'Close SidecarSwitch settings windows'):
                             manage_app.ensure_settings_closed()
                     manage_app.ensure_settings_closed()
                     self.assertEqual(path.read_text(), 'unchanged')
@@ -64,21 +64,21 @@ class SetupPathsTests(unittest.TestCase):
         source = Path('/tmp/source with spaces')
         with patch.object(manage_app, 'ROOT', source), \
              patch.object(manage_app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as query:
-            with self.assertRaisesRegex(RuntimeError, 'Wait for PadPilot operations to finish'):
+            with self.assertRaisesRegex(RuntimeError, 'Wait for SidecarSwitch operations to finish'):
                 manage_app.ensure_settings_closed()
         pattern = query.call_args.args[0][2]
         for command in ('gui', 'open-log', 'change-settings', 'set-mode', 'set-language',
                         'autostart', 'action', 'pair', 'set-ipad', 'select-ipad'):
-            self.assertRegex(f'python3 {source}/bin/padpilot-cli {command} --option', pattern)
-            self.assertNotRegex(f'python3 {source}-other/bin/padpilot-cli {command} --option', pattern)
+            self.assertRegex(f'python3 {source}/bin/sidecarswitch-cli {command} --option', pattern)
+            self.assertNotRegex(f'python3 {source}-other/bin/sidecarswitch-cli {command} --option', pattern)
         for command in ('gui-data', 'menu-json', 'status', 'set-mode-extra'):
-            self.assertNotRegex(f'python3 {source}/bin/padpilot-cli {command}', pattern)
+            self.assertNotRegex(f'python3 {source}/bin/sidecarswitch-cli {command}', pattern)
 
     def test_native_settings_lock_rejects_links_and_nonregular_or_foreign_files(self):
         for kind in ('symlink', 'hardlink', 'directory', 'fifo', 'foreign', 'linked-parent'):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
-                runtime = home / 'Library/Application Support/PadPilot/runtime'
+                runtime = home / 'Library/Application Support/SidecarSwitch/runtime'
                 runtime.mkdir(parents=True)
                 path = runtime / 'settings-window.lock'
                 outside = home / 'outside'
@@ -121,7 +121,7 @@ class SetupPathsTests(unittest.TestCase):
             cli.parent.mkdir(parents=True)
             cli.write_text('#!/bin/sh\necho help\n')
             cli.chmod(0o755)
-            cfg = home / 'Library/Application Support/PadPilot/config.json'
+            cfg = home / 'Library/Application Support/SidecarSwitch/config.json'
             cfg.parent.mkdir(parents=True)
             cfg.write_text(json.dumps({'betterdisplaycli_path': str(cli)}))
             before = cfg.read_bytes()
@@ -134,7 +134,7 @@ class SetupPathsTests(unittest.TestCase):
                 self.assertTrue(check_install.check(str(app)))
             self.assertEqual(cfg.read_bytes(), before)
             self.assertEqual(BetterDisplayCLI.resolve_app_path(str(cli)), str(app))
-            daemon_type = runpy.run_path(str(ROOT / 'bin/padpilotd'))['PadPilotDaemon']
+            daemon_type = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
             daemon = daemon_type.__new__(daemon_type)
             daemon.config = Config(betterdisplaycli_path=str(cli))
             # A concurrent CLI helper must not prevent the actual app opening.
@@ -157,8 +157,8 @@ class SetupPathsTests(unittest.TestCase):
                 home = Path(directory).resolve()
                 primary = home / 'state'
                 fallback = home / 'fallback/config.json'
-                logs = home / 'Library/Logs/PadPilot'
-                for path in (primary / 'config.json', fallback, logs / 'padpilot.log'):
+                logs = home / 'Library/Logs/SidecarSwitch'
+                for path in (primary / 'config.json', fallback, logs / 'sidecarswitch.log'):
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text('keep or trash')
                 with patch('pathlib.Path.home', return_value=home), \
@@ -175,7 +175,7 @@ class SetupPathsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             source = home / 'source'
-            (source / 'build/PadPilot.app').mkdir(parents=True)
+            (source / 'build/SidecarSwitch.app').mkdir(parents=True)
             cfg = Config(betterdisplaycli_path='/old/cli')
             calls = []
             def run(command, **kwargs):
@@ -196,13 +196,13 @@ class SetupPathsTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'Previous app and service state restored'):
                     manage_app.manage(betterdisplay_path='/new/cli')
                 restore.assert_called_once_with(cfg)
-            self.assertFalse((home / 'Applications/PadPilot.app').exists())
+            self.assertFalse((home / 'Applications/SidecarSwitch.app').exists())
 
     def test_unavailable_optional_shortcut_does_not_fail_installed_app(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             source = home / 'source'
-            (source / 'build/PadPilot.app').mkdir(parents=True)
+            (source / 'build/SidecarSwitch.app').mkdir(parents=True)
             (home / 'bin').write_text('unrelated file')
             with patch('pathlib.Path.home', return_value=home), patch.object(manage_app, 'ROOT', source), \
                  patch.object(manage_app, 'installation_service', return_value='notRegistered'), patch.object(manage_app, 'service_command', return_value='notRegistered'), \
@@ -212,7 +212,7 @@ class SetupPathsTests(unittest.TestCase):
                  patch.object(manage_app, 'stop_menu_apps'), patch.object(manage_app, 'ensure_settings_closed'), \
                  patch.object(manage_app.subprocess, 'run'), contextlib.redirect_stdout(io.StringIO()) as output:
                 manage_app.manage()
-            self.assertTrue((home / 'Applications/PadPilot.app').is_dir())
+            self.assertTrue((home / 'Applications/SidecarSwitch.app').is_dir())
             self.assertEqual((home / 'bin').read_text(), 'unrelated file')
             self.assertIn('optional CLI shortcut unavailable', output.getvalue())
 

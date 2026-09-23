@@ -1,4 +1,4 @@
-"""Notification utility for PadPilot.
+"""Notification utility for SidecarSwitch.
 
 Per requirements:
 Normal operations do NOT trigger notifications.
@@ -19,7 +19,7 @@ def notify_error(message: str, subtitle: Optional[str] = None) -> None:
     """Send an error/warning notification to macOS Notification Center."""
     try:
         sub_clause = f'subtitle "{subtitle}"' if subtitle else ""
-        script = f'display notification "{message}" with title "PadPilot" {sub_clause} sound name "Basso"'
+        script = f'display notification "{message}" with title "SidecarSwitch" {sub_clause} sound name "Basso"'
         subprocess.run(
             ["osascript", "-e", script],
             capture_output=True,

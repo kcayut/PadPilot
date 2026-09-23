@@ -26,10 +26,10 @@ class AppPathTests(unittest.TestCase):
         self.home = Path(stack.enter_context(tempfile.TemporaryDirectory())).resolve()
         self.source = self.home / 'source'
         self.source.mkdir()
-        self.system = self.home / 'system/PadPilot.app'
-        self.user = self.home / 'Applications/PadPilot.app'
-        self.build = self.source / 'build/PadPilot.app'
-        self.receipt = self.home / 'Library/Application Support/PadPilot/login-service.json'
+        self.system = self.home / 'system/SidecarSwitch.app'
+        self.user = self.home / 'Applications/SidecarSwitch.app'
+        self.build = self.source / 'build/SidecarSwitch.app'
+        self.receipt = self.home / 'Library/Application Support/SidecarSwitch/login-service.json'
         stack.enter_context(patch.object(Path, 'home', return_value=self.home))
         stack.enter_context(patch.object(runtime, 'ROOT', self.source))
         stack.enter_context(patch.object(runtime, 'SYSTEM_APP', self.system))
@@ -40,9 +40,9 @@ class AppPathTests(unittest.TestCase):
         (resources / 'runtime.json').write_text(json.dumps({
             'project_root': str(root or self.source), 'python': sys.executable, 'locator': 1}))
         (path / 'Contents/Info.plist').write_bytes(plistlib.dumps({
-            'CFBundleIdentifier': 'com.padpilot.app',
-            'CFBundleURLTypes': [{'CFBundleURLSchemes': ['padpilot']}]}))
-        helper = path / 'Contents/MacOS/PadPilot'
+            'CFBundleIdentifier': 'com.sidecarswitch.app',
+            'CFBundleURLTypes': [{'CFBundleURLSchemes': ['sidecarswitch']}]}))
+        helper = path / 'Contents/MacOS/SidecarSwitch'
         helper.parent.mkdir(exist_ok=True)
         helper.touch()
         return path
@@ -70,12 +70,12 @@ class AppPathTests(unittest.TestCase):
         self.owner(self.system)
         self.assertEqual(runtime.find_app(include_build=False), self.system)
         # A current release uses its own bundle, regardless of other copies.
-        bundled_root = self.system / 'Contents/Resources/PadPilot'
+        bundled_root = self.system / 'Contents/Resources/SidecarSwitch'
         self.assertEqual(runtime.find_app(bundled_root), self.system)
 
     def test_stale_receipt_recovers_without_rewriting_and_unsafe_receipt_fails(self):
         self.app(self.system)
-        self.owner(self.home / 'removed/PadPilot.app')
+        self.owner(self.home / 'removed/SidecarSwitch.app')
         before = self.receipt.read_bytes(), self.receipt.stat().st_mtime_ns
         self.assertEqual(runtime.find_app(), self.system)
         self.assertEqual((self.receipt.read_bytes(), self.receipt.stat().st_mtime_ns), before)
@@ -87,9 +87,9 @@ class AppPathTests(unittest.TestCase):
     def test_uninstalled_lookup_does_not_create_state_or_accept_app_symlink(self):
         self.assertIsNone(runtime.find_app())
         self.assertFalse(self.receipt.parent.exists())
-        self.app(self.home / 'elsewhere/PadPilot.app')
+        self.app(self.home / 'elsewhere/SidecarSwitch.app')
         self.system.parent.mkdir(parents=True)
-        self.system.symlink_to(self.home / 'elsewhere/PadPilot.app')
+        self.system.symlink_to(self.home / 'elsewhere/SidecarSwitch.app')
         self.assertIsNone(runtime.find_app())
 
     def test_betterdisplay_locator_uses_installed_app_without_a_build(self):
@@ -105,7 +105,7 @@ class AppPathTests(unittest.TestCase):
                 return_value=subprocess.CompletedProcess([], 0, str(renamed), '')) as launch:
             self.assertEqual(BetterDisplayCLI.resolve_app_path(), str(renamed))
         self.assertEqual(launch.call_args.args[0],
-                         [str(self.system / 'Contents/MacOS/PadPilot'), '--locate-betterdisplay'])
+                         [str(self.system / 'Contents/MacOS/SidecarSwitch'), '--locate-betterdisplay'])
 
     def test_update_and_uninstall_keep_registered_location(self):
         self.app(self.system)
@@ -137,22 +137,22 @@ class AppPathTests(unittest.TestCase):
             manage_app.manage(uninstall=True)
             self.assertFalse(self.system.exists())
             self.assertTrue(self.user.exists())
-            self.assertEqual(len(list((self.home / '.Trash').glob('*/PadPilot.app'))), 2)
+            self.assertEqual(len(list((self.home / '.Trash').glob('*/SidecarSwitch.app'))), 2)
 
     def test_stop_menu_targets_resolved_app(self):
         self.app(self.system)
         with patch.object(manage_app, 'ROOT', self.source), patch.object(manage_app.subprocess, 'run',
                 return_value=subprocess.CompletedProcess([], 1)) as query:
             manage_app.stop_menu_apps()
-        self.assertIn('system/PadPilot', query.call_args.args[0][-1])
+        self.assertIn('system/SidecarSwitch', query.call_args.args[0][-1])
 
     @unittest.skipUnless(sys.platform == 'darwin', 'Uses macOS plutil')
     def test_shell_bootstrap_uses_system_or_registered_python(self):
         self.app(self.system)
         helper = self.home / 'source_runtime.sh'
         helper.write_text((ROOT / 'scripts/source_runtime.sh').read_text().replace(
-            ' /Applications/PadPilot.app ', f' "{self.system}" '))
-        custom = self.home / 'Other Apps/PadPilot.app'
+            ' /Applications/SidecarSwitch.app ', f' "{self.system}" '))
+        custom = self.home / 'Other Apps/SidecarSwitch.app'
         for app in (self.system, self.app(custom)):
             with self.subTest(app=app):
                 if app == custom:

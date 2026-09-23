@@ -1,4 +1,4 @@
-"""Unit tests for PadPilot Detector and Topology Generation."""
+"""Unit tests for SidecarSwitch Detector and Topology Generation."""
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -9,12 +9,12 @@ from core.detector import DisplayDetector
 from core.models import DisplayInfo, IpadConfig
 
 
-class TestPadPilotDetector(unittest.TestCase):
+class TestSidecarSwitchDetector(unittest.TestCase):
     def setUp(self) -> None:
         self.config = Config(
             ipad=IpadConfig(name="Cayut iPad", sidecar_uuid="UUID-1234", usb_serial="USB-SERIAL-999"),
             ignore_list=["Dummy", "Virtual"],
-            virtual_display_name="PadPilotVirtual",
+            virtual_display_name="SidecarSwitchVirtual",
         )
         self.mock_bd_cli = MagicMock(spec=BetterDisplayCLI)
         self.detector = DisplayDetector(self.config, self.mock_bd_cli)
@@ -22,7 +22,7 @@ class TestPadPilotDetector(unittest.TestCase):
     def test_display_ignore_filtering(self) -> None:
         """Verify that virtual screens and ignore list matchers are ignored."""
         d1 = DisplayInfo(display_id=1, name="ASUS PG279Q")
-        d2 = DisplayInfo(display_id=2, name="PadPilotVirtual")
+        d2 = DisplayInfo(display_id=2, name="SidecarSwitchVirtual")
         d3 = DisplayInfo(display_id=3, name="HDMI Dummy Plug")
 
         self.assertFalse(self.detector.is_display_ignored(d1))
@@ -84,7 +84,7 @@ class TestPadPilotDetector(unittest.TestCase):
         displays = self.detector.get_online_displays()
         self.assertEqual(len(displays), 1)
         self.assertTrue(displays[0].is_virtual)
-        self.assertEqual(displays[0].name, "PadPilotVirtual")
+        self.assertEqual(displays[0].name, "SidecarSwitchVirtual")
 
     def test_ghost_headless_display_ignored(self) -> None:
         """Verify that 0x0, inactive, or vendor 0 headless placeholder displays are filtered out."""

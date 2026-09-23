@@ -1,4 +1,4 @@
-"""Logging configuration for PadPilot."""
+"""Logging configuration for SidecarSwitch."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Optional
 from core.storage import private_directory, private_file
 
-LOG_DIR = Path.home() / "Library" / "Logs" / "PadPilot"
-LOG_FILE = LOG_DIR / "padpilot.log"
+LOG_DIR = Path.home() / "Library" / "Logs" / "SidecarSwitch"
+LOG_FILE = LOG_DIR / "sidecarswitch.log"
 
 _configured = False
 
@@ -29,7 +29,7 @@ def setup_logging(level: int = logging.INFO) -> None:
     if _configured:
         return
 
-    root_logger = logging.getLogger("PadPilot")
+    root_logger = logging.getLogger("SidecarSwitch")
     root_logger.setLevel(level)
 
     formatter = logging.Formatter(
@@ -39,7 +39,7 @@ def setup_logging(level: int = logging.INFO) -> None:
 
     try:
         private_directory(LOG_DIR)
-        for path in (LOG_FILE, *(LOG_DIR / f'padpilot.log.{n}' for n in range(1, 4))):
+        for path in (LOG_FILE, *(LOG_DIR / f'sidecarswitch.log.{n}' for n in range(1, 4))):
             private_file(path, create=path == LOG_FILE)
         # Rotating file handler (5MB, 3 backups)
         file_handler = PrivateRotatingFileHandler(
@@ -64,5 +64,5 @@ def setup_logging(level: int = logging.INFO) -> None:
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     setup_logging()
     if name:
-        return logging.getLogger(f"PadPilot.{name}")
-    return logging.getLogger("PadPilot")
+        return logging.getLogger(f"SidecarSwitch.{name}")
+    return logging.getLogger("SidecarSwitch")

@@ -54,23 +54,23 @@ jobs:
       - name: Publish complete development prerelease
         run: |
           directory="dist/$RELEASE_TAG"
-          cat > "$RUNNER_TEMP/padpilot-release-notes.md" <<'NOTES'
+          cat > "$RUNNER_TEMP/sidecarswitch-release-notes.md" <<'NOTES'
           Apple Silicon · macOS 14+ · Development preview
 
-          Download the DMG and drag PadPilot.app into Applications. Swift and CPython are included; no local compiler or Python installation is required. BetterDisplay must be installed and running; its separate CLI is optional.
+          Download the DMG and drag SidecarSwitch.app into Applications. Swift and CPython are included; no local compiler or Python installation is required. BetterDisplay must be installed and running; its separate CLI is optional.
 
           This build uses ad-hoc signing and is not notarized. macOS may require Privacy & Security → Open Anyway after you verify the source. Do not assume every damaged-app warning is harmless. See the README for installation, Python selection, and troubleshooting.
 
           Software and relocation checks run automatically. Sidecar, USB hotplug, and cold-boot acceptance on your hardware remain unknown.
 
-          繁體中文：下載 DMG，將 PadPilot.app 拖入「應用程式」後開啟。Swift 與 CPython 已內建，BetterDisplay App 仍須安裝並執行，獨立 CLI 可省略。本版只有 ad-hoc 簽章，未經 Apple 公證；可能遇到開發者驗證警告，請先確認來源並參閱 README。實機 Sidecar、USB 插拔與冷開機尚待驗收。
+          繁體中文：下載 DMG，將 SidecarSwitch.app 拖入「應用程式」後開啟。Swift 與 CPython 已內建，BetterDisplay App 仍須安裝並執行，獨立 CLI 可省略。本版只有 ad-hoc 簽章，未經 Apple 公證；可能遇到開發者驗證警告，請先確認來源並參閱 README。實機 Sidecar、USB 插拔與冷開機尚待驗收。
 
-          日本語：DMG を開き、PadPilot.app をアプリケーションにドラッグして起動してください。Swift と CPython を同梱しています。BetterDisplay アプリの導入と起動は必要で、独立した CLI は任意です。ad-hoc 署名のみで Apple 公証はありません。開発元の確認警告が出る場合は取得元と README を確認してください。実機での Sidecar、USB 抜き差し、コールドブートは未検証です。
+          日本語：DMG を開き、SidecarSwitch.app をアプリケーションにドラッグして起動してください。Swift と CPython を同梱しています。BetterDisplay アプリの導入と起動は必要で、独立した CLI は任意です。ad-hoc 署名のみで Apple 公証はありません。開発元の確認警告が出る場合は取得元と README を確認してください。実機での Sidecar、USB 抜き差し、コールドブートは未検証です。
           NOTES
-          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > "$RUNNER_TEMP/padpilot-draft" 2>/dev/null; then
-            test "$(cat "$RUNNER_TEMP/padpilot-draft")" = true || { echo 'Published releases are immutable; push a new tag.'; exit 1; }
+          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > "$RUNNER_TEMP/sidecarswitch-draft" 2>/dev/null; then
+            test "$(cat "$RUNNER_TEMP/sidecarswitch-draft")" = true || { echo 'Published releases are immutable; push a new tag.'; exit 1; }
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease --title "PadPilot ${RELEASE_TAG#v} (Development)" --notes-file "$RUNNER_TEMP/padpilot-release-notes.md"
+            gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease --title "SidecarSwitch ${RELEASE_TAG#v} (Development)" --notes-file "$RUNNER_TEMP/sidecarswitch-release-notes.md"
           fi
           gh release upload "$RELEASE_TAG" "$directory"/*.dmg "$directory"/*.zip "$directory/SHA256SUMS" "$directory/build-info.json" --clobber
           gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

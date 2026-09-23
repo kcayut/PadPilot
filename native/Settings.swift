@@ -5,7 +5,7 @@ import Foundation
 import Darwin
 
 // Match Python's Path.home() for CLI launches and isolated release checks.
-func padpilotHomeDirectory() -> URL {
+func sidecarswitchHomeDirectory() -> URL {
     if let home = ProcessInfo.processInfo.environment["HOME"], home.hasPrefix("/") {
         return URL(fileURLWithPath: home, isDirectory: true)
     }
@@ -61,7 +61,7 @@ private final class SettingsModel: ObservableObject {
     private var pendingSelection: (String, Bool)?
     private var pendingRefresh: (Bool, String?, Bool)?
     private var snapshotEpoch = 0
-    #if PADPILOT_GUI_CHECKS
+    #if SIDECARSWITCH_GUI_CHECKS
     var fixtureMode = false
     var recordedCommands: [[String: Any]] = []
     var confirmationAnswer: Bool?
@@ -90,7 +90,7 @@ private final class SettingsModel: ObservableObject {
     var virtuals: [SettingsObject] { data.rows("virtuals") }
     var language: String { config.text("language", "en") }
     func donationEnabled(_ name: String) -> Bool { !data.object("donations").text(name).isEmpty }
-    var title: String { tr(settingsPages.first { $0.0 == page }?.1 ?? "PadPilot") }
+    var title: String { tr(settingsPages.first { $0.0 == page }?.1 ?? "SidecarSwitch") }
     var modeTitle: String { tr(settingsModes.first { $0.0 == config.text("mode") }?.1 ?? "未知") }
     var targetName: String {
         if config.flag("auto_detect_ipad") { return actual.object("resolved_ipad").text("name", tr("尚無唯一目標")) }
@@ -165,7 +165,7 @@ private final class SettingsModel: ObservableObject {
             do {
                 guard let next = try JSONSerialization.jsonObject(with: result.get()) as? SettingsObject,
                       next["schema_version"] as? Int == 1, next["config"] is SettingsObject else {
-                    throw self.failure(self.tr("設定資料回應無效，請重新安裝 PadPilot。"))
+                    throw self.failure(self.tr("設定資料回應無效，請重新安裝 SidecarSwitch。"))
                 }
                 guard self.window?.attachedSheet == nil else { return }
                 self.applySnapshot(next)
@@ -215,7 +215,7 @@ private final class SettingsModel: ObservableObject {
         for key in ["system_checks", "authenticated_checks"] where next[key] == nil { next[key] = data[key] }
         data = next
         if let logs = next["logs"] as? String { logText = logs }
-        window?.title = "PadPilot"
+        window?.title = "SidecarSwitch"
         notice = next.text("config_error", next.text("notice"))
         if notice.isEmpty {
             let errors = actual.object("discovery_errors").values.compactMap { $0 as? String }
@@ -241,7 +241,7 @@ private final class SettingsModel: ObservableObject {
     }
     func setBootConnection(_ enabled: Bool) {
         if enabled && (!config.flag("autostart_on_login") || data.text("login_service_status") != "enabled") {
-            confirm(tr("啟用開機自動連線？"), tr("啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 PadPilot」。是否繼續？")) {
+            confirm(tr("啟用開機自動連線？"), tr("啟用「開機無螢幕時自動連線 iPad」，也會一併啟用「登入時自動啟動 SidecarSwitch」。是否繼續？")) {
                 self.change("set_connect_on_boot", ["enabled": true])
             }
         } else {
@@ -295,7 +295,7 @@ private final class SettingsModel: ObservableObject {
     }
     func delete(_ entry: SettingsObject) {
         let ipad = profile(entry)
-        var detail = tr("裝置：{0}\n僅刪除 PadPilot 的配對紀錄，不解除 Apple 系統配對。", ipad.text("name"))
+        var detail = tr("裝置：{0}\n僅刪除 SidecarSwitch 的配對紀錄，不解除 Apple 系統配對。", ipad.text("name"))
         if isTarget(entry) { detail += tr("\n這是目前主力 iPad；刪除後改為僅手動模式，保留目前螢幕連線。") }
         confirm(tr("確定刪除配對?"), detail, danger: true) { self.change("delete_pairing", ["key": entry.text("key")]) }
     }
@@ -339,7 +339,7 @@ private final class SettingsModel: ObservableObject {
     }
     func confirm(_ title: String, _ detail: String, danger: Bool = false, action: @escaping () -> Void) {
         guard !disabled, let window else { return }
-        #if PADPILOT_GUI_CHECKS
+        #if SIDECARSWITCH_GUI_CHECKS
         if fixtureMode, let answer = confirmationAnswer { if answer { action() }; return }
         #endif
         let expectedRevision = revision
@@ -370,7 +370,7 @@ private final class SettingsModel: ObservableObject {
     func showError(_ message: String, completion: (() -> Void)? = nil) {
         notice = message
         guard !fixtureMode, visible, let window else { completion?(); return }
-        let alert = NSAlert(); alert.messageText = "PadPilot"; alert.informativeText = message
+        let alert = NSAlert(); alert.messageText = "SidecarSwitch"; alert.informativeText = message
         alert.alertStyle = .warning; alert.addButton(withTitle: tr("確認"))
         alert.beginSheetModal(for: window) { _ in completion?() }
     }
@@ -398,10 +398,10 @@ private final class SettingsModel: ObservableObject {
         }.joined(separator: "\n")
     }
     private func failure(_ message: String) -> NSError {
-        NSError(domain: "PadPilot", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+        NSError(domain: "SidecarSwitch", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
     private func execute(_ arguments: [String], input: Data? = nil, timeout: Double, completion: @escaping (Result<Data, Error>) -> Void) {
-        #if PADPILOT_GUI_CHECKS
+        #if SIDECARSWITCH_GUI_CHECKS
         if fixtureMode {
             recordedCommands.append(["args": arguments, "payload": input.flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [:]])
             if deferCompletions { pendingCompletions.append(completion); return }
@@ -442,7 +442,7 @@ private final class SettingsModel: ObservableObject {
                 else {
                     let errorText = String(data: errorBuffer.data, encoding: .utf8) ?? ""
                     let text = errorText.isEmpty ? String(data: result, encoding: .utf8) ?? "" : errorText
-                    let error = NSError(domain: "PadPilot", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: text.isEmpty ? commandError : text])
+                    let error = NSError(domain: "SidecarSwitch", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: text.isEmpty ? commandError : text])
                     DispatchQueue.main.async { completion(.failure(error)) }
                 }
             } catch { DispatchQueue.main.async { completion(.failure(error)) } }
@@ -461,14 +461,14 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.contentMinSize = NSSize(width: 840, height: 500)
         window.isReleasedWhenClosed = false
-        window.title = "PadPilot"
+        window.title = "SidecarSwitch"
         super.init(window: window)
         model.window = window
         model.languageDidChange = { [weak self] in self?.updateMainMenu() }
         window.delegate = self
         window.contentView = NSHostingView(rootView: SettingsRootView(model: model))
         window.center()
-        window.setFrameAutosaveName("PadPilotSettings")
+        window.setFrameAutosaveName("SidecarSwitchSettings")
     }
     required init?(coder: NSCoder) { nil }
     func show(page: String = "paired", delete: String? = nil, select: String? = nil) {
@@ -476,7 +476,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         if !model.fixtureMode && settingsLock < 0 {
             do { try lockSettings() }
             catch {
-                let alert = NSAlert(); alert.messageText = "PadPilot"; alert.informativeText = error.localizedDescription; alert.runModal()
+                let alert = NSAlert(); alert.messageText = "SidecarSwitch"; alert.informativeText = error.localizedDescription; alert.runModal()
                 return
             }
         }
@@ -497,9 +497,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) { model.refresh() }
     private func updateMainMenu() {
         let menu = NSMenu()
-        let appItem = NSMenuItem(title: "PadPilot", action: nil, keyEquivalent: "")
-        let appMenu = NSMenu(title: "PadPilot")
-        let about = NSMenuItem(title: model.tr("關於") + " PadPilot", action: #selector(showAbout), keyEquivalent: "")
+        let appItem = NSMenuItem(title: "SidecarSwitch", action: nil, keyEquivalent: "")
+        let appMenu = NSMenu(title: "SidecarSwitch")
+        let about = NSMenuItem(title: model.tr("關於") + " SidecarSwitch", action: #selector(showAbout), keyEquivalent: "")
         about.target = self; appMenu.addItem(about); appItem.submenu = appMenu; menu.addItem(appItem)
         let editItem = NSMenuItem(title: model.tr("編輯"), action: nil, keyEquivalent: "")
         let edit = NSMenu(title: model.tr("編輯"))
@@ -516,12 +516,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
     @objc private func showAbout() { model.page = "about" }
     private func lockSettings() throws {
-        let directory = padpilotHomeDirectory().appendingPathComponent("Library/Application Support/PadPilot/runtime")
+        let directory = sidecarswitchHomeDirectory().appendingPathComponent("Library/Application Support/SidecarSwitch/runtime")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
         guard attributes[.type] as? FileAttributeType == .typeDirectory,
               (attributes[.ownerAccountID] as? NSNumber)?.uint32Value == getuid() else {
-            throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: model.tr("設定視窗執行目錄無法安全使用，請重新安裝 PadPilot。")])
+            throw NSError(domain: "SidecarSwitch", code: 3, userInfo: [NSLocalizedDescriptionKey: model.tr("設定視窗執行目錄無法安全使用，請重新安裝 SidecarSwitch。")])
         }
         let fd = Darwin.open(directory.appendingPathComponent("settings-window.lock").path, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
         guard fd >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
@@ -530,13 +530,13 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
               (info.st_mode & S_IFMT) == S_IFREG, fchmod(fd, 0o600) == 0,
               flock(fd, LOCK_EX | LOCK_NB) == 0 else {
             Darwin.close(fd)
-            throw NSError(domain: "PadPilot", code: 3, userInfo: [NSLocalizedDescriptionKey: model.tr("設定視窗已開啟或正在更新，請稍後重試。")])
+            throw NSError(domain: "SidecarSwitch", code: 3, userInfo: [NSLocalizedDescriptionKey: model.tr("設定視窗已開啟或正在更新，請稍後重試。")])
         }
         settingsLock = fd
     }
     // The regression executable renders this same controller with recorded CLI calls.
     // Fixtures never access the daemon, hardware, or the user's installation lock.
-    #if PADPILOT_GUI_CHECKS
+    #if SIDECARSWITCH_GUI_CHECKS
     func loadFixture(_ fixture: [String: Any], page: String = "paired") {
         model.fixtureMode = true; model.stop(); model.data = [:]
         model.applySnapshot(fixture)
@@ -553,7 +553,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func checkDeferCommands(_ deferred: Bool) { model.deferCompletions = deferred }
     func checkCompleteCommand(_ index: Int, error: String? = nil) {
         let completion = model.pendingCompletions.remove(at: index)
-        if let error { completion(.failure(NSError(domain: "PadPilotGUICheck", code: 1, userInfo: [NSLocalizedDescriptionKey: error]))) }
+        if let error { completion(.failure(NSError(domain: "SidecarSwitchGUICheck", code: 1, userInfo: [NSLocalizedDescriptionKey: error]))) }
         else { completion(.success((try? JSONSerialization.data(withJSONObject: model.data)) ?? Data())) }
     }
     func checkLogFilter(_ key: String) -> String { model.logFilter = key; return model.filteredLogs }
@@ -898,12 +898,12 @@ private struct SettingsPreferencesView: View {
                     .background(model.config.text("mode") == mode.0 ? Color.accentColor.opacity(0.07) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             }
         }
-        SettingsCard(title: model.tr("🚀 登入時自動啟動 PadPilot：")) {
+        SettingsCard(title: model.tr("🚀 登入時自動啟動 SidecarSwitch：")) {
             Toggle(model.tr("（隨 macOS 登入背景自動執行）"), isOn: Binding(get: { model.data.text("login_service_status") == "enabled" }, set: { enabled in
                 model.setLoginStartup(enabled)
             })).disabled(model.disabled || model.data.text("login_service_status") == "unknown")
             if model.data.text("login_service_status") == "requiresApproval" {
-                Text(model.tr("請到系統設定 → 一般 → 登入項目允許 PadPilot 背景執行"))
+                Text(model.tr("請到系統設定 → 一般 → 登入項目允許 SidecarSwitch 背景執行"))
                     .font(settingsFont(.callout)).foregroundStyle(.secondary)
                 Button(model.tr("開啟系統登入項目")) { SMAppService.openSystemSettingsLoginItems() }
                 Button(model.tr("停用登入啟動")) { model.setLoginStartup(false) }
@@ -928,7 +928,7 @@ private struct SettingsPreferencesView: View {
             Text(model.tr("USB 與 iPad 自動偵測")).font(settingsFont(.headline))
             ForEach([
                 ("usb_event_wakeup", "USB 插拔即時喚醒", "收到原生 USB 事件即重新評估；保留防抖與 30 秒 Watchdog，非保證瞬間連線。"),
-                ("auto_detect_ipad", "自動偵測 iPad（免 PadPilot 配對）", "優先沿用指定配對，支援無線 Sidecar；未指定有效配對時，才以唯一 USB iPad 與 Sidecar 候選推定。")
+                ("auto_detect_ipad", "自動偵測 iPad（免 SidecarSwitch 配對）", "優先沿用指定配對，支援無線 Sidecar；未指定有效配對時，才以唯一 USB iPad 與 Sidecar 候選推定。")
             ], id: \.0) { field, title, detail in
                 Toggle(model.tr(title), isOn: Binding(get: { model.config.flag(field) }, set: { model.change("set_" + field, ["enabled": $0]) })).disabled(model.disabled)
                 Text(model.tr(detail)).font(settingsFont(.caption1)).foregroundStyle(.secondary)
@@ -1050,7 +1050,7 @@ private struct SettingsDisplaysView: View {
                         .accessibilityIdentifier("display-exclusion.\(uuid.isEmpty ? "unidentified.\(index)" : uuid)")
                     Text(model.tr(managed ? "Sidecar 與虛擬螢幕保留原用途，不計入實體螢幕判斷。"
                                   : uuid.isEmpty ? "無法取得螢幕識別碼，暫時不能調整。"
-                                  : "只調整 PadPilot 的實體螢幕判斷，不會停用這個螢幕。"))
+                                  : "只調整 SidecarSwitch 的實體螢幕判斷，不會停用這個螢幕。"))
                         .font(settingsFont(.caption1)).foregroundStyle(.secondary)
                     if editable {
                         HStack {
@@ -1090,7 +1090,7 @@ private struct SettingsVirtualView: View {
         }
         if model.virtuals.isEmpty {
             SettingsCard(title: model.tr("未探測到任何 BetterDisplay 虛擬螢幕")) {
-                Text(model.tr("請先在 BetterDisplay App 中建立至少一個虛擬顯示器（建議命名為 PadPilotVirtual）。"))
+                Text(model.tr("請先在 BetterDisplay App 中建立至少一個虛擬顯示器（建議命名為 SidecarSwitchVirtual）。"))
             }
         }
         ForEach(model.virtuals, id: \.textKey) { display in
@@ -1114,7 +1114,7 @@ private struct SettingsDiagnosticsView: View {
         checks("system_checks", title: "啟動與必要設定偵測")
         checks("authenticated_checks", title: "啟動與必要設定偵測 — 需要使用者帳號密碼")
         SettingsCard(title: "") {
-            DisclosureGroup(model.tr("📜 系統運行日誌 (padpilot.log)"), isExpanded: $logsExpanded) {
+            DisclosureGroup(model.tr("📜 系統運行日誌 (sidecarswitch.log)"), isExpanded: $logsExpanded) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Picker(model.tr("篩選："), selection: $model.logFilter) {
@@ -1172,7 +1172,7 @@ private struct SettingsDiagnosticsView: View {
                 }.font(settingsFont(.caption1))
             }
             if section == "authenticated_checks" {
-                Text(model.tr("查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；PadPilot 不會收集或儲存密碼。只有按此區重新整理才會查詢。")).font(settingsFont(.caption1)).foregroundStyle(.secondary)
+                Text(model.tr("查詢登入項目時，macOS 可能要求輸入管理員帳號與密碼。請在系統驗證視窗輸入；SidecarSwitch 不會收集或儲存密碼。只有按此區重新整理才會查詢。")).font(settingsFont(.caption1)).foregroundStyle(.secondary)
             }
             if model.data.rows(section).isEmpty { Text(model.tr("尚未檢查")).foregroundStyle(.secondary) }
             ForEach(Array(model.data.rows(section).enumerated()), id: \.offset) { _, row in
@@ -1212,7 +1212,7 @@ private struct SettingsLogView: NSViewRepresentable {
         view.textContainer?.widthTracksTextView = true
         view.textContainerInset = NSSize(width: 8, height: 8)
         view.backgroundColor = NSColor(calibratedWhite: 0.10, alpha: 1)
-        view.setAccessibilityLabel("PadPilot logs")
+        view.setAccessibilityLabel("SidecarSwitch logs")
         scroll.documentView = view
         return scroll
     }
@@ -1238,14 +1238,14 @@ private struct SettingsLogView: NSViewRepresentable {
 private struct SettingsAboutView: View {
     @ObservedObject var model: SettingsModel
     var body: some View {
-        SettingsCard(title: "PadPilot") {
+        SettingsCard(title: "SidecarSwitch") {
             Text("v" + model.data.text("version")).font(settingsFont(.title1))
-            Text(model.tr("Mac 的 Sidecar 顯示器自動化工具"))
+            Text(model.tr("iPad 螢幕自動連線與切換工具"))
             Text("PolyForm Noncommercial 1.0.0 · © 2026 kcayut").font(settingsFont(.caption1)).foregroundStyle(.secondary)
             Button(model.tr("在 GitHub 查看專案")) { model.openLink("github") }
         }
-        SettingsCard(title: model.tr("支持 PadPilot")) {
-            Text(model.tr("PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！")).foregroundStyle(.secondary)
+        SettingsCard(title: model.tr("支持 SidecarSwitch")) {
+            Text(model.tr("SidecarSwitch 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！")).foregroundStyle(.secondary)
             HStack {
                 ForEach(["PayPal", "Ko-fi", "歐付寶2218408", "綠界科技"], id: \.self) { name in
                     Button(name) { model.open(model.data.object("donations").text(name)) }

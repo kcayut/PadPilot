@@ -138,7 +138,7 @@ class ControlsTests(unittest.TestCase):
         self.assertTrue(diag['enabled'])
 
     def test_action_errors_reach_gui_instead_of_false_success(self):
-        cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
+        cli = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
         function = cli['cmd_action']
         with patch.dict(function.__globals__, {'send_daemon_cmd': lambda *a, **kw: 'ERROR: failed'}):
             with self.assertRaises(RuntimeError):
@@ -146,11 +146,11 @@ class ControlsTests(unittest.TestCase):
 
 
     def test_cli_accepts_both_custom_path_and_reset_from_gui(self):
-        cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
+        cli = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
         submit = MagicMock()
         # Parser, stdin decoding and dispatcher are exercised together.
         with patch.dict(cli['submit_settings'].__globals__, {'submit_settings': submit}), \
-             patch('sys.argv', ['padpilot-cli', 'change-settings', 'set_betterdisplaycli_path']):
+             patch('sys.argv', ['sidecarswitch-cli', 'change-settings', 'set_betterdisplaycli_path']):
             for payload in ('{"path": null}', '{"path": "/custom/BetterDisplay"}'):
                 with patch('sys.stdin', io.StringIO(payload)):
                     cli['main']()
@@ -158,7 +158,7 @@ class ControlsTests(unittest.TestCase):
 
 
     def test_autostart_failure_is_not_reported_as_cli_success(self):
-        cli = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
+        cli = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
         function = cli['cmd_autostart']
         with patch.dict(function.__globals__, {'enable_autostart': lambda: (False, 'load failed')}), \
              contextlib.redirect_stdout(io.StringIO()):
@@ -217,7 +217,7 @@ class ControlsTests(unittest.TestCase):
         from core.gui import get_check_light, GREEN, RED, ORANGE
         # Passed cases -> GREEN
         for label, val in [
-            ('PadPilot 登入啟動', '已設定（登入後啟用）'),
+            ('SidecarSwitch 登入啟動', '已設定（登入後啟用）'),
             ('背景服務', '執行中'),
             ('BetterDisplay 安裝', '已安裝'),
             ('BetterDisplay 控制介面', '可用'),
@@ -231,13 +231,13 @@ class ControlsTests(unittest.TestCase):
 
         # Failed cases -> RED
         for label, val in [
-            ('PadPilot 登入啟動', '未設定'),
-            ('PadPilot 登入啟動', '未啟用'),
-            ('PadPilot 登入啟動', '設定異常（執行檔或程式路徑不存在）'),
+            ('SidecarSwitch 登入啟動', '未設定'),
+            ('SidecarSwitch 登入啟動', '未啟用'),
+            ('SidecarSwitch 登入啟動', '設定異常（執行檔或程式路徑不存在）'),
             ('背景服務', '未回應／尚未啟動'),
             ('BetterDisplay 安裝', '未在標準應用程式位置找到'),
             ('BetterDisplay 控制介面', '未找到'),
-            ('虛擬備援螢幕', '未找到：PadPilotVirtual'),
+            ('虛擬備援螢幕', '未找到：SidecarSwitchVirtual'),
             ('Sidecar 配對', '尚未配對'),
             ('BetterDisplay 登入啟動', '未啟用'),
             ('BetterDisplay 登入啟動', '未登錄（請到系統設定 → 一般 → 登入項目確認）'),
@@ -266,7 +266,7 @@ class ControlsTests(unittest.TestCase):
             ('FileVault', '尚未檢查'),
             ('FileVault', 'unexpected response'),
             ('BetterDisplay 登入啟動', '尚未驗證'),
-            ('PadPilot 登入啟動', '尚未檢查'),
+            ('SidecarSwitch 登入啟動', '尚未檢查'),
             ('BetterDisplay 登入啟動', '未知／受系統限制（請檢查登入項目）'),
             ('BetterDisplay 登入啟動', '未知（系統查詢逾時或無權限）'),
             ('FileVault', '未知（無法查詢）'),
@@ -312,7 +312,7 @@ class ControlsTests(unittest.TestCase):
         view = {'config': Config(), 'config_error': '', 'actual': {}, 'status': {},
                 'fresh': True, 'scanned': False, 'consistency_state': 'CONSISTENT', 'identifiers': []}
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'padpilot.log'
+            path = Path(directory) / 'sidecarswitch.log'
             with patch('core.gui.read_view', return_value=view), \
                  patch('core.gui.BetterDisplayCLI.resolve_cli_path', return_value=None), \
                  patch('core.gui.get_log_file_path', return_value=path):

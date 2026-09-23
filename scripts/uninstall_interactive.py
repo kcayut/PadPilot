@@ -47,7 +47,7 @@ def preflight_dependencies(dependencies):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='預覽 PadPilot 解除安裝；所有資料預設保留。 / Preview uninstall; preserve user data by default.')
+    parser = argparse.ArgumentParser(description='預覽 SidecarSwitch 解除安裝；所有資料預設保留。 / Preview uninstall; preserve user data by default.')
     parser.add_argument('--yes', '-y', action='store_true', help='略過互動 / Apply explicit options without prompting')
     parser.add_argument('--purge', action='store_true', help='移除設定、配對與日誌 / Remove settings, pairing and logs')
     parser.add_argument('--remove-config', action='store_true', help='移除設定與配對 / Remove settings and pairing')
@@ -61,7 +61,7 @@ def main(argv=None):
         parser.error('沒有互動終端；未做變更。 / No interactive terminal. Use --yes with explicit options; nothing changed.')
     try:
         receipt = read_receipt(ROOT)
-        source_path = Path.home() / 'Applications/PadPilot-source'
+        source_path = Path.home() / 'Applications/SidecarSwitch-source'
         managed_source = (receipt.get('managed_source') is True and not source_path.is_symlink()
                           and ROOT == source_path.resolve())
         available = {item['name']: item for item in receipt['dependencies']
@@ -75,13 +75,13 @@ def main(argv=None):
         remove_config = args.purge or args.remove_config
         remove_logs = args.purge or args.remove_logs
         remove_source = args.remove_source
-        print('PadPilot 解除安裝 / Uninstall\n移除 App、登入啟動與本專案快捷；個人資料與依賴預設保留。')
+        print('SidecarSwitch 解除安裝 / Uninstall\n移除 App、登入啟動與本專案快捷；個人資料與依賴預設保留。')
         print('Remove the app, login startup and owned shortcuts. User data and dependencies are kept by default.')
         if not args.yes:
             if not remove_config:
                 remove_config = ask('將設定與 iPad 配對移到垃圾桶？ / Trash settings and iPad pairing?')
             if not remove_logs:
-                remove_logs = ask('將日誌移到垃圾桶？ / Trash PadPilot logs?')
+                remove_logs = ask('將日誌移到垃圾桶？ / Trash SidecarSwitch logs?')
             if managed_source and not remove_source:
                 remove_source = ask(f'將一鍵安裝來源移到垃圾桶？ / Trash managed source ({ROOT})?')
             for name in sorted(available):
@@ -98,7 +98,7 @@ def main(argv=None):
         dependencies = [available[name] for name in sorted(selected, key=lambda name: (name.startswith('python@'), name))]
         dependencies = preflight_dependencies(dependencies)
         missing = selected - {item['name'] for item in dependencies}
-        print('\n即將執行 / Uninstall preview:\n  • 停止 PadPilot、移除 App 與整合 / Stop PadPilot; trash its app and integrations')
+        print('\n即將執行 / Uninstall preview:\n  • 停止 SidecarSwitch、移除 App 與整合 / Stop SidecarSwitch; trash its app and integrations')
         for label, enabled in (('設定與配對 / Settings & pairing', remove_config), ('日誌 / Logs', remove_logs),
                                (f'來源目錄 / Source ({ROOT})', remove_source)):
             print(f"  • {label}: {'移到垃圾桶 / Trash' if enabled else '保留 / Keep'}")
@@ -133,7 +133,7 @@ def main(argv=None):
             trash(ROOT)
         elif remove_source:
             print(f'依賴卸除未完成，來源保留供重試 / Dependency removal incomplete; source kept for retry: {ROOT}')
-        print('PadPilot 已解除安裝，垃圾桶中的資料仍可復原。 / PadPilot uninstalled; items in Trash can be restored.')
+        print('SidecarSwitch 已解除安裝，垃圾桶中的資料仍可復原。 / SidecarSwitch uninstalled; items in Trash can be restored.')
         return 1 if failures else 0
     except (EOFError, KeyboardInterrupt):
         print('\n已取消；確認前不做任何變更。 / Cancelled; no changes are made before confirmation.')

@@ -14,8 +14,8 @@ from core.config import Config
 from core.models import IpadConfig, pairing_key
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
-DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
+CLI = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
+DAEMON = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))
 
 
 class NativeBridgeTests(unittest.TestCase):
@@ -34,12 +34,12 @@ class NativeBridgeTests(unittest.TestCase):
                 self.assertEqual(send.call_args.args[0], 'refresh')
 
     def test_gui_opens_owned_app_with_reusable_url_and_no_new_instance(self):
-        with patch.object(autostart, 'find_menu_app', return_value=Path('/tmp/PadPilot.app')), \
+        with patch.object(autostart, 'find_menu_app', return_value=Path('/tmp/SidecarSwitch.app')), \
              patch.object(gui.subprocess, 'run') as run:
             gui.run_gui('diagnostics')
             command = run.call_args.args[0]
-            self.assertEqual(command, ['/usr/bin/open', '-a', '/tmp/PadPilot.app',
-                                       'padpilot://settings?page=diagnostics', '--args', '--settings'])
+            self.assertEqual(command, ['/usr/bin/open', '-a', '/tmp/SidecarSwitch.app',
+                                       'sidecarswitch://settings?page=diagnostics', '--args', '--settings'])
             gui.run_gui('wizard', select='a' * 64)
             self.assertIn('page=search&select=' + 'a' * 64, run.call_args.args[0][3])
             for invalid in ('../file', 'x' * 64):
@@ -76,15 +76,15 @@ class NativeBridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             source = home / 'source'
-            installed = home / 'Applications/PadPilot.app'
-            built = source / 'build/PadPilot.app'
-            modern = {'CFBundleIdentifier': 'com.padpilot.app', 'CFBundleURLTypes': [{'CFBundleURLSchemes': ['padpilot']}]}
+            installed = home / 'Applications/SidecarSwitch.app'
+            built = source / 'build/SidecarSwitch.app'
+            modern = {'CFBundleIdentifier': 'com.sidecarswitch.app', 'CFBundleURLTypes': [{'CFBundleURLSchemes': ['sidecarswitch']}]}
             for app in (installed, built):
                 (app / 'Contents/Resources').mkdir(parents=True)
                 (app / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(source), 'python': '/usr/bin/python3'}))
                 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(modern))
             with patch('pathlib.Path.home', return_value=home), patch.object(autostart, 'PROJECT_ROOT', source):
-                for runtime_root, info in ((home / 'other-source', modern), (source, {'CFBundleIdentifier': 'com.padpilot.app'})):
+                for runtime_root, info in ((home / 'other-source', modern), (source, {'CFBundleIdentifier': 'com.sidecarswitch.app'})):
                     with self.subTest(runtime=str(runtime_root), native=bool(info)):
                         (installed / 'Contents/Resources/runtime.json').write_text(json.dumps({'project_root': str(runtime_root), 'python': '/usr/bin/python3'}))
                         (installed / 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
@@ -94,7 +94,7 @@ class NativeBridgeTests(unittest.TestCase):
                 self.assertIsNone(autostart.find_menu_app(settings=True))
 
     def test_guarded_action_checks_revision_and_exact_target_inside_daemon(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         obj = cls.__new__(cls)
         obj.config = Config(revision=3, ipad=IpadConfig('Test', 'uuid', 'serial'))
         obj.engine = MagicMock()

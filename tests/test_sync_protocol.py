@@ -26,8 +26,8 @@ from core.state_engine import StateEngine
 import copy
 
 ROOT = Path(__file__).resolve().parents[1]
-DAEMON = runpy.run_path(str(ROOT / "bin/padpilotd"))
-CLI = runpy.run_path(str(ROOT / "bin/padpilot-cli"))
+DAEMON = runpy.run_path(str(ROOT / "bin/sidecarswitchd"))
+CLI = runpy.run_path(str(ROOT / "bin/sidecarswitch-cli"))
 MENU = runpy.run_path(str(ROOT / "core/menu.py"))
 
 
@@ -153,7 +153,7 @@ class SyncProtocolTests(unittest.TestCase):
 
     # 5. Optimistic concurrency rejects stale expected revision
     def test_optimistic_concurrency_rejects_stale_expected_revision(self):
-        cls = DAEMON["PadPilotDaemon"]
+        cls = DAEMON["SidecarSwitchDaemon"]
         daemon = cls.__new__(cls)
         daemon.config = Config(revision=5, mode=OperationMode.AUTOMATIC)
         daemon.detector = MagicMock()
@@ -215,7 +215,7 @@ class SyncProtocolTests(unittest.TestCase):
 
     # 9. Rename inactive iPad increments revision and saves without display transition
     def test_rename_inactive_ipad_increments_revision_and_saves_without_display_transition(self):
-        cls = DAEMON["PadPilotDaemon"]
+        cls = DAEMON["SidecarSwitchDaemon"]
         daemon = cls.__new__(cls)
         daemon.config_lock = threading.Lock()
         u1 = "00000000-0000-0000-0000-000000000001"

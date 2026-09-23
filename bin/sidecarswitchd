@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PadPilot Daemon (padpilotd) - Background Display State Manager."""
+"""SidecarSwitch Daemon (sidecarswitchd) - Background Display State Manager."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from core.storage import private_directory, remove_state_file, read_private_json
 
 logger = get_logger("Daemon")
 
-SOCKET_PATH = APP_SUPPORT_DIR / "padpilot.sock"
+SOCKET_PATH = APP_SUPPORT_DIR / "sidecarswitch.sock"
 IPC_COMMANDS = frozenset(('set_mode', 'set_autostart', 'save_pairing', 'delete_pairing',
     'set_virtual_display', 'set_display_exclusion', 'set_betterdisplaycli_path', 'set_usb_event_wakeup', 'set_auto_detect_ipad',
     'set_connection_hotkey', 'set_connect_on_boot', 'set_language', 'status', 'use_ipad_secondary', 'use_ipad_main', 'disconnect_ipad',
@@ -57,7 +57,7 @@ def create_ipc_socket(path):
                 if error.errno != errno.ECONNREFUSED:
                     raise
             else:
-                raise RuntimeError('Another PadPilot daemon is already listening')
+                raise RuntimeError('Another SidecarSwitch daemon is already listening')
         path.unlink()
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
@@ -71,7 +71,7 @@ def create_ipc_socket(path):
         raise
 
 
-class PadPilotDaemon:
+class SidecarSwitchDaemon:
     def __init__(self) -> None:
         self.running = True
         self.wakeup = threading.Event()
@@ -361,9 +361,9 @@ class PadPilotDaemon:
             logger.warning(f"Could not auto-launch BetterDisplay: {error}")
 
     def start(self) -> None:
-        logger.info("PadPilot Daemon starting up...")
+        logger.info("SidecarSwitch Daemon starting up...")
         remove_state_file(APP_SUPPORT_DIR / "menu-hidden")
-        remove_state_file(Path("/tmp/PadPilot/menu-hidden"))
+        remove_state_file(Path("/tmp/SidecarSwitch/menu-hidden"))
 
         # A slow dependency must not make a healthy daemon fail its handshake.
         ipc_thread = threading.Thread(target=self.run_ipc_server, daemon=True)
@@ -457,13 +457,13 @@ class PadPilotDaemon:
 
 
     def stop(self) -> None:
-        logger.info("Stopping PadPilot Daemon...")
+        logger.info("Stopping SidecarSwitch Daemon...")
         self.running = False
         self.wakeup.set()
 
 
 def main() -> None:
-    daemon = PadPilotDaemon()
+    daemon = SidecarSwitchDaemon()
 
     def handle_signal(sig: int, frame: Any) -> None:
         daemon.stop()
@@ -479,5 +479,5 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError) as error:
-        logger.error(f'PadPilot could not start: {error}')
+        logger.error(f'SidecarSwitch could not start: {error}')
         sys.exit(1)

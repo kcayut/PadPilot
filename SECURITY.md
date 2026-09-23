@@ -1,6 +1,6 @@
 # Security Policy
 
-PadPilot runs as a local macOS background daemon that interacts with user sessions, LaunchAgents, Unix domain sockets, local subprocess execution, and system display controllers. We take local security and process isolation seriously.
+SidecarSwitch runs as a local macOS background daemon that interacts with user sessions, LaunchAgents, Unix domain sockets, local subprocess execution, and system display controllers. We take local security and process isolation seriously.
 
 ## Supported Versions
 
@@ -20,7 +20,7 @@ Until a private channel is published here, you may [open an issue](https://githu
 ### What information to include:
 - A clear description of the vulnerability.
 - Steps to reproduce the issue (including any sample scripts or local state).
-- The affected macOS version, architecture (Apple Silicon), and PadPilot version.
+- The affected macOS version, architecture (Apple Silicon), and SidecarSwitch version.
 - Potential impact or mitigation if known.
 
 Response-time commitments will be published with the verified reporting channel.

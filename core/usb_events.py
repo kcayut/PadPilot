@@ -21,7 +21,7 @@ class USBEventMonitor:
         self.stopped.clear()
         self.ready.clear()
         self.error = ''
-        self.thread = threading.Thread(target=self._run, name='PadPilot-USB', daemon=True)
+        self.thread = threading.Thread(target=self._run, name='SidecarSwitch-USB', daemon=True)
         self.thread.start()
 
     def stop(self):

@@ -1,23 +1,23 @@
-# 🩺 PadPilot 疑難排解與常見問答 (Troubleshooting & FAQ)
+# 🩺 SidecarSwitch 疑難排解與常見問答 (Troubleshooting & FAQ)
 
 **繁體中文** | [English](TROUBLESHOOTING.en.md) | [日本語](TROUBLESHOOTING.ja.md) · [文件索引](README.md)
 
 發行版的 Gatekeeper 警告、Python 切換／遺失復原，以及原始碼版移轉方式，請先參閱[已編譯版本安裝說明](INSTALLATION.md)。BetterDisplay App 必須安裝並執行，獨立 CLI 可省略。
 
-本手冊收錄 PadPilot 在 macOS 環境下常見的狀態警告、硬體辨識問題、連線異常及其解決方案。
+本手冊收錄 SidecarSwitch 在 macOS 環境下常見的狀態警告、硬體辨識問題、連線異常及其解決方案。
 
 ---
 
-## 先選擇已安裝的 PadPilot
+## 先選擇已安裝的 SidecarSwitch
 
 DMG 使用者不需要下載原始碼或另外安裝 Python。以下指令在「終端機」執行；先設定 App 內的指令位置，後續指令在同一個終端機視窗執行：
 
 ```bash
-PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
-"$PADPILOT_CLI" --version
+SIDECARSWITCH_CLI="/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli"
+"$SIDECARSWITCH_CLI" --version
 ```
 
-若 App 安裝在個人「應用程式」，將第一行改成 `PADPILOT_CLI="$HOME/Applications/PadPilot.app/Contents/Resources/padpilot-cli"`；其他位置請填實際路徑。原始碼安裝者請先進入專案資料夾、啟用安裝時使用的 Python 環境，再設 `PADPILOT_CLI="$PWD/bin/padpilot-cli"`。下文標示「僅原始碼版」的步驟不適用於 DMG。
+若 App 安裝在個人「應用程式」，將第一行改成 `SIDECARSWITCH_CLI="$HOME/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli"`；其他位置請填實際路徑。原始碼安裝者請先進入專案資料夾、啟用安裝時使用的 Python 環境，再設 `SIDECARSWITCH_CLI="$PWD/bin/sidecarswitch-cli"`。下文標示「僅原始碼版」的步驟不適用於 DMG。
 
 ## 目錄 (Table of Contents)
 
@@ -36,17 +36,17 @@ PADPILOT_CLI="/Applications/PadPilot.app/Contents/Resources/padpilot-cli"
 ## 1. FileVault 與無頭冷開機限制
 
 > [!WARNING]
-> **重要物理限制：PadPilot 無法讓 iPad 成為 FileVault / Pre-login 畫面。**
+> **重要物理限制：SidecarSwitch 無法讓 iPad 成為 FileVault / Pre-login 畫面。**
 
 ### 現象
 Mac mini 冷開機（重開機或關機後開機）時，iPad 螢幕一片漆黑，完全沒有出現 macOS 登入畫面。
 
 ### 原因
-PadPilot 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段中的 Sidecar。FileVault 解鎖與登入前畫面不在 PadPilot 的支援範圍；開啟登入啟動不會改變這個限制。
+SidecarSwitch 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段中的 Sidecar。FileVault 解鎖與登入前畫面不在 SidecarSwitch 的支援範圍；開啟登入啟動不會改變這個限制。
 
 ### 解決方法
 1. 保留可用的實體螢幕完成解鎖與登入，再確認 Sidecar 能手動連線。
-2. 登入後執行 `"$PADPILOT_CLI" status`，確認服務有回應，再測試 iPad 接管。
+2. 登入後執行 `"$SIDECARSWITCH_CLI" status`，確認服務有回應，再測試 iPad 接管。
 3. 無頭使用前，先驗證自己的冷開機與救援流程；不同硬體組合仍為待驗證。
 
 **安裝不要求關閉 FileVault 或開啟自動登入。** 這些設定會影響資料與帳號安全，也不能保證 Sidecar 在數秒內連線；不要為通過檢查而降低系統安全性。
@@ -59,7 +59,7 @@ PadPilot 的 LaunchAgent 在使用者登入後啟動，依賴登入工作階段�
 ## 2. Sidecar 使用者登入會話先決條件
 
 ### 現象
-PadPilot 顯示已偵測到 USB iPad，但發起 Sidecar 連線時持續逾時或失敗。
+SidecarSwitch 顯示已偵測到 USB iPad，但發起 Sidecar 連線時持續逾時或失敗。
 
 ### 檢查清單
 1. **相同 Apple Account**：Mac 與 iPad 必須登入完全相同的 Apple 帳號（Apple ID）。
@@ -76,12 +76,12 @@ PadPilot 顯示已偵測到 USB iPad，但發起 Sidecar 連線時持續逾時�
 GUI 診斷卡片顯示「BetterDisplay 控制介面：未啟用」或「找不到 betterdisplaycli」。
 
 ### 原因
-PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角色設定與虛擬螢幕管理。若 BetterDisplay 未開啟 CLI 或權限不足，系統將無法調度顯示器。
+SidecarSwitch 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角色設定與虛擬螢幕管理。若 BetterDisplay 未開啟 CLI 或權限不足，系統將無法調度顯示器。
 
 ### 解決方法
 1. 開啟 **BetterDisplay.app**。
 2. 依已安裝版本的 [BetterDisplay CLI 說明](https://github.com/waydabber/BetterDisplay/wiki/Integration-features,-CLI)確認控制介面可用；設定名稱與位置可能因版本而異。
-3. PadPilot 目前的功能可搭配 BetterDisplay 免費版使用，不要求 Pro 或試用資格。請確認 BetterDisplay 已開啟，且 PadPilot 使用正確的 App／CLI 路徑。
+3. SidecarSwitch 目前的功能可搭配 BetterDisplay 免費版使用，不要求 Pro 或試用資格。請確認 BetterDisplay 已開啟，且 SidecarSwitch 使用正確的 App／CLI 路徑。
 4. 在終端機測試 BetterDisplay App 內建的 CLI，不必另裝 `betterdisplaycli`。以下假設 BetterDisplay 位於 `/Applications`；若安裝在其他位置，請改用實際 App 路徑：
    ```bash
    "/Applications/BetterDisplay.app/Contents/MacOS/BetterDisplay" get -identifiers
@@ -98,14 +98,14 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 沒有實體螢幕卻被判定有螢幕，或真實螢幕名為 `Generic Display`／`Generic` 而未計入實體螢幕，讓自動模式的選擇不符預期。
 
 ### 原因
-部分 Mac 在無實體螢幕開機時，會出現 `Generic`／`Generic Display` 佔位畫面，因此 PadPilot 預設排除這兩個精確名稱。這是已觀察到的辨識方式，不能保證所有同名畫面都是佔位。
+部分 Mac 在無實體螢幕開機時，會出現 `Generic`／`Generic Display` 佔位畫面，因此 SidecarSwitch 預設排除這兩個精確名稱。這是已觀察到的辨識方式，不能保證所有同名畫面都是佔位。
 
 ### 解決方法
 1. 開啟 **「連線螢幕狀態」**，找到該螢幕卡片；已排除的螢幕仍保留在清單中。
 2. 勾選 **「排除實體螢幕判斷」**，讓它不計入「有實體螢幕」；若是真實的 Generic 螢幕，取消勾選即可計入。按 **「恢復自動判斷」**可清除這台螢幕的個別設定，恢復原有規則。
 3. 設定依螢幕 UUID 記住，同名螢幕互不影響。若未取得穩定 UUID，就無法修改；請重新整理並確認 BetterDisplay 已開啟、可辨識該螢幕。
 
-這個選項只改變實體螢幕的有無判斷，不會關閉螢幕或停止 PadPilot 控制它。**排除所有實體螢幕後，自動模式會視為沒有實體螢幕，並可能嘗試讓 iPad 接手。** Sidecar 與已識別的虛擬備援原本就不計入實體螢幕，其用途與控制不變。
+這個選項只改變實體螢幕的有無判斷，不會關閉螢幕或停止 SidecarSwitch 控制它。**排除所有實體螢幕後，自動模式會視為沒有實體螢幕，並可能嘗試讓 iPad 接手。** Sidecar 與已識別的虛擬備援原本就不計入實體螢幕，其用途與控制不變。
 
 ---
 
@@ -116,7 +116,7 @@ PadPilot 透過 BetterDisplay 命令列介面（CLI）進行底層顯示器角�
 Menu Bar 圖示亮起 `⚠️`，顯示自動重試已暫停；前 30 秒仍有冷卻保護。
 
 ### 原因
-PadPilot 內建**保護性退避機制**：
+SidecarSwitch 內建**保護性退避機制**：
 - 當 Sidecar 連線連續失敗達 3 次（每次間隔 3 秒），通知一次並停止自動重試，保留實體或虛擬備援。30 秒冷卻結束後仍維持暫停，不會因 iPad 關閉但仍留在 Sidecar 清單而持續連線、累積警告。USB 插拔及喚醒與自動偵測 iPad 可繼續開啟。
 
 ### 恢復方式
@@ -126,7 +126,7 @@ PadPilot 內建**保護性退避機制**：
 2. 檢查傳輸線是否接觸不良。目標 iPad 的 USB 或 Sidecar 可用狀態重新由無變有後，待剩餘冷卻結束會恢復有限次數的嘗試。若只是點亮螢幕、沒有重新偵測到裝置，請選「重新連線」。一般 USB 喚醒、重新整理或接回實體螢幕不會解除暫停。
 3. 若確認硬體已正常，需要清除暫時覆寫與冷卻時可執行：
    ```bash
-   "$PADPILOT_CLI" action reset
+   "$SIDECARSWITCH_CLI" action reset
    ```
    背景服務會重新評估；需要手動連線時再選「重新連線」。送出成功不等於連線完成。
 
@@ -136,19 +136,19 @@ PadPilot 內建**保護性退避機制**：
 ## 6. 登入自啟動 LaunchAgent 問題
 
 ### 現象
-重開機後，Menu Bar 沒有出現 PadPilot 圖示，背景服務未執行。
+重開機後，Menu Bar 沒有出現 SidecarSwitch 圖示，背景服務未執行。
 
 ### 解決方法
 1. 檢查 LaunchAgent 是否已載入：
    ```bash
-   "$PADPILOT_CLI" autostart status
-   "$PADPILOT_CLI" status
+   "$SIDECARSWITCH_CLI" autostart status
+   "$SIDECARSWITCH_CLI" status
    ```
 2. 若未載入，透過 CLI 重新啟用自啟：
    ```bash
-   "$PADPILOT_CLI" autostart enable
+   "$SIDECARSWITCH_CLI" autostart enable
    ```
-3. 本版的 plist 位於 `PadPilot.app/Contents/Library/LaunchAgents/com.padpilot.daemon.plist`，不會建立 `~/Library/LaunchAgents` 下的檔案。若狀態為 `requiresApproval`，請到「系統設定 → 一般 → 登入項目」允許 PadPilot 背景執行。測試用舊版外部 LaunchAgent 必須自行停止並清除；本版不做遷移。
+3. 本版的 plist 位於 `SidecarSwitch.app/Contents/Library/LaunchAgents/com.sidecarswitch.daemon.plist`，不會建立 `~/Library/LaunchAgents` 下的檔案。若狀態為 `requiresApproval`，請到「系統設定 → 一般 → 登入項目」允許 SidecarSwitch 背景執行。
 
 ---
 
@@ -159,22 +159,22 @@ PadPilot 內建**保護性退避機制**：
 
 ```bash
 # 即時查看日誌
-"$PADPILOT_CLI" open-log
+"$SIDECARSWITCH_CLI" open-log
 
 # 或查看日誌檔案
-tail -n 50 ~/Library/Logs/PadPilot/padpilot.log
-cat ~/Library/Logs/PadPilot/launchd.stderr.log
+tail -n 50 ~/Library/Logs/SidecarSwitch/sidecarswitch.log
+cat ~/Library/Logs/SidecarSwitch/launchd.stderr.log
 ```
 *在提交日誌至公開平台前，請自行檢視並遮蔽任何個人敏感路徑或資訊。*
 
 <a id="safe-startup"></a>
 ## 8. 預檢、私人路徑或啟動握手失敗
 
-- `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，DMG 版可執行 `"$PADPILOT_CLI" gui diagnostics` 開啟診斷並重新整理 BetterDisplay 卡片。僅原始碼版才需在專案目錄執行 `./scripts/install.sh --check`。help 成功不代表 Sidecar 或實際顯示正常。
+- `FAIL: BetterDisplay CLI`：App 已安裝不等於 CLI 可用。確認 BetterDisplay 的 CLI 功能與已儲存的執行檔路徑，DMG 版可執行 `"$SIDECARSWITCH_CLI" gui diagnostics` 開啟診斷並重新整理 BetterDisplay 卡片。僅原始碼版才需在專案目錄執行 `./scripts/install.sh --check`。help 成功不代表 Sidecar 或實際顯示正常。
 - 設定視窗無法開啟：DMG 版請先依[安裝指南](INSTALLATION.md)的 Python 復原步驟檢查，或重新下載並安裝發行版。僅原始碼版才需在更新原始碼後執行 `./scripts/install.sh`，建置相符的 App。
 - `Refusing unsafe state directory/file`：先停止操作，檢查訊息指定路徑的所有者、符號連結與硬連結。不要對 `/tmp` 或他人目錄遞迴改權限、刪除或強制接管。確認是自己的舊資料後先備份，再由擁有者整理；應用程式會拒絕不可信路徑。
-- `Login service belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 padpilot 的程序。
-- `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/PadPilot/launchd.stderr.log` 與 `padpilot.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。
+- `Login service belongs to another ...`：同名 App／服務來自另一個 checkout。請回到原專案路徑使用其解除安裝器，不要直接終止所有包含 sidecarswitch 的程序。
+- `Daemon handshake failed`：代表沒有確認此專案的服務正常回應，不能算安裝成功。查看 `~/Library/Logs/SidecarSwitch/launchd.stderr.log` 與 `sidecarswitch.log`，排除路徑、權限或 BetterDisplay 問題後重試。若附帶 `Rollback incomplete`，舊設定或執行狀態也尚未確認恢復，先保留紀錄，不要反覆安裝。
 - 發行版更新失敗：即使新版 CLI 無法執行，安裝器仍會先確認新版程式與背景服務已停止，再還原舊版。若無法確認停止，會保留目前 App 與備份並回報 `Rollback incomplete`；請保留它們與錯誤紀錄，不要反覆覆蓋安裝。
 
 IPC 日誌僅記錄命令名稱；歷史日誌、診斷狀態與實際錯誤仍可能包含裝置資訊。分享前遮蔽序號、UUID、帳號及個人路徑。

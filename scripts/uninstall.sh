@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Resolve the installed interpreter without importing PadPilot or changing state.
+# Resolve the installed interpreter without importing SidecarSwitch or changing state.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
@@ -18,8 +18,8 @@ for argument in "$@"; do
   --help, -h                顯示說明 / Show help
 無互動終端時必須使用 --yes。Homebrew、系統 Python、Apple 開發工具永遠保留。
 Without a terminal, --yes is required. Homebrew, system Python and Apple developer tools are always kept.
-原安裝 Python 已不存在時，可用 PADPILOT_PYTHON=/絕對路徑/python3 指定替代版本。
-If the recorded Python is missing, set PADPILOT_PYTHON=/absolute/path/python3 to use a replacement.
+原安裝 Python 已不存在時，可用 SIDECARSWITCH_PYTHON=/絕對路徑/python3 指定替代版本。
+If the recorded Python is missing, set SIDECARSWITCH_PYTHON=/absolute/path/python3 to use a replacement.
 EOF
         exit 0
     fi
@@ -29,7 +29,7 @@ valid_python() {
     [[ "$1" == /* && -x "$1" ]] && "$1" -B -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1
 }
 source "$SCRIPT_DIR/source_runtime.sh"
-PYTHON_BIN="${PADPILOT_PYTHON:-}"
+PYTHON_BIN="${SIDECARSWITCH_PYTHON:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
     PYTHON_BIN="$(source_python || true)"
 fi
@@ -50,10 +50,10 @@ if [[ -z "$PYTHON_BIN" ]]; then
     done
 fi
 valid_python "$PYTHON_BIN" || {
-    if [[ -n "${PADPILOT_PYTHON:-}" ]]; then
-        echo 'PADPILOT_PYTHON 必須指向可用的 Python 3.10+。 / PADPILOT_PYTHON must point to a usable Python 3.10+.' >&2
+    if [[ -n "${SIDECARSWITCH_PYTHON:-}" ]]; then
+        echo 'SIDECARSWITCH_PYTHON 必須指向可用的 Python 3.10+。 / SIDECARSWITCH_PYTHON must point to a usable Python 3.10+.' >&2
     else
-        echo '找不到可用的 Python 3.10+，請指定替代路徑。 / No usable Python 3.10+; set PADPILOT_PYTHON=/absolute/path/python3.' >&2
+        echo '找不到可用的 Python 3.10+，請指定替代路徑。 / No usable Python 3.10+; set SIDECARSWITCH_PYTHON=/absolute/path/python3.' >&2
     fi
     exit 1
 }

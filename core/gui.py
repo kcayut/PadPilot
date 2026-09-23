@@ -212,7 +212,7 @@ def send_change(action: str, payload: dict) -> str:
     from core.runtime import bundled_app
     result = subprocess.run(
         [sys.executable] + (['-I', '-B'] if bundled_app(ROOT) else [])
-        + [str(ROOT / 'bin/padpilot-cli'), 'change-settings', action],
+        + [str(ROOT / 'bin/sidecarswitch-cli'), 'change-settings', action],
         input=json.dumps(payload, ensure_ascii=False),
         text=True,
         capture_output=True,
@@ -318,7 +318,7 @@ def run_gui(page='paired', delete=None, select=None):
     from core.autostart import find_menu_app
     app = find_menu_app(settings=True)
     if app is None:
-        raise RuntimeError('找不到此專案的 PadPilot.app；請先執行 scripts/install.sh 或 scripts/build_app.py。')
+        raise RuntimeError('找不到此專案的 SidecarSwitch.app；請先執行 scripts/install.sh 或 scripts/build_app.py。')
     if page == 'wizard':
         page = 'search'
     if page not in {'paired', 'search', 'settings', 'displays', 'virtual', 'diagnostics', 'about'}:
@@ -329,5 +329,5 @@ def run_gui(page='paired', delete=None, select=None):
             if not re.fullmatch('[0-9a-f]{64}', value):
                 raise ValueError('Invalid profile key')
             query[key] = value
-    subprocess.run(['/usr/bin/open', '-a', str(app), 'padpilot://settings?' + urlencode(query),
+    subprocess.run(['/usr/bin/open', '-a', str(app), 'sidecarswitch://settings?' + urlencode(query),
                     '--args', '--settings'], check=True, timeout=10)

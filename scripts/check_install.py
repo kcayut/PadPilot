@@ -18,8 +18,8 @@ from core.storage import UnsafePathError, latest_state_path, private_file
 
 def resolve_betterdisplay_path(custom=None):
     """Read the selected CLI without importing configuration or creating state."""
-    cfg_file = Path.home() / 'Library/Application Support/PadPilot/config.json'
-    cfg_file = latest_state_path(cfg_file, Path('/tmp/PadPilot/config.json'))
+    cfg_file = Path.home() / 'Library/Application Support/SidecarSwitch/config.json'
+    cfg_file = latest_state_path(cfg_file, Path('/tmp/SidecarSwitch/config.json'))
     if cfg_file.exists() or cfg_file.is_symlink():
         info = cfg_file.parent.lstat()
         if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():

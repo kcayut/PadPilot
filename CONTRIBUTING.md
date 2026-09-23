@@ -1,6 +1,6 @@
-# 貢獻指南 (Contributing to PadPilot)
+# 貢獻指南 (Contributing to SidecarSwitch)
 
-感謝您對 PadPilot 專案感興趣！我們非常歡迎社群的各項建議、錯誤回報與代碼貢獻。
+感謝您對 SidecarSwitch 專案感興趣！我們非常歡迎社群的各項建議、錯誤回報與代碼貢獻。
 
 提交貢獻表示您有權依本專案的 [PolyForm Noncommercial License 1.0.0](LICENSE) 提供該內容；散佈時須保留 [NOTICE](NOTICE) 中的作者與專案來源聲明。第三方內容須保留其原有授權與署名。
 
@@ -21,8 +21,8 @@
 先從 GitHub 複製專案，再執行唯讀預檢；已取得原始碼者可直接在專案目錄執行最後一步：
 
 ```bash
-git clone https://github.com/kcayut/PadPilot.git
-cd PadPilot
+git clone https://github.com/kcayut/PadPilot.git SidecarSwitch
+cd SidecarSwitch
 ./scripts/install.sh --check
 ```
 
@@ -39,7 +39,7 @@ python3 -m unittest discover -s tests -v
 *所有測試必須通過（exit code == 0）。*
 
 ### 2. 驗證 GUI 視窗佈局
-PadPilot 使用 SwiftUI 原生設定視窗，不需第三方 UI 套件。請確認最小視窗尺寸下各頁的內容可捲動、按鈕可使用，並檢查三種介面語言：
+SidecarSwitch 使用 SwiftUI 原生設定視窗，不需第三方 UI 套件。請確認最小視窗尺寸下各頁的內容可捲動、按鈕可使用，並檢查三種介面語言：
 ```bash
 python3 scripts/check_gui_layout.py
 ```
@@ -48,7 +48,7 @@ python3 scripts/check_gui_layout.py
 
 ```bash
 python3 scripts/build_app.py
-open build/PadPilot.app
+open build/SidecarSwitch.app
 ```
 
 單元測試包含實際編譯 AppKit／SwiftUI App 與三種語言資料契約，不會控制顯示器。開啟 App 會啟動既有 Python 服務；設定視窗透過既有 CLI／IPC 交易儲存設定與執行操作。
@@ -65,7 +65,7 @@ python3 scripts/check_release.py --scan-only
 
 有桌面工作階段時，可執行 `python3 scripts/check_release.py --gui` 一次跑完單元、Shell、plist、版本、GUI 與隱私關卡；歷史仍有待審匹配時會以非零結束，報告可區分軟體測試成功與公開尚未就緒。最低 Python／macOS 與真實無頭情境需另行驗證，不能由目前機器推定。
 
-GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整歷史隱私檢查分開顯示。`--software-only` 只決定軟體測試結果，仍保留隱私待審資訊，不是發布許可；獨立的 `Release privacy gate` 會阻擋未審核匹配。GUI 真實版面與物理硬體仍是本機手動發布關卡。CI 不安裝 BetterDisplay、不啟動 PadPilot，不建立 tag／Release。
+GitHub Actions 將 macOS 的 Python 3.10／3.14 軟體檢查與 Linux 的完整歷史隱私檢查分開顯示。`--software-only` 只決定軟體測試結果，仍保留隱私待審資訊，不是發布許可；獨立的 `Release privacy gate` 會阻擋未審核匹配。GUI 真實版面與物理硬體仍是本機手動發布關卡。CI 不安裝 BetterDisplay、不啟動 SidecarSwitch，不建立 tag／Release。
 
 ---
 

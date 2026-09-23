@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/padpilot-icon.png" width="96" height="96" alt="PadPilot 圖標：平板中的導航箭頭">
+  <img src="assets/sidecarswitch-icon.png" width="96" height="96" alt="SidecarSwitch 圖標：平板中的導航箭頭">
 </p>
 
-<h1 align="center">PadPilot</h1>
+<h1 align="center">SidecarSwitch</h1>
 
 <p align="center">
-  <b>Sidecar display automation for Mac</b><br>
+  <b>iPad 螢幕自動連線與切換工具</b><br>
   讓 iPad 接手你的 Mac 螢幕。
 </p>
 
@@ -17,7 +17,7 @@
   🌐 <a href="https://kcayut.github.io/PadPilot/">介紹網站</a>
 </p>
 
-PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
+SidecarSwitch 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac mini 設計。搭配 Apple Sidecar 與 BetterDisplay，可以手動連線、切換主／副螢幕，也能依設定在沒有實體螢幕時自動接手。
 
 **支援全域快速鍵，多台 Mac 也能方便操作。**
 使用多台 Mac mini 當伺服器時，將鍵盤切換到指定的 Mac，在該機已登入並解鎖、iPad 可連線的狀態下，按下快捷鍵，就能讓 iPad 顯示這台 Mac 的畫面。
@@ -26,9 +26,9 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 [![實機示範：Mac mini 無實體螢幕開機，登入後自動連線 iPad 作為主螢幕](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
 
-實機示範，已完成首次設定。開機等待段加速 8 倍，最後畫面多停 1 秒。[觀看清晰版 MP4](docs/videos/headless-boot-demo.mp4)。
+開發版實機示範，已完成首次設定；不同版本與硬體仍需個別驗證。開機等待段加速 8 倍，最後畫面多停 1 秒。[觀看清晰版 MP4](docs/videos/headless-boot-demo.mp4)。
 
-**[下載 macOS 版（.dmg）](https://github.com/kcayut/PadPilot/releases)**
+**[查看發行版本](https://github.com/kcayut/PadPilot/releases)**
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version: 0.1.0">
@@ -41,21 +41,23 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 > [!IMPORTANT]
 > **目前是早期預覽版。** 第一次使用，請保留實體螢幕或可用的遠端連線。
-> PadPilot 在登入 macOS 後才運作，**不能顯示 FileVault 解鎖或登入前畫面**；不需要為了安裝而關閉 FileVault。
+> SidecarSwitch 在登入 macOS 後才運作，**不能顯示 FileVault 解鎖或登入前畫面**；不需要為了安裝而關閉 FileVault。
 
 - **Apple Silicon Mac、macOS 14+，以及支援 Sidecar 的 iPad**。目前不支援 Intel Mac。
 - **先讓 Sidecar 能手動連上**：兩台裝置使用相同 Apple Account 並開啟雙重認證。初次設定建議用資料傳輸線連接，在 iPad 上信任 Mac；無線另需 Wi-Fi、藍牙與 Handoff。[查看 Apple 的條件](https://support.apple.com/en-us/102597)。
-- **自行安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**。目前 PadPilot 的功能可搭配免費版使用，功能上不要求 Pro 或試用資格。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
+- **自行安裝並開啟 [BetterDisplay](https://github.com/waydabber/BetterDisplay)**。目前 SidecarSwitch 的功能可搭配免費版使用，功能上不要求 Pro 或試用資格。只裝獨立 CLI 不夠；已有 App 就不必另外裝 CLI。
 
-多台 Mac 搭配使用時，各台 Mac 需先完成 PadPilot 配對與全域快速鍵設定。
+多台 Mac 搭配使用時，各台 Mac 需先完成 SidecarSwitch 配對與全域快速鍵設定。
+
+SidecarSwitch 的預編譯安裝包準備中，目前可依[原始碼安裝說明](docs/INSTALLATION.md#source-installation)安裝。
 
 ## 跟著畫面開始用
 
-以下是目前原生介面的實際截圖，使用專案內建的**示範裝置資料**，不代表實機連線驗收。你的裝置名稱與狀態會不同；點圖可放大。
+以下為原生介面的操作示範截圖，使用專案內建的**示範裝置資料**，不代表實機連線驗收。你的裝置名稱與狀態會不同；點圖可放大。
 
 ### 1. 安裝，打開 App
 
-從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，打開後把 **PadPilot.app 拖進 Applications**，再開啟 App。已內建 Python，不必另裝 Homebrew 或編譯工具。
+從 [GitHub Releases](https://github.com/kcayut/PadPilot/releases) 下載 `.dmg`，打開後把 **SidecarSwitch.app 拖進 Applications**，再開啟 App。已內建 Python，不必另裝 Homebrew 或編譯工具。
 
 開啟後就會看到設定視窗。關掉視窗，選單列仍會保留；要再開設定，點選單列的 **「設定與配對」**，或再雙擊 App。
 
@@ -67,7 +69,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 [![搜尋新裝置：搜尋 iPad、選擇對應 USB，再按配對](docs/images/quick-start/zh-Hant-search.png)](docs/images/quick-start/zh-Hant-search.png)
 
-配對只是讓 PadPilot 記住這台裝置，不會取代 Apple 的帳號或信任設定。可以儲存多台，但一次只管理一台主要目標；有多台 iPad 時，請明確指定，別只靠自動偵測。
+配對只是讓 SidecarSwitch 記住這台裝置，不會取代 Apple 的帳號或信任設定。可以儲存多台，但一次只管理一台主要目標；有多台 iPad 時，請明確指定，別只靠自動偵測。
 
 ### 3. 想怎麼用，直接按
 
@@ -98,7 +100,7 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 | **自動模式** | 有實體螢幕就以它為主；沒有時嘗試讓 iPad 接手。已連上的 iPad 可保留為副螢幕。 |
 | **偏好 iPad 模式** | 即使有實體螢幕，也優先嘗試讓 iPad 當主螢幕。 |
 
-- **想登入後就啟動**：勾選「登入時自動啟動 PadPilot」。
+- **想登入後就啟動**：勾選「登入時自動啟動 SidecarSwitch」。
 - **想無螢幕開機時先試一次**：保留「開機無螢幕時自動連線 iPad」（預設勾選）。在手動模式下，登入後最多找 3 輪、每輪 30 秒；找到目標且無實體螢幕時，嘗試一輪連線。找不到就停止，同次開機重開 App 不會再試。
 - **想用鍵盤連線**：往下找到「全域快速鍵」，按錄製按鈕、按下組合鍵，再按「儲存快速鍵」。
 - **想換語言**：用視窗右上角選單，支援繁體中文、English、日本語。
@@ -107,15 +109,15 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 
 ### 5. 沒有實體螢幕？先準備備援
 
-通常不需要自己建立。先安裝 BetterDisplay，再首次開啟 PadPilot；背景服務啟動時，會嘗試透過 BetterDisplay 自動建立 `PadPilotVirtual`。已有同名虛擬螢幕就會沿用。它也是 PadPilot 的預設備援，建立成功後不必再指定。只把 App 從 DMG 拖到「應用程式」還不會建立。
+通常不需要自己建立。先安裝 BetterDisplay，再首次開啟 SidecarSwitch；背景服務啟動時，會嘗試透過 BetterDisplay 自動建立 `SidecarSwitchVirtual`。已有同名虛擬螢幕就會沿用。它也是 SidecarSwitch 的預設備援，建立成功後不必再指定。只把 App 從 DMG 拖到「應用程式」還不會建立。
 
 若沒有自動建立，或想使用其他虛擬螢幕，請先在 BetterDisplay 建立，再回 **「虛擬備援螢幕」**按 **「重新探測」**，選取它並按 **「指定為備援螢幕」**。
 
-「重新探測」只更新清單，不會重試建立。若是開啟 PadPilot 後才安裝 BetterDisplay，可從 PadPilot 選單選「結束」再重新開啟，讓背景服務再次嘗試。
+「重新探測」只更新清單，不會重試建立。若是開啟 SidecarSwitch 後才安裝 BetterDisplay，可從 SidecarSwitch 選單選「結束」再重新開啟，讓背景服務再次嘗試。
 
 [![虛擬備援螢幕：選擇 BetterDisplay 虛擬螢幕並指定為備援](docs/images/quick-start/zh-Hant-virtual.png)](docs/images/quick-start/zh-Hant-virtual.png)
 
-它能在 iPad 尚未接手時保留桌面，iPad 接手後也會保留。需要遠端救援的話，請事先自行設定 Screen Sharing／VNC 或 SSH；PadPilot 不會替你開啟遠端存取。
+它能在 iPad 尚未接手時保留桌面，iPad 接手後也會保留。需要遠端救援的話，請事先自行設定 Screen Sharing／VNC 或 SSH；SidecarSwitch 不會替你開啟遠端存取。
 
 ## 卡住時，先看這裡
 
@@ -148,42 +150,42 @@ PadPilot 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Mac min
 <details>
 <summary>進階：終端機指令與原始碼更新</summary>
 
-以下指令可從任何目錄執行。若 `~/bin` 位於 PATH，也可直接使用 `padpilot-cli`。安裝、更新及開發腳本仍須在原始碼目錄執行。
+以下指令可從任何目錄執行。若 `~/bin` 位於 PATH，也可直接使用 `sidecarswitch-cli`。安裝、更新及開發腳本仍須在原始碼目錄執行。
 
 ```bash
 # 狀態與設定
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" status --json
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" gui
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-language zh-Hant   # 亦可使用 en 或 ja
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" status --json
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" gui
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-language zh-Hant   # 亦可使用 en 或 ja
 
 # 運作模式：擇一設定
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode automatic
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode manual_only
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" set-mode prefer_ipad
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode automatic
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode manual_only
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" set-mode prefer_ipad
 
 # 手動操作：依需要選擇
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_secondary
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action use_ipad_main
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action disconnect_ipad
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reconnect_sidecar
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action refresh
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" action reset           # 清除暫時覆寫與冷卻狀態
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action use_ipad_secondary
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action use_ipad_main
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action disconnect_ipad
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action reconnect_sidecar
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action refresh
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" action reset           # 清除暫時覆寫與冷卻狀態
 
 # 背景服務與登入自動啟動
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" stop
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" start
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" exit                  # 停止服務並隱藏 PadPilot 選單
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart status
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" autostart toggle
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" stop
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" start
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" exit                  # 停止服務並隱藏 SidecarSwitch 選單
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" autostart status
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" autostart toggle
 
 # 版本與完整指令說明
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --version
-"/Applications/PadPilot.app/Contents/Resources/padpilot-cli" --help
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" --version
+"/Applications/SidecarSwitch.app/Contents/Resources/sidecarswitch-cli" --help
 ```
 
-Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
+Release 更新：離開 SidecarSwitch 後，以新版取代相同位置的 App，或重跑發行版安裝腳本；保留設定。直接覆蓋 App 沿用 Python 選擇，腳本更新會再次選擇。更換位置前先用舊版解除安裝並保留設定。以下重建步驟僅適用於原始碼安裝。
 
-更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/padpilot-cli status`（使用安裝時選定的 Python），同時重建原生 App。更新會沿用現有 App 的位置；首次原始碼安裝預設放在 `~/Applications/PadPilot.app`。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal、Ko-fi、歐付寶與綠界科技支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
+更新原始碼前請保留原版本備份，並先儲存、關閉設定視窗。更新後重新執行 `./scripts/install.sh --check`、`./scripts/install.sh`、`python3 bin/sidecarswitch-cli status`（使用安裝時選定的 Python），同時重建原生 App。更新會沿用現有 App 的位置；首次原始碼安裝預設放在 `~/Applications/SidecarSwitch.app`。GUI「關於」、CLI `--version` 與 App 使用同一版本來源；「關於」另提供 GitHub、PayPal、Ko-fi、歐付寶與綠界科技支持入口。安裝器保留配對設定，舊 App 在垃圾桶，但單獨取回 App 不會還原其引用的原始碼。
 
 </details>
 
@@ -191,11 +193,11 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 更新或解除安裝前，請先儲存並關閉設定視窗。Release 更新可用新版替換同位置的 App，設定與配對會保留；更換安裝位置或由原始碼版遷移，請先用舊版解除安裝並保留設定。
 
-**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 PadPilot.app 拖進垃圾桶即可。** 登入服務封裝於 App，由 macOS 管理；垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
+**移除 Release：先從選單選擇「結束」，再將 Applications 裡的 SidecarSwitch.app 拖進垃圾桶即可。** 登入服務封裝於 App，由 macOS 管理；垃圾桶內的程式不會啟動背景 Python。設定、配對與日誌保留，系統登入項目的名稱可能稍後才消失。
 
 [安裝、更新與解除安裝](docs/INSTALLATION.md) · [完整文件索引](docs/README.md)
 
-無實體螢幕冷開機、睡眠喚醒與不同硬體組合仍需實機驗證。PadPilot 不會讓不相容的機器支援 Sidecar，也不控制 Universal Control。回報問題請附版本、連線方式與重現步驟；分享日誌前先遮蔽序號、UUID、帳號及個人路徑。
+無實體螢幕冷開機、睡眠喚醒與不同硬體組合仍需實機驗證。SidecarSwitch 不會讓不相容的機器支援 Sidecar，也不控制 Universal Control。回報問題請附版本、連線方式與重現步驟；分享日誌前先遮蔽序號、UUID、帳號及個人路徑。
 
 ## 文件與貢獻
 
@@ -208,9 +210,9 @@ Release 更新：離開 PadPilot 後，以新版取代相同位置的 App，或�
 
 歡迎回報問題、改善翻譯、補充硬體相容性紀錄或提交 Pull Request。修改程式後，可執行 `python3 -m unittest discover -s tests -v`；涉及 GUI 時另依貢獻指南檢查佈局。自動測試通過不代表已完成實機冷開機或插拔驗收。
 
-## 支持 PadPilot
+## 支持 SidecarSwitch
 
-PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！
+SidecarSwitch 目前所有功能皆可免費使用。如果你喜歡這個軟體，歡迎支持開發，謝謝！
 
 <!-- Brand assets: https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg | https://storage.ko-fi.com/cdn/cup-border.png | O’Pay and ECPay logos supplied by the project owner -->
 <table>
@@ -253,6 +255,6 @@ PadPilot 目前所有功能皆可免費使用。如果你喜歡這個軟體，�
 
 這是可取得原始碼的非商業授權，並非 OSI 定義的開源授權。此授權適用於隨附此授權文件的版本；先前已依 MIT 授權取得之版本的權利不受影響。
 
-感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。PadPilot 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。
+感謝 [BetterDisplay](https://github.com/waydabber/BetterDisplay) 提供顯示器控制能力。SidecarSwitch 是獨立專案，未隸屬於 Apple 或 BetterDisplay，也不代表其官方支援。
 
-BetterDisplay 由使用者另行安裝，未隨 PadPilot 散佈。PadPilot 目前的功能不要求 BetterDisplay Pro 或試用資格；BetterDisplay 自身的[授權條款](https://github.com/waydabber/BetterDisplay/discussions/739)仍適用。
+BetterDisplay 由使用者另行安裝，未隨 SidecarSwitch 散佈。SidecarSwitch 目前的功能不要求 BetterDisplay Pro 或試用資格；BetterDisplay 自身的[授權條款](https://github.com/waydabber/BetterDisplay/discussions/739)仍適用。

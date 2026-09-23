@@ -1,4 +1,4 @@
-"""Data models and enums for PadPilot."""
+"""Data models and enums for SidecarSwitch."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, List, Optional, Tuple
 
-DEFAULT_VIRTUAL_DISPLAY_NAME = "PadPilotVirtual"
+DEFAULT_VIRTUAL_DISPLAY_NAME = "SidecarSwitchVirtual"
 
 
 def pairing_key(device: dict) -> str:

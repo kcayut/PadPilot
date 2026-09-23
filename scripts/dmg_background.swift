@@ -50,7 +50,7 @@ func number(_ value: String, _ y: CGFloat) {
 
 color(0xf3f7fc).setFill()
 NSRect(origin: .zero, size: canvas).fill()
-text("PadPilot", 36, 16, 500, 30, .bold)
+text("SidecarSwitch", 36, 16, 500, 30, .bold)
 text("開始安裝  /  Get started  /  インストール", 38, 57, 650, 14, .regular, muted)
 text("Apple Silicon  ·  macOS 14+", 710, 34, 230, 13, .medium, muted)
 

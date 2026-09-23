@@ -54,7 +54,7 @@ class UninstallInteractiveTests(unittest.TestCase):
     def test_only_managed_source_at_fixed_path_can_be_removed(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
-            source = home / 'Applications/PadPilot-source'
+            source = home / 'Applications/SidecarSwitch-source'
             source.mkdir(parents=True)
             receipt = {'schema': 1, 'managed_source': True, 'dependencies': []}
             with patch.object(uninstall, 'ROOT', source), patch('pathlib.Path.home', return_value=home):
@@ -133,16 +133,16 @@ class UninstallInteractiveTests(unittest.TestCase):
     def test_shell_uses_recorded_interpreter_with_spaces_instead_of_path_python(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            app = home / 'Applications/PadPilot.app/Contents'
+            app = home / 'Applications/SidecarSwitch.app/Contents'
             (app / 'Resources').mkdir(parents=True)
             interpreter = home / 'my python'
-            interpreter.write_text('#!/bin/sh\nprintf "%s\\n" "$@" >> "$PADPILOT_TEST_CALLS"\n')
+            interpreter.write_text('#!/bin/sh\nprintf "%s\\n" "$@" >> "$SIDECARSWITCH_TEST_CALLS"\n')
             interpreter.chmod(0o755)
-            (app / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+            (app / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
             (app / 'Resources/runtime.json').write_text(json.dumps({'python': str(interpreter), 'project_root': str(ROOT)}))
             calls = home / 'calls'
-            environment = {**os.environ, 'HOME': str(home), 'PATH': '/usr/bin:/bin', 'PADPILOT_TEST_CALLS': str(calls)}
-            environment.pop('PADPILOT_PYTHON', None)
+            environment = {**os.environ, 'HOME': str(home), 'PATH': '/usr/bin:/bin', 'SIDECARSWITCH_TEST_CALLS': str(calls)}
+            environment.pop('SIDECARSWITCH_PYTHON', None)
             result = subprocess.run(['/bin/bash', str(ROOT / 'scripts/uninstall.sh'), '--yes'],
                                     capture_output=True, text=True, env=environment)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -170,17 +170,17 @@ class UninstallInteractiveTests(unittest.TestCase):
                 brew_old.symlink_to(old_python)
                 interpreter = home / ('build python' if preferred == 'build' else 'homebrew/bin/python3.14')
                 interpreter.parent.mkdir(parents=True, exist_ok=True)
-                interpreter.write_text('#!/bin/sh\nprintf "%s\\n" "$@" >> "$PADPILOT_TEST_CALLS"\n')
+                interpreter.write_text('#!/bin/sh\nprintf "%s\\n" "$@" >> "$SIDECARSWITCH_TEST_CALLS"\n')
                 interpreter.chmod(0o755)
-                runtime = source / 'build/PadPilot.app/Contents/Resources/runtime.json'
+                runtime = source / 'build/SidecarSwitch.app/Contents/Resources/runtime.json'
                 runtime.parent.mkdir(parents=True)
-                (runtime.parent.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.padpilot.app'}))
+                (runtime.parent.parent / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.sidecarswitch.app'}))
                 runtime.write_text(json.dumps({'python': str(interpreter if preferred == 'build' else old_python),
                                                'project_root': str(source)}))
                 calls = home / 'calls'
                 environment = {**os.environ, 'HOME': str(home), 'PATH': f'{old_python.parent}:/usr/bin:/bin',
-                               'PADPILOT_TEST_CALLS': str(calls)}
-                environment.pop('PADPILOT_PYTHON', None)
+                               'SIDECARSWITCH_TEST_CALLS': str(calls)}
+                environment.pop('SIDECARSWITCH_PYTHON', None)
                 command = ['/bin/bash', str(scripts / 'uninstall.sh'), '--yes', '--purge']
                 result = subprocess.run(command, capture_output=True, text=True, env=environment)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -188,9 +188,9 @@ class UninstallInteractiveTests(unittest.TestCase):
                 self.assertIn('--purge', calls.read_text())
                 calls.unlink()
                 result = subprocess.run(command, capture_output=True, text=True,
-                                        env={**environment, 'PADPILOT_PYTHON': str(old_python)})
+                                        env={**environment, 'SIDECARSWITCH_PYTHON': str(old_python)})
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn('PADPILOT_PYTHON', result.stderr)
+                self.assertIn('SIDECARSWITCH_PYTHON', result.stderr)
                 self.assertFalse(calls.exists(), 'An invalid explicit interpreter must not silently fall back')
 
 

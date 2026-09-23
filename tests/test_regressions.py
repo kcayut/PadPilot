@@ -24,7 +24,7 @@ class RegressionTests(unittest.TestCase):
         self.detector = MagicMock(spec=DisplayDetector)
         self.engine = StateEngine(self.cfg, self.detector, self.bd)
         self.physical = DisplayInfo(1, "ROG PG279Q", is_main=True)
-        self.virtual = DisplayInfo(99, "PadPilotVirtual", is_main=True, is_virtual=True)
+        self.virtual = DisplayInfo(99, "SidecarSwitchVirtual", is_main=True, is_virtual=True)
         self.ipad = DisplayInfo(2, "Target iPad", is_main=True, is_sidecar=True)
         self.detector.observe.return_value = (ActualState(), ((), False))
         for target in ("core.state_engine.write_atomic_status", "core.state_engine.notify_error",
@@ -494,7 +494,7 @@ class RegressionTests(unittest.TestCase):
         self.assertTrue(self.engine.desired.needs_sidecar_connect)
 
     def test_cli_timeout_never_unlinks_socket_or_reports_daemon_stopped(self):
-        module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "bin/padpilot-cli"))
+        module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "bin/sidecarswitch-cli"))
         with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.unlink") as unlink, \
              patch("socket.socket") as sock:
             sock.return_value.__enter__.return_value.recv.side_effect = socket.timeout()
@@ -507,9 +507,9 @@ class RegressionTests(unittest.TestCase):
         cli = BetterDisplayCLI.__new__(BetterDisplayCLI)
         with patch.object(cli, "get_display_identifiers", return_value=[
             {"name": "Unrelated", "deviceType": "VirtualScreen", "displayID": "99"},
-            {"name": "PadPilotVirtual", "deviceType": "VirtualScreen", "displayID": None},
+            {"name": "SidecarSwitchVirtual", "deviceType": "VirtualScreen", "displayID": None},
         ]):
-            self.assertEqual(cli.check_virtual_display("PadPilotVirtual"), (True, False))
+            self.assertEqual(cli.check_virtual_display("SidecarSwitchVirtual"), (True, False))
             self.assertEqual(cli.check_virtual_display("Missing"), (False, False))
 
 

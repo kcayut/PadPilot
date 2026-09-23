@@ -15,7 +15,7 @@ with patch.object(logger, 'setup_logging'):
     from core.config import Config
     from core.models import ActualState, DisplayInfo, DisplayRole, IpadConfig, OperationMode, pairing_key
     from core.state_engine import StateEngine
-    Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/padpilotd'))['PadPilotDaemon']
+    Daemon = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'bin/sidecarswitchd'))['SidecarSwitchDaemon']
 
 
 class ObservedLock:
@@ -61,7 +61,7 @@ class ManualCancellationTests(unittest.TestCase):
     def make_state(self, mode=OperationMode.AUTOMATIC):
         self.cfg = Config(mode=mode, auto_detect_ipad=False, retry_interval=0,
                           ipad=IpadConfig('Test iPad', 'TARGET'))
-        self.fallback = DisplayInfo(99, 'PadPilotVirtual', is_main=True, is_virtual=True)
+        self.fallback = DisplayInfo(99, 'SidecarSwitchVirtual', is_main=True, is_virtual=True)
         self.ipad = DisplayInfo(2, 'Test iPad', is_sidecar=True)
         self.actual = ActualState(main_display=self.fallback, virtual_display_connected=True,
                                   sidecar_available=True, resolved_ipad=self.cfg.ipad)
@@ -246,7 +246,7 @@ class ManualCancellationTests(unittest.TestCase):
             finally:
                 ready.set()
 
-        with tempfile.TemporaryDirectory(prefix='padpilot-ipc-') as directory:
+        with tempfile.TemporaryDirectory(prefix='sidecarswitch-ipc-') as directory:
             endpoint = Path(directory) / 'test.sock'
 
             def request(command):
@@ -320,7 +320,7 @@ class ManualCancellationTests(unittest.TestCase):
             worker = self.start(lambda: self.engine.evaluate(async_transition=False))
             try:
                 self.assertTrue(waiting.wait(1))
-                self.bd.connect_virtual_display.assert_called_once_with('PadPilotVirtual')
+                self.bd.connect_virtual_display.assert_called_once_with('SidecarSwitchVirtual')
             finally:
                 self.engine.set_mode(OperationMode.MANUAL_ONLY)
                 self.finish(worker, .5)

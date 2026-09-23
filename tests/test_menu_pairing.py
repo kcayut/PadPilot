@@ -17,8 +17,8 @@ from core.state_engine import StateEngine
 
 ROOT = Path(__file__).resolve().parents[1]
 MENU = runpy.run_path(str(ROOT / 'core/menu.py'))
-CLI = runpy.run_path(str(ROOT / 'bin/padpilot-cli'))
-DAEMON = runpy.run_path(str(ROOT / 'bin/padpilotd'))
+CLI = runpy.run_path(str(ROOT / 'bin/sidecarswitch-cli'))
+DAEMON = runpy.run_path(str(ROOT / 'bin/sidecarswitchd'))
 UUID = '11111111-1111-4111-8111-111111111111'
 OTHER = '22222222-2222-4222-8222-222222222222'
 DEVICE = dict(name='工作 iPad', sidecar_uuid=UUID, usb_serial='serial-1')
@@ -35,7 +35,7 @@ class MenuPairingTests(unittest.TestCase):
                            ('☝️', 'manual'), ('⏸️', 'paused'), ('⚠️', 'warning')]:
             status = {'icon': icon, 'actual': {'timestamp': 1000, 'sidecar_devices': []}}
             self.assertEqual(rendered(status, {})['icon'], name)
-            header = next(row for row in rendered(status, {})['items'] if row['title'] == 'PadPilot')
+            header = next(row for row in rendered(status, {})['items'] if row['title'] == 'SidecarSwitch')
             self.assertEqual(header['icon'], name)
             data = (ROOT / 'assets/menu-icons' / f'{name}.png').read_bytes()
             self.assertEqual(struct.unpack('>II', data[16:24]), (36, 36))
@@ -120,10 +120,10 @@ class MenuPairingTests(unittest.TestCase):
                     read_menu()
                 self.assertIs(draw.call_args.kwargs['service_running'], expected)
             results = [subprocess.CompletedProcess([], 0, output, '') for output in
-                       ('777\n', '/usr/bin/python3\n', f'/usr/bin/python3 {ROOT}/bin/padpilotd\n')]
+                       ('777\n', '/usr/bin/python3\n', f'/usr/bin/python3 {ROOT}/bin/sidecarswitchd\n')]
             with patch('core.autostart.subprocess.run', side_effect=results) as run:
                 self.assertEqual(daemon_pids(), [777])
-                self.assertIn('padpilotd', run.call_args_list[0].args[0][-1])
+                self.assertIn('sidecarswitchd', run.call_args_list[0].args[0][-1])
                 self.assertEqual(run.call_args.kwargs['timeout'], 2)
         finally:
             set_language('zh-Hant')
@@ -185,7 +185,7 @@ class MenuPairingTests(unittest.TestCase):
         self.assertTrue(any('工作 iPad — 狀態未知' in r['title'] for r in rendered(status, cfg)['items']))
         rows = rendered(status, cfg)['items']
         available = next(i for i, row in enumerate(rows) if row['title'] == '目前可用')
-        paired = next(i for i, row in enumerate(rows) if row['title'] == '已配對至 PadPilot')
+        paired = next(i for i, row in enumerate(rows) if row['title'] == '已配對至 SidecarSwitch')
         self.assertFalse(any('⚠' in row['title'] or '異常' in row['title'] or '失敗' in row['title']
                              for row in rows[available:paired]))
         error = next(i for i, row in enumerate(rows) if row['title'] == '偵測異常')
@@ -240,7 +240,7 @@ class MenuPairingTests(unittest.TestCase):
         save.assert_not_called()
 
     def test_daemon_profile_save_does_not_trigger_display_transition(self):
-        cls = DAEMON['PadPilotDaemon']
+        cls = DAEMON['SidecarSwitchDaemon']
         obj = cls.__new__(cls)
         obj.detector, obj.engine = MagicMock(), MagicMock()
         obj.engine.run_control.side_effect = lambda action: action()
