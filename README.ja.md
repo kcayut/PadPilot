@@ -22,6 +22,12 @@ SidecarSwitch は **iPad を Mac のメイン画面やサブ画面として使�
 **グローバルショートカットで、複数の Mac も手軽に操作。**
 複数の Mac mini をサーバーとして使う場合は、キーボードの接続先を操作したい Mac に切り替えます。その Mac にログインしてロックを解除し、iPad が接続可能な状態でショートカットを押すと、その Mac の画面を iPad に表示できます。
 
+**アニメーションデモ：接続、拡張、切り替え**
+
+[![SidecarSwitch アニメーションデモ：iPad への接続、画面の拡張、Mac の切り替え](docs/videos/sidecarswitch-demo-ja.gif)](https://kcayut.github.io/SidecarSwitch/ja.html#demo)
+
+機能を紹介するアニメーションです。画像をクリックするとサイトで再生できます。Mac A と Mac B の両方に SidecarSwitch のインストールと設定が必要です。切り替えは接続先の Mac から行い、iPad からは操作しません。
+
 **実機デモ：物理モニターなしで起動**
 
 [![実機デモ：物理モニターなしで Mac mini を起動し、ログイン後に iPad をメイン画面として自動接続](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)

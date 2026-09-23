@@ -22,6 +22,12 @@ SidecarSwitch lets you use an **iPad as your Mac's main or secondary display**, 
 **Global keyboard shortcuts make working with multiple Macs easier.**
 If you use multiple Mac minis as servers, switch your keyboard to the Mac you want to use. With that Mac logged in and unlocked and the iPad available to connect, press your shortcut to display that Mac's screen on the iPad.
 
+**Animated demo: connect, extend, switch**
+
+[![SidecarSwitch animated demo: connect an iPad, extend your display, and switch Macs](docs/videos/sidecarswitch-demo-en.gif)](https://kcayut.github.io/SidecarSwitch/en.html#demo)
+
+An animation illustrating the features; click to play it on the website. Both Mac A and Mac B need SidecarSwitch installed and configured. Switching starts from the destination Mac, not the iPad.
+
 **Real-device demo: booting without a physical monitor**
 
 [![Real-device demo: a Mac mini boots without a physical monitor and automatically connects an iPad as its main display after login](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)

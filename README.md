@@ -22,6 +22,12 @@ SidecarSwitch 讓你用 **iPad 當 Mac 的主螢幕或副螢幕**，主要為 Ma
 **支援全域快速鍵，多台 Mac 也能方便操作。**
 使用多台 Mac mini 當伺服器時，將鍵盤切換到指定的 Mac，在該機已登入並解鎖、iPad 可連線的狀態下，按下快捷鍵，就能讓 iPad 顯示這台 Mac 的畫面。
 
+**動畫示範：連上、延伸、切換**
+
+[![SidecarSwitch 動畫示範：連上 iPad、延伸螢幕、切換 Mac](docs/videos/sidecarswitch-demo-zh-Hant.gif)](https://kcayut.github.io/SidecarSwitch/#demo)
+
+功能動畫示意，點圖可在網站播放。Mac A、Mac B 都需安裝並設定 SidecarSwitch；切換由目標 Mac 發起，不是由 iPad 控制。
+
 **實機示範：無實體螢幕開機**
 
 [![實機示範：Mac mini 無實體螢幕開機，登入後自動連線 iPad 作為主螢幕](docs/videos/headless-boot-demo.gif)](docs/videos/headless-boot-demo.mp4)
