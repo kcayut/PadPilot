@@ -10,6 +10,8 @@
   <link rel="canonical" href="$canonical_url">
   $alternate_links
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="demo.css">
+  <script src="demo.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">$skip</a>
@@ -36,7 +38,79 @@
     </figure>
   </section>
   <div class="wrap facts"><span>$fact_free</span><span>$fact_shortcut</span><span>$fact_languages</span></div>
-  <section id="demo" class="demo" aria-labelledby="demo-title">
+  <section id="demo" class="wrap switch-demo" aria-labelledby="animation-title" data-scene="0" data-paused="true">
+    <div class="animation-heading"><h2 id="animation-title">$animation_title</h2><p>$animation_copy</p></div>
+    <figure aria-describedby="animation-note">
+      <div class="animation-stage">
+        <div class="animation-brand">SidecarSwitch<span aria-hidden="true"><i></i><i></i><i></i></span></div>
+        <div class="animation-status" aria-hidden="true"><span data-scene-copy="0">$animation_status_one</span><span data-scene-copy="1" hidden>$animation_status_two</span><span data-scene-copy="2" hidden>$animation_status_three</span></div>
+        <svg class="animation-devices" viewBox="0 0 1000 360" fill="none" aria-hidden="true">
+          <defs>
+            <g id="demo-mac">
+              <ellipse cx="215" cy="269" rx="93" ry="11" fill="#dde7f2"/>
+              <rect x="140" y="159" width="150" height="102" rx="28" fill="#e0e6ec" stroke="#253d59" stroke-width="4"/>
+              <path d="M142 186Q142 159 168 159H262Q288 159 288 186V193H142Z" fill="#edf1f5"/>
+              <path d="M143 193H287" stroke="#fff" stroke-width="3"/>
+              <g class="mac-face" fill="#253d59"><circle cx="188" cy="220" r="5"/><circle cx="242" cy="220" r="5"/><path d="M207 225Q215 234 223 225" fill="none" stroke="#253d59" stroke-width="4" stroke-linecap="round"/></g>
+              <circle cx="267" cy="243" r="3" fill="#4ba78e"/>
+            </g>
+            <g id="demo-window">
+              <rect width="174" height="112" rx="11" fill="#fff"/>
+              <path d="M0 29H174" stroke="#eaf0f6" stroke-width="2"/>
+              <circle cx="14" cy="15" r="3.5" fill="#f58b87"/><circle cx="26" cy="15" r="3.5" fill="#edc268"/><circle cx="38" cy="15" r="3.5" fill="#87cdb3"/>
+              <rect x="14" y="43" width="43" height="54" rx="5" fill="#edf3fa"/>
+              <path d="M71 48H148M71 65H127M71 83H140" stroke="#dbe7f4" stroke-width="8" stroke-linecap="round"/>
+            </g>
+          </defs>
+          <path class="connection connection-main" d="M290 212C345 212 340 184 395 184H549C580 184 580 172 611 172" pathLength="1"/>
+          <path class="connection connection-a" d="M290 99C410 99 424 172 611 172" pathLength="1"/>
+          <path class="connection connection-b" d="M290 286C410 286 424 172 611 172" pathLength="1"/>
+          <g class="desktop-monitor">
+            <rect x="99" y="16" width="232" height="139" rx="13" fill="#e4edf8" stroke="#253d59" stroke-width="4"/>
+            <rect x="109" y="26" width="212" height="116" rx="5" fill="#c8defa"/>
+            <path d="M215 156V174M188 174H242" stroke="#253d59" stroke-width="5" stroke-linecap="round"/>
+            <use href="#demo-window" transform="translate(147 43) scale(.78)"/>
+          </g>
+          <g class="mac-a"><use href="#demo-mac"/><text x="215" y="305" class="device-label mac-single-label">Mac mini</text><text x="215" y="298" class="device-label mac-multi-label">Mac A</text></g>
+          <g class="mac-b"><use href="#demo-mac"/><text x="215" y="298" class="device-label">Mac B</text></g>
+          <g class="ipad">
+            <ellipse cx="761" cy="291" rx="170" ry="10" fill="#dde7f2"/>
+            <rect x="610" y="65" width="300" height="215" rx="23" fill="#253d59" stroke="#253d59" stroke-width="4"/>
+            <rect x="618" y="73" width="284" height="199" rx="16" stroke="#839ab3" stroke-width="2"/>
+            <rect class="ipad-wallpaper" x="623" y="78" width="274" height="189" rx="12" fill="#b9d9fd"/>
+            <path d="M623 223Q698 156 769 218T897 211V255Q897 267 885 267H635Q623 267 623 255Z" fill="#90bff5"/>
+            <g class="ipad-window"><use href="#demo-window" x="673" y="113"/></g>
+            <g class="ipad-friend">
+              <circle cx="833" cy="219" r="20" fill="#b9ead8"/>
+              <circle cx="826" cy="215" r="2.6" fill="#253d59"/><circle cx="840" cy="215" r="2.6" fill="#253d59"/>
+              <path d="M828 223Q833 229 838 223" stroke="#253d59" stroke-width="2.8" stroke-linecap="round"/>
+            </g>
+            <text x="760" y="314" class="device-label">iPad</text>
+          </g>
+          <g class="shortcut-key"><rect x="371" y="253" width="168" height="46" rx="12" fill="#fff" stroke="#c6d8eb" stroke-width="2"/><text x="455" y="282" class="device-label">$animation_shortcut</text></g>
+        </svg>
+        <div class="animation-caption">
+          <div data-scene-copy="0"><h3>$animation_scene_one</h3><p>$animation_detail_one</p></div>
+          <div data-scene-copy="1" hidden><h3>$animation_scene_two</h3><p>$animation_detail_two</p></div>
+          <div data-scene-copy="2" hidden><h3>$animation_scene_three</h3><p>$animation_detail_three</p></div>
+        </div>
+        <div class="animation-track" aria-hidden="true"><span></span></div>
+      </div>
+      <div class="animation-controls" hidden>
+        <div class="animation-chapters" role="group" aria-label="$animation_chapters">
+          <button type="button" data-chapter="0" aria-pressed="true"><span>01</span> $animation_chapter_one</button>
+          <button type="button" data-chapter="1" aria-pressed="false"><span>02</span> $animation_chapter_two</button>
+          <button type="button" data-chapter="2" aria-pressed="false"><span>03</span> $animation_chapter_three</button>
+        </div>
+        <div class="animation-transport">
+          <button type="button" data-play data-play-label="$animation_play" data-pause-label="$animation_pause" aria-label="$animation_play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="pause-icon" d="M9 6V18M15 6V18"/><path class="play-icon" d="M9 5L18 12L9 19Z"/></svg></button>
+          <button type="button" data-replay aria-label="$animation_replay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7A8 8 0 1 1 4 13M6 3V8H11"/></svg></button>
+        </div>
+      </div>
+      <p id="animation-note" class="animation-note">$animation_note <a href="#hardware-demo">$animation_real_video</a></p>
+    </figure>
+  </section>
+  <section id="hardware-demo" class="demo" aria-labelledby="demo-title">
     <div class="wrap demo-grid">
       <div><p class="eyebrow">01 / $demo_eyebrow</p><h2 id="demo-title">$demo_title</h2><p>$demo_copy</p></div>
       <figure>

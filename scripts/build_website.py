@@ -46,7 +46,8 @@ def main():
         raise ValueError("Translation fields must match across all three languages")
     template = Template((SOURCE / "template.html").read_text(encoding="utf-8"))
     (OUTPUT / "media").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(SOURCE / "style.css", OUTPUT / "style.css")
+    for name in ("style.css", "demo.css", "demo.js"):
+        shutil.copy2(SOURCE / name, OUTPUT / name)
     assets = {
         "icon.png": ROOT / "assets/sidecarswitch-icon.png",
         "headless-boot-demo.mp4": ROOT / "docs/videos/headless-boot-demo.mp4",

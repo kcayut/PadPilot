@@ -1,0 +1,86 @@
+.switch-demo{--scene-time:6120;padding-block:52px 64px}
+.animation-heading{margin-bottom:30px}
+.animation-heading h2{font-size:clamp(2rem,3.5vw,3rem);text-wrap:balance}
+.animation-heading p{color:var(--muted);margin-top:14px;font-size:1.08rem}
+.animation-stage{position:relative;overflow:hidden;border-radius:26px;background:#f3f7fc;padding:26px 34px 32px}
+.animation-brand{display:flex;align-items:center;justify-content:space-between;font-size:1.15rem;font-weight:750;letter-spacing:-.035em}
+.animation-brand>span{display:flex;gap:8px}
+.animation-brand i{width:7px;height:7px;background:#acbed3;border-radius:50%}
+.animation-status{position:absolute;top:28%;left:40%;transform:translateX(-50%);border-radius:30px;padding:9px 18px;background:#deebff;color:#075bce;font-weight:650;font-size:.9rem;text-align:center;max-width:32%}
+.animation-devices{display:block;width:100%;height:auto;margin-top:12px;overflow:visible}
+.device-label{fill:#253d59;font:600 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-anchor:middle}
+.connection{stroke:#6da4f6;stroke-width:4;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0}
+.connection-a,.connection-b,.desktop-monitor,.mac-b,.mac-multi-label,.shortcut-key{opacity:0}
+.animation-caption{text-align:center;min-height:106px;padding-top:10px}
+.animation-caption h3{font-size:clamp(1.3rem,2.6vw,2.2rem);line-height:1.35}
+.animation-caption p{color:var(--muted);font-size:.9rem;margin:12px auto 0;max-width:46rem;line-height:1.7}
+.animation-track{position:absolute;bottom:0;left:0;width:100%;height:3px;background:#e6edf6}
+.animation-track span{display:block;height:100%;background:#a8c8f7;transform-origin:left;transform:scaleX(var(--progress,0))}
+.animation-controls{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-top:20px}
+.switch-demo [hidden]{display:none!important}
+.animation-chapters,.animation-transport{display:flex;gap:10px}
+.switch-demo button{font:inherit;cursor:pointer;touch-action:manipulation}
+.switch-demo button:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+.animation-chapters button{min-height:44px;border:1px solid #dae4f0;border-radius:12px;background:#fff;color:var(--muted);padding:9px 19px;font-size:.92rem;font-weight:650;white-space:nowrap}
+.animation-chapters button span{font-variant-numeric:tabular-nums;margin-right:4px}
+.animation-chapters button[aria-pressed=true]{background:#deebff;border-color:#deebff;color:#075bce}
+.animation-chapters button:hover{border-color:#8cb4ea}
+.animation-transport button{display:grid;place-items:center;width:44px;height:44px;padding:11px;border:1px solid #dae4f0;border-radius:50%;background:#f3f7fc;color:#253d59}
+.animation-transport button:hover{background:#deebff}
+.animation-transport svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.switch-demo[data-paused=true] .pause-icon,.switch-demo[data-paused=false] .play-icon{display:none}
+.animation-note{margin-top:18px;text-align:center;color:var(--muted);font-size:.78rem}
+.animation-note a{white-space:nowrap}
+
+/* One scrubbed clock keeps the drawing, chapters and pause control in sync. */
+.animation-devices *{animation-duration:7.2s;animation-delay:calc(var(--scene-time,0) * -1ms);animation-fill-mode:both;animation-timing-function:ease-in-out;animation-play-state:paused}
+[data-scene="0"] .connection-main{animation-name:demo-connect}
+[data-scene="0"] .ipad-window,[data-scene="0"] .ipad-friend{animation-name:demo-hello;transform-origin:760px 190px}
+[data-scene="0"] .mac-face{animation-name:demo-blink;transform-origin:215px 220px}
+[data-scene="1"] .desktop-monitor{animation-name:demo-monitor}
+[data-scene="1"] .mac-a{transform:translateY(14px)}
+[data-scene="1"] .ipad{animation-name:demo-main;transform-origin:760px 185px}
+[data-scene="1"] .ipad-window{animation-name:demo-window;transform-origin:760px 175px}
+[data-scene="1"] .connection-main{animation-name:demo-connect}
+[data-scene="2"] .mac-a{transform:translateY(-113px)}
+[data-scene="2"] .mac-b{opacity:1;transform:translateY(74px)}
+[data-scene="2"] .mac-single-label,[data-scene="2"] .connection-main{opacity:0}
+[data-scene="2"] .mac-multi-label,[data-scene="2"] .shortcut-key{opacity:1}
+[data-scene="2"] .connection-a{animation-name:demo-from-a}
+[data-scene="2"] .connection-b{animation-name:demo-to-b}
+[data-scene="2"] .shortcut-key{animation-name:demo-key;transform-origin:455px 276px}
+[data-scene="2"] .ipad-wallpaper{animation-name:demo-wallpaper}
+
+@keyframes demo-connect{0%,8%{stroke-dashoffset:1;opacity:.2}35%,100%{stroke-dashoffset:0;opacity:1}}
+@keyframes demo-hello{0%,22%{opacity:0;transform:translateY(12px) scale(.95)}40%,100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes demo-blink{0%,65%,72%,100%{transform:scaleY(1)}68%{transform:scaleY(.15)}}
+@keyframes demo-monitor{0%,48%{opacity:1}65%,100%{opacity:.18}}
+@keyframes demo-main{0%,48%{transform:scale(1)}65%,100%{transform:scale(1.07)}}
+@keyframes demo-window{0%,48%{transform:scale(.88)}65%,100%{transform:scale(1)}}
+@keyframes demo-from-a{0%,35%{opacity:1;stroke:#6da4f6}48%,100%{opacity:.3;stroke:#bac8d9}}
+@keyframes demo-to-b{0%,38%{opacity:.2;stroke-dashoffset:1}62%,100%{opacity:1;stroke-dashoffset:0}}
+@keyframes demo-key{0%,32%,48%,100%{transform:translateY(0)}40%{transform:translateY(5px)}}
+@keyframes demo-wallpaper{0%,43%{fill:#b9d9fd}58%,100%{fill:#b9ead8}}
+
+@media(max-width:760px){
+  .switch-demo{padding-block:30px 42px}
+  .animation-heading{margin-bottom:22px}
+  .animation-heading p{font-size:.98rem}
+  .animation-stage{padding:20px 14px 22px;border-radius:20px}
+  .animation-brand{font-size:.95rem}
+  .animation-brand i{width:5px;height:5px}
+  .animation-status{position:relative;top:auto;left:auto;transform:none;display:table;margin:16px auto 0;max-width:100%;font-size:.8rem;padding:6px 14px}
+  .animation-devices{width:calc(100% + 24px);max-width:none;margin:10px -12px 0}
+  .animation-devices .device-label{font-size:26px}
+  .animation-caption{min-height:132px;padding:14px 6px 0}
+  .animation-caption p{font-size:.82rem;line-height:1.65;margin-top:10px}
+  .animation-controls{gap:12px;flex-wrap:wrap;margin-top:16px}
+  .animation-chapters{gap:6px}
+  .animation-chapters button{padding:8px;font-size:.85rem}
+  .animation-transport{gap:8px;margin-left:auto}
+  .animation-note{font-size:.75rem;text-align:left}
+}
+@media(max-width:380px){
+  .animation-chapters button{font-size:.75rem;padding-inline:6px}
+  .animation-chapters button span{margin-right:2px}
+}
